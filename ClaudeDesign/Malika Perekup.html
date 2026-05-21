@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Malika Perekup — UI/UX</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { overflow: hidden; }
+  *, *::before, *::after { box-sizing: border-box; }
+  /* Prevent content from inheriting the canvas font; each frame sets its own. */
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="screens-app1.jsx"></script>
+<script type="text/babel" src="screens-app2.jsx"></script>
+<script type="text/babel" src="screens-admin.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "telegram",
+  "density": "balanced",
+  "showLight": true,
+  "showUzbek": true
+}/*EDITMODE-END*/;
+
+function App() {
+  const [values, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const accent = values.accent;
+  const dark  = window.makeTheme(true,  accent);
+  const light = window.makeTheme(false, accent);
+
+  // For the "one Uzbek screen" — used on the Today (light) frame as the language stress test.
+  const lang = (k) => values.showUzbek && k === 'today-light' ? 'uz' : 'ru';
+
+  // Helpers — wrap each screen in an iOS device frame
+  const Frame = ({ theme, w = 390, h = 780, ...rest }) => (
+    <window.IOSDevice width={w} height={h} dark={theme.name === 'dark'}>
+      {rest.children}
+    </window.IOSDevice>
+  );
+
+  // Pair = dark + light side by side; for showLight=false, only dark.
+  // MUST return an array (not a fragment) — DCSection walks children with
+  // React.Children.forEach and only counts direct DCArtboard children;
+  // fragments get treated as a single non-Artboard child and dropped.
+  const pair = ({ id, label, w = 390, h = 780, render, langKey }) => {
+    const arr = [
+      <window.DCArtboard key={`${id}-dark`} id={`${id}-dark`} label={`${label} · Dark`} width={w} height={h}>
+        <Frame theme={dark} w={w} h={h}>{render(dark, langKey === 'uz' ? 'uz' : 'ru')}</Frame>
+      </window.DCArtboard>,
+    ];
+    if (values.showLight) {
+      arr.push(
+        <window.DCArtboard key={`${id}-light`} id={`${id}-light`} label={`${label} · Light${langKey==='uz'?" · O'zbek":''}`} width={w} height={h}>
+          <Frame theme={light} w={w} h={h}>{render(light, langKey === 'uz' ? 'uz' : 'ru')}</Frame>
+        </window.DCArtboard>
+      );
+    }
+    return arr;
+  };
+
+  const S = window;
+
+  return (
+    <>
+      <window.DesignCanvas>
+        {/* ===== INTRO POSTITS ===== */}
+        <window.DCSection id="intro" title="Malika Perekup" subtitle="Telegram Mini App + Admin · 18 экранов · RU + O'zbek · Dark + Light">
+          <window.DCPostIt width={300} height={360}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Контекст</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              Учётка для перекупщиков на рынке Малика, Ташкент. Открывается как Telegram Mini App. Пользователи стоят у витрины
+              на ярком солнце, работают одной рукой. Ввод закупки — за 60 секунд.
+              <br/><br/>
+              <b>Приоритеты:</b> скорость, тёмная тема, большие тапы, сканер камеры везде, один глобальный поиск.
+            </div>
+          </window.DCPostIt>
+          <window.DCPostIt width={300} height={360}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Система</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              Системный шрифт (SF / Roboto). Иконки — стандартный stroke-line set, не эмоджи. Цвета статусов:
+              зелёный = в наличии / прибыль, синий = sold cash / Nasiya, жёлтый = частичная / резерв,
+              красный = просрочка / убыток, серый = списан.
+              <br/><br/>
+              Акцент — переменная Telegram-кнопки. Вёрстка адаптируется под тему Telegram WebApp.
+            </div>
+          </window.DCPostIt>
+          <window.DCPostIt width={300} height={360}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Tweaks</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              Кнопка справа внизу открывает панель управления.
+              <br/><br/>
+              <b>Accent</b> — цвет Telegram-кнопки (Telegram / Blue / Green / Amber).<br/>
+              <b>Light тема</b> — показать / скрыть светлые версии.<br/>
+              <b>Узбекский</b> — переключить экран Today на узбекский для проверки длинных слов.<br/>
+              <b>Density</b> — плотность (roomy / balanced / dense).
+            </div>
+          </window.DCPostIt>
+        </window.DCSection>
+
+        {/* ===== 1. CORE FLOW ===== */}
+        <window.DCSection id="core" title="1. Основные экраны" subtitle="Splash → Today → Витрина → Купил → Продал → Карточка устройства">
+          <window.DCArtboard id="splash-dark" label="01 · Splash" width={390} height={780}>
+            <Frame theme={dark}>{S.ScreenSplash && <S.ScreenSplash theme={dark} lang="ru"/>}</Frame>
+          </window.DCArtboard>
+          {pair({ id: 'today', label: '02 · Сегодня', render: (t) => <S.ScreenToday theme={t} lang={values.showUzbek ? 'uz' : 'ru'} density={values.density}/>, langKey: 'uz' })}
+          {pair({ id: 'stock', label: '03 · Витрина', render: (t) => <S.ScreenStock theme={t} lang="ru" density={values.density}/> })}
+          {pair({ id: 'buy', label: '04 · + Купил', render: (t) => <S.ScreenBuy theme={t} lang="ru"/> })}
+          {pair({ id: 'sell', label: '05 · + Продал', render: (t) => <S.ScreenSell theme={t} lang="ru"/> })}
+          {pair({ id: 'device', label: '06 · Карточка устройства', render: (t) => <S.ScreenDevice theme={t} lang="ru"/> })}
+        </window.DCSection>
+
+        {/* ===== 2. NASIYA + UTILITIES ===== */}
+        <window.DCSection id="nasiya" title="2. Nasiya · Отчёты · Поиск · Сканер · Настройки" subtitle="Рассрочка, аналитика и сервисные экраны">
+          {pair({ id: 'nasiya-list', label: '07 · Nasiya · список', render: (t) => <S.ScreenNasiya theme={t} lang="ru"/> })}
+          {pair({ id: 'nasiya-card', label: '08 · Nasiya · карточка', render: (t) => <S.ScreenNasiyaCard theme={t} lang="ru"/> })}
+          {pair({ id: 'reports', label: '09 · Отчёты', render: (t) => <S.ScreenReports theme={t} lang="ru"/> })}
+          {pair({ id: 'search', label: '10 · Поиск', render: (t) => <S.ScreenSearch theme={t} lang="ru"/> })}
+          <window.DCArtboard id="scanner" label="11 · Сканер" width={390} height={780}>
+            <Frame theme={dark}><S.ScreenScanner theme={dark} lang="ru"/></Frame>
+          </window.DCArtboard>
+          {pair({ id: 'settings', label: '12 · Настройки', render: (t) => <S.ScreenSettings theme={t} lang="ru"/> })}
+        </window.DCSection>
+
+        {/* ===== 3. ADMIN PANEL ===== */}
+        <window.DCSection id="admin" title="3. Admin Panel" subtitle="Видна только при is_admin=true. Пункт «Админ» в нижней навигации.">
+          {pair({ id: 'adm-shops', label: 'A1 · Магазины', render: (t) => <S.ScreenAdminShops theme={t} lang="ru"/> })}
+          {pair({ id: 'adm-shop', label: 'A2 · Карточка магазина', render: (t) => <S.ScreenAdminShop theme={t} lang="ru"/> })}
+          {pair({ id: 'adm-create', label: 'A3 · Создать магазин', render: (t) => <S.ScreenAdminCreate theme={t} lang="ru"/> })}
+          {pair({ id: 'adm-log', label: 'A4 · Журнал входов', render: (t) => <S.ScreenAdminLog theme={t} lang="ru"/> })}
+          {pair({ id: 'adm-debts', label: 'A5 · Глобальные долги Nasiya', render: (t) => <S.ScreenAdminDebts theme={t} lang="ru"/> })}
+          {pair({ id: 'adm-stats', label: 'A6 · Статистика платформы', render: (t) => <S.ScreenAdminStats theme={t} lang="ru"/> })}
+        </window.DCSection>
+
+        {/* ===== 4. ADMIN DESKTOP ===== */}
+        <window.DCSection id="desktop" title="4. Telegram Desktop · 768px" subtitle="Админская работа удобнее на широком экране — те же данные в табличном виде.">
+          <window.DCArtboard id="dt-shops-dark" label="Магазины · Desktop · Dark" width={820} height={520}>
+            <div style={{ width: 820, height: 520, borderRadius: 12, overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.10)', background: dark.bg }}>
+              <S.ScreenDesktopShops theme={dark} lang="ru"/>
+            </div>
+          </window.DCArtboard>
+          {values.showLight && (
+            <window.DCArtboard id="dt-shops-light" label="Магазины · Desktop · Light" width={820} height={520}>
+              <div style={{ width: 820, height: 520, borderRadius: 12, overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.10)', background: light.bg }}>
+                <S.ScreenDesktopShops theme={light} lang="ru"/>
+              </div>
+            </window.DCArtboard>
+          )}
+          <window.DCArtboard id="dt-log-dark" label="Журнал · Desktop · Dark" width={820} height={520}>
+            <div style={{ width: 820, height: 520, borderRadius: 12, overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.10)', background: dark.bg }}>
+              <S.ScreenDesktopLog theme={dark} lang="ru"/>
+            </div>
+          </window.DCArtboard>
+          {values.showLight && (
+            <window.DCArtboard id="dt-log-light" label="Журнал · Desktop · Light" width={820} height={520}>
+              <div style={{ width: 820, height: 520, borderRadius: 12, overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.10)', background: light.bg }}>
+                <S.ScreenDesktopLog theme={light} lang="ru"/>
+              </div>
+            </window.DCArtboard>
+          )}
+        </window.DCSection>
+      </window.DesignCanvas>
+
+      {/* Tweaks panel */}
+      <window.TweaksPanel title="Tweaks">
+        <window.TweakSection title="Тема">
+          <window.TweakToggle label="Показать Light версии"
+            value={values.showLight} onChange={(v) => setTweak('showLight', v)}/>
+          <window.TweakToggle label="Сегодня — на узбекском"
+            value={values.showUzbek} onChange={(v) => setTweak('showUzbek', v)}/>
+        </window.TweakSection>
+        <window.TweakSection title="Цвет">
+          <window.TweakSelect label="Accent"
+            value={values.accent}
+            options={[
+              { value: 'telegram', label: 'Telegram blue' },
+              { value: 'blue',     label: 'Blue' },
+              { value: 'green',    label: 'Green' },
+              { value: 'amber',    label: 'Amber' },
+            ]}
+            onChange={(v) => setTweak('accent', v)}/>
+        </window.TweakSection>
+        <window.TweakSection title="Плотность">
+          <window.TweakRadio label="Density"
+            value={values.density}
+            options={[
+              { value: 'roomy',    label: 'Roomy' },
+              { value: 'balanced', label: 'Balanced' },
+              { value: 'dense',    label: 'Dense' },
+            ]}
+            onChange={(v) => setTweak('density', v)}/>
+        </window.TweakSection>
+      </window.TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "errors.unauthorized": "Kirish talab qilinadi",
+  "errors.forbidden": "Ruxsat yo'q",
+  "errors.not_found": "Topilmadi",
+  "errors.validation": "Kiritilgan ma'lumotlarni tekshiring",
+  "errors.internal": "Ichki xatolik, qaytadan urinib ko'ring",
+  "errors.telegram_invalid": "Telegram kirishini tekshirib bo'lmadi",
+  "errors.password_invalid": "Login yoki parol noto'g'ri",
+  "errors.imei_taken": "Bu IMEI bilan qurilma allaqachon vitrinada",
+  "errors.device_already_sold": "Bu qurilma allaqachon sotilgan",
+  "errors.edit_window_expired": "O'zgartirish faqat 24 soat ichida mumkin",
+
+  "currency.uzs": "so'm",
+  "currency.usd": "$",
+
+  "device.status.in_stock": "Mavjud",
+  "device.status.sold": "Sotildi",
+  "device.status.reserved": "Bron qilingan",
+  "device.status.returned": "Qaytarildi",
+  "device.status.written_off": "Hisobdan chiqarildi",
+
+  "sale.type.cash": "Naqd",
+  "sale.type.nasiya": "Nasiya"
+}

@@ -216,3 +216,36 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ── Frontend / Node ─────────────────────────────────────────────────────────
+**/node_modules/
+**/dist/
+**/.next/
+**/.turbo/
+**/.vite/
+**/.cache/
+**/coverage/
+**/.nyc_output/
+**/test-results/
+**/playwright-report/
+**/.playwright-mcp/
+*.log
+.npm
+.pnpm-store/
+.yarn/
+
+# ── Editor / OS ─────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── Python venv & caches (нет в стандартном) ────────────────────────────────
+**/.venv/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+

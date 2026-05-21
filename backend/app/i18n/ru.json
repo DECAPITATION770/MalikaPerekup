@@ -1,0 +1,24 @@
+{
+  "errors.unauthorized": "Требуется вход",
+  "errors.forbidden": "Нет доступа",
+  "errors.not_found": "Не найдено",
+  "errors.validation": "Проверьте введённые данные",
+  "errors.internal": "Внутренняя ошибка, попробуйте ещё раз",
+  "errors.telegram_invalid": "Не удалось проверить Telegram-вход",
+  "errors.password_invalid": "Неверный логин или пароль",
+  "errors.imei_taken": "Устройство с таким IMEI уже есть на витрине",
+  "errors.device_already_sold": "Это устройство уже продано",
+  "errors.edit_window_expired": "Изменение возможно только в течение 24 часов",
+
+  "currency.uzs": "сум",
+  "currency.usd": "$",
+
+  "device.status.in_stock": "В наличии",
+  "device.status.sold": "Продан",
+  "device.status.reserved": "Забронирован",
+  "device.status.returned": "Возврат",
+  "device.status.written_off": "Списан",
+
+  "sale.type.cash": "Наличные",
+  "sale.type.nasiya": "Рассрочка"
+}

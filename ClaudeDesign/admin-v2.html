@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Malika Admin — v2 Design</title>
+<style>
+  html,body{margin:0;padding:0;background:#f0eee9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{overflow:hidden}
+  *,*::before,*::after{box-sizing:border-box}
+
+  /* ── Entrance animations ── */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+  @keyframes shimmer{0%{background-position:-400% 0}100%{background-position:400% 0}}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 currentColor}50%{box-shadow:0 0 0 4px transparent}}
+
+  /* Staggered list items — apply .fia-N to each row/card */
+  .fia{animation:fadeUp .22s cubic-bezier(.2,.7,.3,1) both}
+  .fia-1{animation-delay:.03s}.fia-2{animation-delay:.06s}
+  .fia-3{animation-delay:.09s}.fia-4{animation-delay:.12s}
+  .fia-5{animation-delay:.15s}.fia-6{animation-delay:.18s}
+  .fia-7{animation-delay:.21s}.fia-8{animation-delay:.24s}
+  .fia-9{animation-delay:.27s}
+  .kpi-in{animation:scaleIn .28s cubic-bezier(.34,1.56,.64,1) both}
+  .kpi-in-1{animation-delay:.04s}.kpi-in-2{animation-delay:.1s}.kpi-in-3{animation-delay:.16s}
+
+  /* Hover micro-interactions */
+  .c-hover{transition:transform .14s ease-out,box-shadow .14s ease-out}
+  .c-hover:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.22)!important}
+  .row-hover{transition:background .1s}
+  .row-hover:hover{background:rgba(255,255,255,.04)!important}
+  .nav-item{transition:background .12s,color .12s,transform .1s;cursor:pointer}
+  .nav-item:hover{transform:translateX(2px)}
+  .btn-press{transition:transform .08s,opacity .08s}
+  .btn-press:active{transform:scale(.95);opacity:.85}
+  .chip-hover{transition:background .12s,color .12s,border-color .12s;cursor:pointer}
+
+  /* Skeleton shimmer */
+  .sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:shimmer 1.6s ease-in-out infinite;border-radius:6px}
+
+  /* Live status dot pulse */
+  @keyframes liveDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+  .live-dot{animation:liveDot 2s ease-in-out infinite}
+
+  /* Tooltip on hover */
+  [data-tip]{position:relative}
+  [data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;font-size:11px;white-space:nowrap;padding:4px 8px;border-radius:6px;pointer-events:none;z-index:99}
+
+  /* Scrollbar invisible */
+  ::-webkit-scrollbar{display:none}
+  *{scrollbar-width:none}
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Shared design system — same files as main canvas -->
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- NEW ADMIN COMPONENTS + SCREENS                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script type="text/babel">
+
+/* ── Helpers ─────────────────────────────────────────────────── */
+const { fmtUZS, fmtUSD, Button, Card, StatusBadge, Field, Chip, Avatar, SectionTitle, Screen, TopBar, BottomNav, ProgressBar } = window;
+const {
+  IconSearch, IconPlus, IconStore, IconKey, IconShield, IconChevR, IconAlert,
+  IconCheck, IconClock, IconX, IconUser, IconUsers, IconCrown, IconChart,
+  IconPhoneCall, IconFilter, IconCalendar, IconBox, IconMore, IconArrowL,
+  IconBell, IconCash, IconClipboard, IconSettings, IconHome, IconSnowflake,
+  IconLang, IconHelp, IconStar, IconEdit, IconTrash, IconLogOut,
+} = window;
+
+/* ── Mini sparkline SVG ──────────────────────────────────────── */
+function Sparkline({ data, color, width = 80, height = 32, fill = false }) {
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const xStep = width / (data.length - 1);
+  const pts = data.map((v, i) => `${i * xStep},${height - ((v - min) / range) * (height - 4) - 2}`).join(' ');
+  const area = `M ${pts.split(' ').join(' L ')} L ${(data.length - 1) * xStep},${height} L 0,${height} Z`;
+  const line = `M ${pts.split(' ').join(' L ')}`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+      {fill && <path d={area} fill={color} opacity={0.12}/>}
+      <path d={line} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={(data.length - 1) * xStep} cy={height - ((data[data.length-1] - min) / range) * (height - 4) - 2} r="3" fill={color}/>
+    </svg>
+  );
+}
+
+/* ── Mini bar chart ──────────────────────────────────────────── */
+function MiniBarChart({ data, color, height = 36, width = 80, labels }) {
+  const max = Math.max(...data) || 1;
+  const barW = width / data.length - 3;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {data.map((v, i) => {
+        const bh = (v / max) * (height - (labels ? 14 : 2));
+        const y = height - bh - (labels ? 14 : 0);
+        return (
+          <g key={i}>
+            <rect x={i * (barW + 3)} y={y} width={barW} height={bh}
+              fill={color} rx="2" opacity={i === data.length - 1 ? 1 : 0.55}/>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ── KPI card with sparkline ─────────────────────────────────── */
+function KpiCard({ theme, label, value, sub, trend, trendUp, sparkData, color, delay = 0 }) {
+  const c = color || theme.accent;
+  return (
+    <div className={`c-hover kpi-in kpi-in-${delay}`} style={{
+      background: theme.bg3, borderRadius: 16, padding: '14px 16px',
+      border: `1px solid ${theme.border}`, flex: 1, minWidth: 0,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{label}</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: theme.text, letterSpacing: -0.6, marginTop: 6, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{value}</div>
+          {sub && <div style={{ fontSize: 11, color: theme.textMuted, marginTop: 4 }}>{sub}</div>}
+          {trend !== undefined && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: trendUp ? theme.success : theme.danger }}>
+                {trendUp ? '↑' : '↓'} {trend}
+              </span>
+              <span style={{ fontSize: 11, color: theme.textMuted }}>vs вчера</span>
+            </div>
+          )}
+        </div>
+        {sparkData && <Sparkline data={sparkData} color={c} fill/>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Section header with button ──────────────────────────────── */
+function SectionHeader({ theme, title, action, actionLabel, lang }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', marginBottom: 10, marginTop: 20 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: theme.textDim, letterSpacing: .5, textTransform: 'uppercase' }}>{title}</div>
+      {actionLabel && <button onClick={action} style={{ background: 'none', border: 'none', color: theme.accent, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>{actionLabel}</button>}
+    </div>
+  );
+}
+
+/* ── Quick action tile ───────────────────────────────────────── */
+function QuickTile({ theme, icon: Icon, label, badge, color }) {
+  const c = color || theme.accent;
+  return (
+    <div className="c-hover btn-press" style={{
+      background: theme.bg3, border: `1px solid ${theme.border}`, borderRadius: 14,
+      padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center',
+      gap: 8, cursor: 'pointer', position: 'relative', flex: 1, minWidth: 0,
+    }}>
+      {badge && (
+        <span style={{
+          position: 'absolute', top: 8, right: 8,
+          minWidth: 18, height: 18, borderRadius: 9,
+          background: theme.status.red.solid, color: '#fff',
+          fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+        }}>{badge}</span>
+      )}
+      <div style={{ width: 40, height: 40, borderRadius: 12, background: c + '1A', color: c, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon size={20}/>
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 600, color: theme.textDim, textAlign: 'center', lineHeight: 1.3 }}>{label}</span>
+    </div>
+  );
+}
+
+/* ── Shop row (desktop table) ────────────────────────────────── */
+function ShopRow({ theme, shop, lang, delay = 1 }) {
+  const planColor = shop.plan === 'Pro' ? 'blue' : shop.plan === 'Trial' ? 'yellow' : 'gray';
+  return (
+    <div className={`row-hover fia fia-${delay}`} style={{
+      display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 1.2fr 1.4fr 0.7fr 0.9fr 0.9fr 44px',
+      gap: 12, padding: '13px 20px',
+      borderBottom: `1px solid ${theme.border}`, alignItems: 'center',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: theme.bg2, color: theme.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <IconStore size={17}/>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.name}</span>
+      </div>
+      <span style={{ fontSize: 13, color: theme.textDim }}>{shop.owner}</span>
+      <span style={{ fontSize: 12, color: theme.accent, fontFamily: window.MALIKA.mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.tg}</span>
+      <span style={{ fontSize: 12, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{shop.phone}</span>
+      <StatusBadge theme={theme} kind={planColor} size="sm">{shop.plan}</StatusBadge>
+      {shop.status === 'active'
+        ? <StatusBadge theme={theme} kind="green" dot size="sm">{lang === 'uz' ? 'Faol' : 'Активен'}</StatusBadge>
+        : <StatusBadge theme={theme} kind="gray" dot size="sm">{lang === 'uz' ? 'Muzl.' : 'Заморожен'}</StatusBadge>}
+      <span style={{ fontSize: 12, color: theme.textMuted, fontFamily: window.MALIKA.mono }}>{shop.joined}</span>
+      <button className="btn-press" style={{ width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: theme.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <IconMore size={15}/>
+      </button>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A0 — ADMIN DASHBOARD  (NEW screen)                           */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminDashboard({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: 'Platforma', sub: '27 aprel 2026',
+    shops: "Do'konlar", nasiya: 'Faol Nasiya', debt: 'Umumiy qarz',
+    actions: 'Tezkor amallar', recent: 'So\'nggi faoliyat',
+    newShop: "Yangi do'kon", viewLog: 'Kirish jurnali', debts: 'Nasiya qarzlari', stats: 'Statistika',
+    revenue: 'Aprel daromadi', profit: "Umumiy foyda",
+    seeAll: 'Barchasi',
+  } : {
+    title: 'Платформа', sub: '27 апреля 2026',
+    shops: 'Магазины', nasiya: 'Активных Nasiya', debt: 'Долг Nasiya',
+    actions: 'Быстрые действия', recent: 'Последняя активность',
+    newShop: 'Создать магазин', viewLog: 'Журнал входов', debts: 'Долги Nasiya', stats: 'Статистика',
+    revenue: 'Доход апрель', profit: 'Общая прибыль',
+    seeAll: 'Все',
+  };
+
+  const sparkShops = [32, 35, 38, 36, 39, 41, 43, 44, 44, 45, 46, 47];
+  const sparkNasiya = [140, 148, 155, 160, 158, 162, 155, 158, 161, 156, 157, 156];
+  const sparkDebt = [38, 40, 44, 46, 49, 47, 51, 48, 46, 45, 46, 45];
+
+  const feed = [
+    { ok: true, src: 'telegram', who: '@alisher_t', shop: 'Точка 14', time: '14:23', stranger: false },
+    { ok: true, src: 'login', who: 'jasur.k', shop: 'Точка 7', time: '14:08', stranger: false },
+    { ok: false, src: 'telegram', who: '@unknown_8821', shop: '—', time: '13:51', stranger: true },
+    { ok: false, src: 'bot_start', who: 'tg_id 9821334', shop: '—', time: '13:40', stranger: true },
+    { ok: true, src: 'telegram', who: '@bahrom_y', shop: 'Точка 22', time: '12:14', stranger: false },
+  ];
+
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title={t.title} sub={t.sub}
+        right={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
+              <IconBell size={19}/>
+              <span style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, background: theme.danger, border: `2px solid ${theme.bg}` }}/>
+            </button>
+          </div>
+        }
+      />
+      <div style={{ flex: 1, overflow: 'auto' }}>
+
+        {/* KPI row */}
+        <div style={{ padding: '14px 14px 0', display: 'flex', gap: 10 }}>
+          <KpiCard theme={theme} label={t.shops} value="47" trend="+2" trendUp
+            sub={lang === 'uz' ? '42 faol' : '42 активных'}
+            sparkData={sparkShops} color={theme.status.blue.text} delay={1}/>
+          <KpiCard theme={theme} label={t.nasiya} value="156"
+            sub={lang === 'uz' ? '23 kechikkan' : '23 просрочено'}
+            sparkData={sparkNasiya} color={theme.status.green.text} delay={2}/>
+        </div>
+        <div style={{ padding: '10px 14px 0' }}>
+          <KpiCard theme={theme} label={t.debt} value={fmtUZS(45000000)}
+            sub={lang === 'uz' ? '6 ta kechikkan to\'lov' : '6 просроченных платежей'}
+            trend="-4%" trendUp={false}
+            sparkData={sparkDebt} color={theme.status.red.text} delay={3}/>
+        </div>
+
+        {/* Quick actions */}
+        <SectionHeader theme={theme} title={t.actions} lang={lang}/>
+        <div style={{ padding: '0 14px', display: 'flex', gap: 8 }}>
+          <QuickTile theme={theme} icon={IconPlus} label={t.newShop} color={theme.accent}/>
+          <QuickTile theme={theme} icon={IconShield} label={t.viewLog} badge="3" color={theme.status.red.text}/>
+          <QuickTile theme={theme} icon={IconClipboard} label={t.debts} badge="23" color={theme.status.yellow.text}/>
+          <QuickTile theme={theme} icon={IconChart} label={t.stats} color={theme.status.green.text}/>
+        </div>
+
+        {/* Revenue stat inline */}
+        <div style={{ padding: '12px 14px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {[
+            { l: t.revenue, v: fmtUZS(8400000), kind: 'green', bars: [3.2, 4.1, 5.0, 4.5, 6.2, 7.1, 8.4] },
+            { l: t.profit, v: fmtUZS(38400000), kind: 'blue', bars: [18, 22, 25, 20, 28, 32, 38.4] },
+          ].map((s, i) => (
+            <div key={i} className={`c-hover fia fia-${i+4}`} style={{
+              background: theme.bg3, borderRadius: 14, padding: '12px 14px',
+              border: `1px solid ${theme.border}`,
+            }}>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{s.l}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: theme.status[s.kind].text, fontVariantNumeric: 'tabular-nums', marginTop: 4, letterSpacing: -0.2 }}>{s.v}</div>
+              <div style={{ marginTop: 8 }}>
+                <MiniBarChart data={s.bars} color={theme.status[s.kind].solid} height={28} width={96}/>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent activity */}
+        <SectionHeader theme={theme} title={t.recent} actionLabel={t.seeAll} lang={lang}/>
+        <div style={{ padding: '0 14px 20px' }}>
+          <Card theme={theme} padding={0}>
+            {feed.map((f, i) => {
+              const c = f.ok ? theme.status.green : theme.status.red;
+              return (
+                <div key={i} className={`row-hover fia fia-${i+1}`} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                  borderBottom: i < feed.length - 1 ? `1px solid ${theme.border}` : 'none',
+                  background: f.stranger ? theme.status.red.bg : 'transparent',
+                }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 14, background: c.bg, color: c.text, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${c.border}` }}>
+                    {f.ok ? <IconCheck size={14}/> : <IconX size={14}/>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: f.stranger ? c.text : theme.text, fontFamily: window.MALIKA.mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: f.stranger ? 700 : 500 }}>{f.who}</div>
+                    <div style={{ fontSize: 11, color: theme.textMuted, marginTop: 1 }}>{f.shop}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                    <span style={{ fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: .4 }}>{f.src}</span>
+                    <span style={{ fontSize: 11, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{f.time}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        </div>
+      </div>
+      <BottomNav theme={theme} active="admin" isAdmin lang={lang}/>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A1 — SHOPS LIST  (enhanced)                                  */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminShops2({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: "Do'konlar", sub: '47 ta · 42 faol',
+    all: 'Barchasi', active: 'Faol', frozen: 'Muzlatilgan', trial: 'Trial',
+    create: "Yangi do'kon", search: 'Nom yoki egasi...',
+  } : {
+    title: 'Магазины', sub: '47 точек · 42 активны',
+    all: 'Все', active: 'Активные', frozen: 'Замороженные', trial: 'Trial',
+    create: 'Создать магазин', search: 'Название или владелец...',
+  };
+  const shops = [
+    { name: 'Malika Точка 14', owner: 'Алишер Турсунов', tg: '@alisher_t', phone: '+998 90 123 45 67', plan: 'Pro', status: 'active', joined: '15.04.2025', devices: 12, sales: 27 },
+    { name: 'Malika Точка 7', owner: 'Жасур Каримов', tg: '@jasur_k', phone: '+998 91 234 56 78', plan: 'Pro', status: 'active', joined: '02.06.2025', devices: 8, sales: 19 },
+    { name: 'Malika Точка 22', owner: 'Бахром Юсупов', tg: '@bahrom_y', phone: '+998 93 456 78 90', plan: 'Trial', status: 'active', joined: '12.04.2026', devices: 3, sales: 4 },
+    { name: 'Malika Точка 3', owner: 'Шохрух Назаров', tg: '@shokh_n', phone: '+998 94 567 89 01', plan: 'Lite', status: 'frozen', joined: '20.01.2025', devices: 0, sales: 0 },
+    { name: 'Malika Точка 31', owner: 'Дилшод Ахмедов', tg: '@dilshod_a', phone: '+998 97 678 90 12', plan: 'Pro', status: 'active', joined: '10.09.2025', devices: 15, sales: 31 },
+    { name: 'Malika Точка 8', owner: 'Рустам Холматов', tg: '@rustam_kh', phone: '+998 99 789 01 23', plan: 'Lite', status: 'active', joined: '03.11.2025', devices: 5, sales: 11 },
+  ];
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title={t.title} sub={t.sub}
+        right={<>
+          <button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><IconSearch size={19}/></button>
+          <button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.accent, color: theme.onAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><IconPlus size={20}/></button>
+        </>}
+      />
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* Search bar */}
+        <div style={{ padding: '10px 14px 6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: theme.bg2, borderRadius: 14, padding: '0 14px', height: 44, border: `1px solid ${theme.border}` }}>
+            <IconSearch size={17} stroke={theme.textDim}/>
+            <span style={{ flex: 1, color: theme.textMuted, fontSize: 15 }}>{t.search}</span>
+          </div>
+        </div>
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: 8, padding: '4px 14px 10px', overflowX: 'auto' }}>
+          {[{l:`${t.all} · 47`, a:true},{l:`${t.active} · 42`},{l:`${t.frozen} · 5`},{l:`${t.trial} · 12`}].map((c,i)=>(
+            <button key={i} className="chip-hover" style={{
+              fontFamily: 'inherit', fontWeight: 600, fontSize: 13, letterSpacing: -.05,
+              padding: '7px 14px', borderRadius: 999, whiteSpace: 'nowrap',
+              background: c.a ? theme.accent : theme.bg2,
+              color: c.a ? theme.onAccent : theme.text,
+              border: `1px solid ${c.a ? 'transparent' : theme.border}`,
+            }}>{c.l}</button>
+          ))}
+        </div>
+        {/* List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 14px 20px' }}>
+          {shops.map((s, i) => (
+            <div key={i} className={`c-hover fia fia-${i+1}`} style={{
+              background: theme.bg3, borderRadius: 14, padding: 13,
+              border: `1px solid ${s.status==='frozen' ? theme.status.gray.border : theme.border}`,
+              opacity: s.status === 'frozen' ? .7 : 1,
+            }}>
+              <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: theme.bg2, color: s.status==='frozen'?theme.textMuted:theme.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconStore size={20}/>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -.2 }}>{s.name}</div>
+                    {s.status === 'active'
+                      ? <StatusBadge theme={theme} kind="green" dot size="sm">{lang==='uz'?'Faol':'Активен'}</StatusBadge>
+                      : <StatusBadge theme={theme} kind="gray" dot size="sm">{lang==='uz'?'Muzlatilgan':'Заморожен'}</StatusBadge>}
+                  </div>
+                  <div style={{ fontSize: 12, color: theme.textDim, marginTop: 3 }}>{s.owner}</div>
+                  <div style={{ fontSize: 11, color: theme.textDim, marginTop: 1, display: 'flex', gap: 8 }}>
+                    <span style={{ color: theme.accent }}>{s.tg}</span>
+                    <span style={{ fontFamily: window.MALIKA.mono }}>{s.phone}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <span style={{ fontSize: 11, color: theme.textMuted }}><span style={{ color: theme.text, fontWeight: 600 }}>{s.devices}</span> {lang==='uz'?'qurilma':'уст.'}</span>
+                      <span style={{ fontSize: 11, color: theme.textMuted }}><span style={{ color: theme.text, fontWeight: 600 }}>{s.sales}</span> {lang==='uz'?'sotuv':'продаж'}</span>
+                    </div>
+                    <StatusBadge theme={theme} kind={s.plan==='Pro'?'blue':s.plan==='Trial'?'yellow':'gray'} size="sm">{s.plan}</StatusBadge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <BottomNav theme={theme} active="admin" isAdmin lang={lang}/>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A2 — SHOP CARD  (enhanced)                                   */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminShopCard({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    freeze: 'Muzlatish', changePlan: 'Reja o\'zgartirish',
+    contact: 'Egasi', resetPwd: 'Login/parolni tiklash',
+    stats: 'Statistika', devices: 'Qurilmalar', sales: 'Sotuvlar',
+    profit: 'Foyda', debts: 'Nasiya qarzi',
+    history: 'Kirish tarixi', success: 'Muvaffaqiyatli', failed: 'Muvaffaqiyatsiz',
+    notify: 'Xabarnoma yuborish', delete: "O'chirish",
+  } : {
+    freeze: 'Заморозить', changePlan: 'Сменить план',
+    contact: 'Владелец', resetPwd: 'Сбросить логин/пароль',
+    stats: 'Статистика', devices: 'Устройств', sales: 'Продаж',
+    profit: 'Прибыль', debts: 'Долги Nasiya',
+    history: 'История входов', success: 'Успешно', failed: 'Неудачно',
+    notify: 'Уведомить', delete: 'Удалить',
+  };
+  const logins = [
+    { date: '27.04 09:14', src: 'telegram', ok: true, who: '@alisher_t' },
+    { date: '26.04 19:32', src: 'telegram', ok: true, who: '@alisher_t' },
+    { date: '26.04 08:55', src: 'login', ok: true, who: 'alisher.t' },
+    { date: '25.04 22:11', src: 'login', ok: false, who: 'alisher.t' },
+    { date: '25.04 09:02', src: 'telegram', ok: true, who: '@alisher_t' },
+  ];
+  const statItems = [
+    { l: t.devices, v: '12', kind: 'blue' },
+    { l: t.sales, v: '27', kind: 'green' },
+    { l: t.profit, v: fmtUZS(38400000), kind: 'green', small: true },
+    { l: t.debts, v: fmtUZS(3400000), kind: 'red', small: true },
+  ];
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title="Malika Точка 14" onBack right={<button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><IconMore size={19}/></button>}/>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* Hero */}
+        <div className="fia fia-1" style={{ padding: '14px 16px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: theme.bg2, color: theme.textDim, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconStore size={28}/></div>
+            <div>
+              <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: -.3 }}>Malika Точка 14</div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <StatusBadge theme={theme} kind="green" dot>{lang==='uz'?'Faol':'Активен'}</StatusBadge>
+                <StatusBadge theme={theme} kind="blue">Pro</StatusBadge>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Action row */}
+        <div className="fia fia-2" style={{ padding: '10px 16px 14px', display: 'flex', gap: 8 }}>
+          <Button theme={theme} variant="secondary" size="md" full icon={<IconSnowflake size={16}/>}>{t.freeze}</Button>
+          <Button theme={theme} variant="secondary" size="md" full icon={<IconStar size={16}/>}>{t.changePlan}</Button>
+          <button className="btn-press" style={{ width: 48, height: 48, borderRadius: 12, border: 'none', background: theme.status.red.bg, color: theme.status.red.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            <IconBell size={18}/>
+          </button>
+        </div>
+
+        {/* Owner card */}
+        <SectionTitle theme={theme}>{t.contact}</SectionTitle>
+        <div className="fia fia-3" style={{ padding: '0 16px 14px' }}>
+          <Card theme={theme} padding={0}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px' }}>
+              <Avatar initials="АТ" color="#10B981" size={44}/>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Алишер Турсунов</div>
+                <div style={{ fontSize: 12, color: theme.textDim, marginTop: 2 }}>
+                  <span style={{ color: theme.accent }}>@alisher_t</span>{'  ·  '}
+                  <span style={{ fontFamily: window.MALIKA.mono }}>+998 90 123 45 67</span>
+                </div>
+                <div style={{ fontSize: 12, color: theme.textMuted, fontFamily: window.MALIKA.mono, marginTop: 1 }}>login: alisher.t</div>
+              </div>
+              <button className="btn-press" style={{ width: 36, height: 36, borderRadius: 18, border: 'none', background: theme.status.green.bg, color: theme.status.green.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                <IconPhoneCall size={17}/>
+              </button>
+            </div>
+            <div className="row-hover" style={{ borderTop: `1px solid ${theme.border}`, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, color: theme.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              <IconKey size={17}/> {t.resetPwd}
+            </div>
+          </Card>
+        </div>
+
+        {/* Stats grid */}
+        <SectionTitle theme={theme}>{t.stats}</SectionTitle>
+        <div style={{ padding: '0 16px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {statItems.map((s, i) => (
+            <div key={i} className={`c-hover fia fia-${i+4}`} style={{
+              background: theme.bg3, borderRadius: 14, padding: '12px 14px', border: `1px solid ${theme.border}`,
+            }}>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{s.l}</div>
+              <div style={{ fontSize: s.small ? 15 : 22, fontWeight: 700, color: theme.status[s.kind].text, fontVariantNumeric: 'tabular-nums', marginTop: 5, letterSpacing: -.3 }}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Login history */}
+        <SectionTitle theme={theme}>{t.history} · 10</SectionTitle>
+        <div style={{ padding: '0 16px 20px' }}>
+          <Card theme={theme} padding={0}>
+            {logins.map((l, i) => (
+              <div key={i} className={`row-hover fia fia-${i+1}`} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 14px', borderBottom: i<logins.length-1?`1px solid ${theme.border}`:'none' }}>
+                <div style={{ width: 26, height: 26, borderRadius: 13, background: l.ok?theme.status.green.bg:theme.status.red.bg, color: l.ok?theme.status.green.text:theme.status.red.text, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${l.ok?theme.status.green.border:theme.status.red.border}` }}>
+                  {l.ok ? <IconCheck size={13}/> : <IconX size={13}/>}
+                </div>
+                <div style={{ flex: 1, fontSize: 12, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{l.date}</div>
+                <span style={{ fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: .4 }}>{l.src}</span>
+                <span style={{ fontSize: 13, color: theme.text, fontFamily: window.MALIKA.mono }}>{l.who}</span>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A3 — CREATE SHOP  (enhanced)                                 */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminCreate2({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: "Yangi do'kon",
+    shopName: "Do'kon nomi", langLabel: "Standart til",
+    tgId: 'Telegram ID', tgUser: '@username', name: "To'liq ism", phone: 'Telefon',
+    optional: 'Ixtiyoriy', login: 'Login', password: 'Parol',
+    register: "Ro'yxatdan o'tkazish", sub: "Egasiga Telegram orqali xabar yuboriladi",
+    ru: 'Русский', uz: "O'zbekcha",
+  } : {
+    title: 'Создать магазин',
+    shopName: 'Название точки', langLabel: 'Язык по умолчанию',
+    tgId: 'Telegram ID', tgUser: '@username', name: 'Полное имя', phone: 'Телефон',
+    optional: 'Опционально', login: 'Логин', password: 'Пароль',
+    register: 'Зарегистрировать', sub: 'Владельцу придёт уведомление в Telegram',
+    ru: 'Русский', uz: "O'zbek",
+  };
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title={t.title} onBack
+        right={<button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><IconX size={19}/></button>}
+      />
+      <div style={{ flex: 1, overflow: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="fia fia-1"><Field theme={theme} label={t.shopName} value="Malika Точка 48"/></div>
+        <div className="fia fia-2">
+          <div style={{ fontSize: 13, color: theme.textDim, fontWeight: 500, marginBottom: 8 }}>{t.langLabel}</div>
+          <div style={{ display: 'flex', borderRadius: 12, overflow: 'hidden', border: `1px solid ${theme.border}`, background: theme.bg2 }}>
+            <button style={{ flex: 1, height: 46, border: 'none', background: theme.accent, color: theme.onAccent, fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{t.ru}</button>
+            <button style={{ flex: 1, height: 46, border: 'none', background: 'transparent', color: theme.text, fontFamily: 'inherit', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>{t.uz}</button>
+          </div>
+        </div>
+        <div className="fia fia-3"><Field theme={theme} label={t.tgId} value="546721834" mono/></div>
+        <div className="fia fia-4"><Field theme={theme} label={t.tgUser} value="@sardor_a"/></div>
+        <div className="fia fia-5"><Field theme={theme} label={t.name} value="Сардор Абдуллаев"/></div>
+        <div className="fia fia-6"><Field theme={theme} label={t.phone} value="+998 90 999 11 22" mono/></div>
+        <div className="fia fia-7" style={{ padding: '12px 14px', borderRadius: 12, background: theme.bg2, border: `1px dashed ${theme.borderStrong}` }}>
+          <div style={{ fontSize: 11, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', marginBottom: 10 }}>{t.optional}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Field theme={theme} label={t.login} value="sardor.a" mono/>
+            <Field theme={theme} label={t.password} value="••••••••••" mono/>
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: theme.textMuted, padding: '0 2px' }}>{t.sub}</div>
+      </div>
+      <div style={{ padding: '12px 16px', background: theme.bg, borderTop: `1px solid ${theme.border}` }}>
+        <Button theme={theme} size="lg" full className="btn-press">{t.register}</Button>
+      </div>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A4 — AUTH LOG  (enhanced)                                    */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminLog2({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: "Kirish jurnali", sub: 'Bugun: 47 ta · 3 muvaffaqiyatsiz',
+    all: 'Barchasi', failed: "Muvaffaqiyatsiz", tg: 'Telegram', login: 'Login', bot: 'Bot',
+    stranger: "Noma'lum",
+  } : {
+    title: 'Журнал входов', sub: 'Сегодня: 47 · 3 неудачных',
+    all: 'Все', failed: 'Неудачные · 3', tg: 'Telegram', login: 'Login', bot: 'Bot',
+    stranger: 'Незнакомец',
+  };
+  const rows = [
+    { d: '14:23', src: 'telegram', who: '@alisher_t', shop: 'Точка 14', ok: true },
+    { d: '14:08', src: 'login', who: 'jasur.k', shop: 'Точка 7', ok: true },
+    { d: '13:51', src: 'telegram', who: '@unknown_user_8821', shop: '—', ok: false, stranger: true },
+    { d: '13:40', src: 'bot_start', who: 'tg_id 9821334', shop: '—', ok: false, stranger: true },
+    { d: '12:14', src: 'telegram', who: '@bahrom_y', shop: 'Точка 22', ok: true },
+    { d: '11:02', src: 'login', who: 'shokh_n', shop: 'Точка 3', ok: false },
+    { d: '10:38', src: 'telegram', who: '@dilshod_a', shop: 'Точка 31', ok: true },
+    { d: '09:55', src: 'admin', who: '@malika_admin', shop: '—', ok: true },
+    { d: '09:14', src: 'telegram', who: '@alisher_t', shop: 'Точка 14', ok: true },
+  ];
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title={t.title} sub={t.sub}
+        right={<button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><IconFilter size={18}/></button>}
+      />
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ display: 'flex', gap: 8, padding: '10px 14px 10px', overflowX: 'auto' }}>
+          {[{l:t.all,a:true},{l:t.failed,d:true},{l:t.tg},{l:t.login},{l:t.bot}].map((c,i)=>(
+            <button key={i} className="chip-hover" style={{
+              fontFamily: 'inherit', fontWeight: 600, fontSize: 12, padding: '7px 12px', borderRadius: 999, whiteSpace: 'nowrap',
+              background: c.a ? theme.accent : c.d ? theme.status.red.bg : theme.bg2,
+              color: c.a ? theme.onAccent : c.d ? theme.status.red.text : theme.text,
+              border: `1px solid ${c.a ? 'transparent' : c.d ? theme.status.red.border : theme.border}`,
+            }}>{c.l}</button>
+          ))}
+        </div>
+        {/* Live indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px 10px' }}>
+          <div className="live-dot" style={{ width: 7, height: 7, borderRadius: 4, background: theme.status.green.solid }}/>
+          <span style={{ fontSize: 11, color: theme.textDim, fontWeight: 600, letterSpacing: .3 }}>{lang==='uz'?'Jonli tarmoq':'Прямой эфир'}</span>
+        </div>
+        <div style={{ padding: '0 14px 20px' }}>
+          <Card theme={theme} padding={0}>
+            {rows.map((r, i) => {
+              const c = r.ok ? theme.status.green : theme.status.red;
+              return (
+                <div key={i} className={`row-hover fia fia-${Math.min(i+1,9)}`} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                  borderBottom: i<rows.length-1?`1px solid ${theme.border}`:'none',
+                  background: r.stranger ? theme.status.red.bg + '80' : 'transparent',
+                }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 14, background: c.bg, color: c.text, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${c.border}` }}>
+                    {r.ok ? <IconCheck size={14}/> : <IconX size={14}/>}
+                  </div>
+                  <div style={{ width: 42, fontSize: 11, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{r.d}</div>
+                  <div style={{ width: 62, fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: .3 }}>{r.src}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: r.stranger ? c.text : theme.text, fontFamily: window.MALIKA.mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: r.stranger ? 700 : 500 }}>{r.who}</div>
+                    <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 1 }}>{r.shop}{r.stranger && ` · ⚠ ${t.stranger}`}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        </div>
+      </div>
+      <BottomNav theme={theme} active="admin" isAdmin lang={lang}/>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A5 — DEBTS  (enhanced)                                       */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminDebts2({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: "Kechikkan to'lovlar", overdue: 'kechikkan',
+    total: "Umumiy qarzdorlik", days: 'kun', call: 'Qo\'ng\'iroq',
+  } : {
+    title: 'Просроченные долги', overdue: 'просрочено',
+    total: 'Общий долг', days: 'дн.', call: 'Позвонить',
+  };
+  const debts = [
+    { shop: 'Точка 8', buyer: 'Рустам Холматов', phone: '+998 99 789 01 23', dev: 'Galaxy S24 Ultra', days: 23, amt: 4200000 },
+    { shop: 'Точка 14', buyer: 'Шохрух Назаров', phone: '+998 91 222 33 44', dev: 'Redmi Note 12', days: 18, amt: 1500000 },
+    { shop: 'Точка 31', buyer: 'Бекзод Каримов', phone: '+998 93 555 66 77', dev: 'iPhone 13', days: 12, amt: 3200000 },
+    { shop: 'Точка 7', buyer: 'Мирзо Юсупов', phone: '+998 90 111 22 33', dev: 'Galaxy A55', days: 9, amt: 1800000 },
+    { shop: 'Точка 22', buyer: 'Дониёр Алиев', phone: '+998 97 888 99 00', dev: 'iPad Air 11"', days: 5, amt: 2500000 },
+    { shop: 'Точка 14', buyer: 'Бахром Юсупов', phone: '+998 93 456 78 90', dev: 'Galaxy A55', days: 5, amt: 1500000 },
+  ];
+  const total = debts.reduce((s, d) => s + d.amt, 0);
+  const urgency = (days) => days >= 20 ? 'red' : days >= 10 ? 'yellow' : 'blue';
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title={t.title} sub={`${debts.length} ${t.overdue}`}/>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* Total banner */}
+        <div className="fia fia-1" style={{ padding: '14px 14px 12px' }}>
+          <div style={{ background: theme.status.red.bg, borderRadius: 16, padding: '16px 18px', border: `1px solid ${theme.status.red.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 11, color: theme.status.red.text, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{t.total}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: theme.status.red.text, fontVariantNumeric: 'tabular-nums', marginTop: 4, letterSpacing: -.5 }}>{fmtUZS(total)}</div>
+            </div>
+            <div style={{ opacity: .4 }}><IconClipboard size={40} stroke={theme.status.red.text} sw={1.2}/></div>
+          </div>
+        </div>
+        {/* Sort bar */}
+        <div style={{ display: 'flex', gap: 8, padding: '0 14px 10px', overflowX: 'auto' }}>
+          {[{l:'По дням ↓',a:true},{l:'По сумме'},{l:'По магазину'}].map((c,i)=>(
+            <button key={i} className="chip-hover" style={{
+              fontFamily:'inherit',fontWeight:600,fontSize:12,padding:'7px 12px',borderRadius:999,whiteSpace:'nowrap',
+              background:c.a?theme.accent:theme.bg2,color:c.a?theme.onAccent:theme.text,border:`1px solid ${c.a?'transparent':theme.border}`,
+            }}>{c.l}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 14px 20px' }}>
+          {debts.map((d, i) => {
+            const u = urgency(d.days);
+            return (
+              <div key={i} className={`c-hover fia fia-${i+2}`} style={{
+                background: theme.bg3, borderRadius: 14, padding: '12px 14px',
+                border: `1px solid ${d.days >= 20 ? theme.status.red.border : theme.border}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -.2 }}>{d.buyer}</div>
+                      <StatusBadge theme={theme} kind={u} dot size="sm">{d.days} {t.days}</StatusBadge>
+                    </div>
+                    <div style={{ fontSize: 11, color: theme.textDim, marginTop: 3 }}>{d.shop} · {d.dev}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                      <span style={{ fontSize: 11, color: theme.textMuted, fontFamily: window.MALIKA.mono }}>{d.phone}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: theme.status.red.text, fontVariantNumeric: 'tabular-nums' }}>{fmtUZS(d.amt)}</span>
+                    </div>
+                  </div>
+                  <button className="btn-press" style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: theme.status.green.bg, color: theme.status.green.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                    <IconPhoneCall size={18}/>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <BottomNav theme={theme} active="admin" isAdmin lang={lang}/>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* A6 — STATS  (enhanced with charts)                           */
+/* ══════════════════════════════════════════════════════════════ */
+function ScreenAdminStats2({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: 'Platforma statistikasi', shops: "Do'konlar", active: 'Faol',
+    frozen: 'Muzlatilgan', trial: 'Trial', paid: "To'lovli",
+    nasiya: 'Nasiya', nasiyaActive: 'Faol', overdue: 'Kechikkan', totalDebt: "Umumiy qarz",
+    security: 'Xavfsizlik', failedToday: "Bugun muvaffaqiyatsiz", revenue: 'Aprel daromadi',
+    growth: 'O\'sish dinamikasi', months: ["Yanv","Fevr","Mart","Apr"],
+  } : {
+    title: 'Статистика платформы', shops: 'Магазины', active: 'Активных',
+    frozen: 'Заморожено', trial: 'Trial', paid: 'Платных',
+    nasiya: 'Nasiya', nasiyaActive: 'Активных', overdue: 'Просрочено', totalDebt: 'Общий долг',
+    security: 'Безопасность', failedToday: 'Неудачных входов сегодня', revenue: 'Доход апрель',
+    growth: 'Динамика роста магазинов', months: ['Янв', 'Фев', 'Мар', 'Апр'],
+  };
+  const monthlyShops = [38, 42, 44, 47];
+  const maxShops = 50;
+  return (
+    <Screen theme={theme}>
+      <TopBar theme={theme} title={t.title}/>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+
+        {/* Shops summary */}
+        <SectionTitle theme={theme}>{t.shops}</SectionTitle>
+        <div className="fia fia-1" style={{ padding: '0 14px 14px' }}>
+          <Card theme={theme} padding={16}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 11, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{t.shops}</div>
+                <div style={{ fontSize: 40, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 4, letterSpacing: -.8 }}>47</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {t.months.map((m, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 28, background: i === 3 ? theme.accent : theme.status.blue.bg, borderRadius: '4px 4px 0 0', height: (monthlyShops[i] / maxShops) * 60 + 'px', transition: 'height .3s ease-out', border: i === 3 ? 'none' : `1px solid ${theme.status.blue.border}` }}/>
+                    <span style={{ fontSize: 9, color: theme.textMuted, fontWeight: 600 }}>{m}</span>
+                    <span style={{ fontSize: 10, color: i === 3 ? theme.accent : theme.textDim, fontWeight: 700 }}>{monthlyShops[i]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+              <StatusBadge theme={theme} kind="green" dot size="sm">{t.active} · 42</StatusBadge>
+              <StatusBadge theme={theme} kind="gray" dot size="sm">{t.frozen} · 5</StatusBadge>
+              <StatusBadge theme={theme} kind="yellow" size="sm">{t.trial} · 12</StatusBadge>
+              <StatusBadge theme={theme} kind="blue" size="sm">{t.paid} · 30</StatusBadge>
+            </div>
+            <div style={{ marginTop: 12, height: 6, borderRadius: 3, overflow: 'hidden', display: 'flex', gap: 1 }}>
+              <div style={{ flex: 30, background: theme.status.blue.solid, transition: 'flex .5s ease-out' }}/>
+              <div style={{ flex: 12, background: theme.status.yellow.solid, transition: 'flex .5s ease-out' }}/>
+              <div style={{ flex: 5, background: theme.status.gray.solid, transition: 'flex .5s ease-out' }}/>
+            </div>
+          </Card>
+        </div>
+
+        {/* Nasiya */}
+        <SectionTitle theme={theme}>{t.nasiya}</SectionTitle>
+        <div style={{ padding: '0 14px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {[
+            { l: t.nasiyaActive, v: '156', kind: 'blue', spark: [130,140,148,152,156] },
+            { l: t.overdue, v: '23', kind: 'red', spark: [18,20,22,21,23] },
+          ].map((s, i) => (
+            <div key={i} className={`c-hover fia fia-${i+2}`} style={{ background: theme.bg3, borderRadius: 14, padding: '13px 14px', border: `1px solid ${theme.border}` }}>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{s.l}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 5 }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: theme.status[s.kind].text, fontVariantNumeric: 'tabular-nums', letterSpacing: -.4 }}>{s.v}</div>
+                <Sparkline data={s.spark} color={theme.status[s.kind].solid} width={50} height={26}/>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="fia fia-4" style={{ padding: '0 14px 14px' }}>
+          <div style={{ background: theme.status.red.bg, borderRadius: 14, padding: '14px 16px', border: `1px solid ${theme.status.red.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 10, color: theme.status.red.text, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{t.totalDebt}</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: theme.status.red.text, fontVariantNumeric: 'tabular-nums', marginTop: 4, letterSpacing: -.5 }}>{fmtUZS(45000000)}</div>
+            </div>
+            <Sparkline data={[38,40,44,46,49,47,51,48,46,45]} color={theme.status.red.solid} width={70} height={32} fill/>
+          </div>
+        </div>
+
+        {/* Security + Revenue */}
+        <SectionTitle theme={theme}>{t.security}</SectionTitle>
+        <div style={{ padding: '0 14px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {[
+            { l: t.failedToday, v: '3', kind: 'red' },
+            { l: t.revenue, v: fmtUZS(8400000), kind: 'green', small: true },
+          ].map((s, i) => (
+            <div key={i} className={`c-hover fia fia-${i+5}`} style={{ background: theme.bg3, borderRadius: 14, padding: '13px 14px', border: `1px solid ${theme.border}` }}>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{s.l}</div>
+              <div style={{ fontSize: s.small ? 14 : 24, fontWeight: 700, color: theme.status[s.kind].text, fontVariantNumeric: 'tabular-nums', marginTop: 5, letterSpacing: -.3 }}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <BottomNav theme={theme} active="admin" isAdmin lang={lang}/>
+    </Screen>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* DESKTOP — Enhanced Shell + Dashboard                          */
+/* ══════════════════════════════════════════════════════════════ */
+const SHOPS_DATA = [
+  { name: 'Malika Точка 14', owner: 'Алишер Турсунов', tg: '@alisher_t', phone: '+998 90 123 45 67', plan: 'Pro', status: 'active', joined: '15.04.2025' },
+  { name: 'Malika Точка 7', owner: 'Жасур Каримов', tg: '@jasur_k', phone: '+998 91 234 56 78', plan: 'Pro', status: 'active', joined: '02.06.2025' },
+  { name: 'Malika Точка 22', owner: 'Бахром Юсупов', tg: '@bahrom_y', phone: '+998 93 456 78 90', plan: 'Trial', status: 'active', joined: '12.04.2026' },
+  { name: 'Malika Точка 3', owner: 'Шохрух Назаров', tg: '@shokh_n', phone: '+998 94 567 89 01', plan: 'Lite', status: 'frozen', joined: '20.01.2025' },
+  { name: 'Malika Точка 31', owner: 'Дилшод Ахмедов', tg: '@dilshod_a', phone: '+998 97 678 90 12', plan: 'Pro', status: 'active', joined: '10.09.2025' },
+  { name: 'Malika Точка 8', owner: 'Рустам Холматов', tg: '@rustam_kh', phone: '+998 99 789 01 23', plan: 'Lite', status: 'active', joined: '03.11.2025' },
+  { name: 'Malika Точка 19', owner: 'Сардор Алиев', tg: '@sardor_a', phone: '+998 90 111 22 33', plan: 'Pro', status: 'active', joined: '14.02.2026' },
+];
+
+function DesktopShell2({ theme, lang, active, title, sub, action, children }) {
+  const navItems = [
+    { id: 'dashboard', icon: IconHome, ru: 'Дашборд', uz: 'Asosiy' },
+    { id: 'shops', icon: IconStore, ru: 'Магазины', uz: "Do'konlar" },
+    { id: 'create', icon: IconPlus, ru: 'Создать магазин', uz: "Yangi do'kon" },
+    { id: 'log', icon: IconShield, ru: 'Журнал входов', uz: "Kirish jurnali", badge: 3 },
+    { id: 'debts', icon: IconClipboard, ru: 'Долги Nasiya', uz: 'Nasiya qarzlari', badge: 23 },
+    { id: 'stats', icon: IconChart, ru: 'Статистика', uz: 'Statistika' },
+  ];
+  return (
+    <div style={{ width: '100%', height: '100%', background: theme.bg, color: theme.text, fontFamily: window.MALIKA.font, display: 'flex', overflow: 'hidden', fontSize: 14 }}>
+      {/* Sidebar */}
+      <aside style={{ width: 224, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: theme.bg2, display: 'flex', flexDirection: 'column' }}>
+        {/* Brand */}
+        <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${theme.border}` }}>
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: theme.accent, color: theme.onAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 17, letterSpacing: -.5 }}>M</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -.2 }}>Malika Admin</div>
+            <div style={{ fontSize: 11, color: theme.textDim, display: 'flex', alignItems: 'center', gap: 4 }}><IconCrown size={11}/> Суперадмин</div>
+          </div>
+        </div>
+        {/* Nav */}
+        <nav style={{ padding: '8px 8px', flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {navItems.map((n) => {
+            const on = n.id === active;
+            return (
+              <div key={n.id} className="nav-item sidebar-item" style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 11px', borderRadius: 8,
+                background: on ? theme.accentFaded : 'transparent',
+                color: on ? theme.accent : theme.text,
+                fontSize: 13, fontWeight: on ? 600 : 500,
+              }}>
+                <n.icon size={17} stroke="currentColor"/>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'uz' ? n.uz : n.ru}</span>
+                {n.badge && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: theme.status.red.bg, color: theme.status.red.text }}>{n.badge}</span>}
+              </div>
+            );
+          })}
+        </nav>
+        {/* Profile */}
+        <div style={{ padding: '10px 12px', borderTop: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar initials="МА" color="#3B82F6" size={30}/>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@malika_admin</div>
+            <div style={{ fontSize: 10, color: theme.textDim, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="live-dot" style={{ width: 6, height: 6, borderRadius: 3, background: theme.status.green.solid }}/> Онлайн
+            </div>
+          </div>
+          <button className="btn-press" style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: 'transparent', color: theme.textDim, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <IconLogOut size={15}/>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Topbar */}
+        <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 14, borderBottom: `1px solid ${theme.border}`, flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: -.2 }}>{title}</div>
+            {sub && <div style={{ fontSize: 11, color: theme.textDim }}>{sub}</div>}
+          </div>
+          {/* Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: theme.bg2, borderRadius: 9, padding: '0 12px', height: 34, width: 240, border: `1px solid ${theme.border}` }}>
+            <IconSearch size={14} stroke={theme.textDim}/>
+            <span style={{ flex: 1, color: theme.textMuted, fontSize: 13 }}>{lang==='uz'?'Qidiruv...':'Поиск...'}</span>
+            <span style={{ fontSize: 11, color: theme.textMuted, fontFamily: window.MALIKA.mono }}>⌘K</span>
+          </div>
+          {/* Notifications */}
+          <button className="btn-press" style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
+            <IconBell size={16}/>
+            <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: 4, background: theme.danger, border: `2px solid ${theme.bg2}` }}/>
+          </button>
+          {action && action}
+        </div>
+        {/* Content */}
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Desktop Dashboard */
+function DesktopDashboard({ theme, lang }) {
+  const t = lang === 'uz' ? {
+    title: 'Asosiy ko\'rsatkichlar', sub: '27 Aprel 2026',
+    shops: "Do'konlar jami", nasiya: 'Faol Nasiya', debt: 'Umumiy qarz',
+    revenue: 'Aprel daromadi',
+    recentTitle: "So'nggi faoliyat", quickTitle: 'Tezkor harakatlar',
+    newShop: "Yangi do'kon", viewLog: 'Kirish jurnali',
+  } : {
+    title: 'Ключевые показатели', sub: '27 апреля 2026',
+    shops: 'Всего магазинов', nasiya: 'Активных Nasiya', debt: 'Общий долг Nasiya',
+    revenue: 'Доход апрель',
+    recentTitle: 'Последняя активность', quickTitle: 'Быстрые действия',
+    newShop: 'Создать магазин', viewLog: 'Журнал входов',
+  };
+  const feed = [
+    { ok: true, src: 'telegram', who: '@alisher_t', shop: 'Точка 14', time: '14:23' },
+    { ok: true, src: 'login', who: 'jasur.k', shop: 'Точка 7', time: '14:08' },
+    { ok: false, src: 'telegram', who: '@unknown_8821', shop: '—', time: '13:51', stranger: true },
+    { ok: false, src: 'bot_start', who: 'tg_id 9821334', shop: '—', time: '13:40', stranger: true },
+    { ok: true, src: 'telegram', who: '@bahrom_y', shop: 'Точка 22', time: '12:14' },
+    { ok: true, src: 'telegram', who: '@dilshod_a', shop: 'Точка 31', time: '10:38' },
+  ];
+  const kpis = [
+    { l: t.shops, v: '47', sub: '42 активных · 5 заморожено', spark: [32,35,38,36,39,41,43,44,44,45,46,47], c: theme.status.blue.text },
+    { l: t.nasiya, v: '156', sub: '23 просрочено', spark: [140,148,155,160,158,162,155,158,161,156], c: theme.status.green.text },
+    { l: t.debt, v: fmtUZS(45000000), sub: '6 просроченных', spark: [38,40,44,46,49,47,51,48,46,45], c: theme.status.red.text },
+    { l: t.revenue, v: fmtUZS(8400000), sub: 'Апрель 2026', spark: [3.2,4.1,5.0,4.5,6.2,7.1,8.4,7.8,8.4], c: theme.status.green.text },
+  ];
+  return (
+    <DesktopShell2 theme={theme} lang={lang} active="dashboard" title={t.title} sub={t.sub}
+      action={<Button theme={theme} size="sm" icon={<IconPlus size={15}/>}>{t.newShop}</Button>}
+    >
+      <div style={{ padding: '20px 20px 0' }}>
+        {/* KPI row */}
+        <div className="fia fia-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+          {kpis.map((k, i) => (
+            <div key={i} className={`c-hover kpi-in kpi-in-${i+1}`} style={{ background: theme.bg3, borderRadius: 14, padding: '14px 16px', border: `1px solid ${theme.border}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+                  <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>{k.l}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: theme.text, letterSpacing: -.4, marginTop: 5, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{k.v}</div>
+                  <div style={{ fontSize: 11, color: theme.textMuted, marginTop: 4 }}>{k.sub}</div>
+                </div>
+                <Sparkline data={k.spark} color={k.c} width={60} height={28} fill/>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Two columns: recent + quick */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16 }}>
+          {/* Recent activity */}
+          <div className="fia fia-2">
+            <div style={{ fontSize: 12, fontWeight: 700, color: theme.textDim, letterSpacing: .5, textTransform: 'uppercase', marginBottom: 10 }}>{t.recentTitle}</div>
+            <div style={{ background: theme.bg3, borderRadius: 14, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
+              {/* Table header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '32px 80px 80px 1.5fr 1fr', gap: 12, padding: '10px 14px', background: theme.bg2, borderBottom: `1px solid ${theme.border}`, fontSize: 10, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', color: theme.textDim }}>
+                <span></span><span>Время</span><span>Источник</span><span>Идентификатор</span><span>Магазин</span>
+              </div>
+              {feed.map((f, i) => {
+                const c = f.ok ? theme.status.green : theme.status.red;
+                return (
+                  <div key={i} className={`row-hover fia fia-${i+1}`} style={{ display: 'grid', gridTemplateColumns: '32px 80px 80px 1.5fr 1fr', gap: 12, padding: '10px 14px', borderBottom: i<feed.length-1?`1px solid ${theme.border}`:'none', alignItems: 'center', background: f.stranger ? theme.status.red.bg : 'transparent' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 12, background: c.bg, color: c.text, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${c.border}` }}>
+                      {f.ok ? <IconCheck size={12}/> : <IconX size={12}/>}
+                    </div>
+                    <span style={{ fontSize: 12, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{f.time}</span>
+                    <span style={{ fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: .3 }}>{f.src}</span>
+                    <span style={{ fontSize: 12, color: f.stranger ? c.text : theme.text, fontFamily: window.MALIKA.mono, fontWeight: f.stranger ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.who}</span>
+                    <span style={{ fontSize: 12, color: theme.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.shop}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right column: quick actions + mini stats */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="fia fia-3">
+              <div style={{ fontSize: 12, fontWeight: 700, color: theme.textDim, letterSpacing: .5, textTransform: 'uppercase', marginBottom: 10 }}>{t.quickTitle}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { icon: IconPlus, label: 'Создать магазин', color: theme.accent },
+                  { icon: IconShield, label: 'Журнал входов', color: theme.status.red.text, badge: 3 },
+                  { icon: IconClipboard, label: 'Долги Nasiya', color: theme.status.yellow.text, badge: 23 },
+                  { icon: IconChart, label: 'Статистика', color: theme.status.green.text },
+                ].map((a, i) => (
+                  <div key={i} className="c-hover btn-press" style={{ background: theme.bg3, border: `1px solid ${theme.border}`, borderRadius: 12, padding: '12px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', position: 'relative' }}>
+                    {a.badge && <span style={{ position: 'absolute', top: 6, right: 6, minWidth: 16, height: 16, borderRadius: 8, background: theme.status.red.solid, color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{a.badge}</span>}
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: a.color + '1A', color: a.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <a.icon size={17}/>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: theme.textDim, textAlign: 'center', lineHeight: 1.3 }}>{a.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mini plan breakdown */}
+            <div className="fia fia-4" style={{ background: theme.bg3, borderRadius: 14, padding: '14px 16px', border: `1px solid ${theme.border}` }}>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', marginBottom: 10 }}>Планы магазинов</div>
+              {[
+                { l: 'Pro', v: 20, max: 47, kind: 'blue' },
+                { l: 'Lite', v: 15, max: 47, kind: 'gray' },
+                { l: 'Trial', v: 12, max: 47, kind: 'yellow' },
+              ].map((p, i) => (
+                <div key={i} style={{ marginBottom: i < 2 ? 10 : 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: theme.text, fontWeight: 600 }}>{p.l}</span>
+                    <span style={{ fontSize: 12, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{p.v}</span>
+                  </div>
+                  <div style={{ height: 4, background: theme.bg2, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(p.v/p.max)*100}%`, background: theme.status[p.kind].solid, borderRadius: 2, transition: 'width .5s ease-out' }}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent shops table */}
+        <div className="fia fia-5" style={{ marginTop: 16, marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: theme.textDim, letterSpacing: .5, textTransform: 'uppercase' }}>Последние магазины</div>
+            <button style={{ background: 'none', border: 'none', color: theme.accent, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Все →</button>
+          </div>
+          <div style={{ background: theme.bg3, borderRadius: 14, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 1.2fr 1.4fr 0.7fr 0.9fr 0.9fr 44px', gap: 12, padding: '10px 20px', background: theme.bg2, borderBottom: `1px solid ${theme.border}`, fontSize: 10, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', color: theme.textDim }}>
+              <span>Название</span><span>Владелец</span><span>Telegram</span><span>Телефон</span><span>План</span><span>Статус</span><span>Регистрация</span><span></span>
+            </div>
+            {SHOPS_DATA.map((s, i) => <ShopRow key={i} theme={theme} shop={s} lang={lang} delay={Math.min(i+1,9)}/>)}
+          </div>
+        </div>
+      </div>
+    </DesktopShell2>
+  );
+}
+
+/* Desktop Shops table */
+function DesktopShops2({ theme, lang }) {
+  return (
+    <DesktopShell2 theme={theme} lang={lang} active="shops"
+      title={lang==='uz'?"Do'konlar":'Магазины'} sub={lang==='uz'?'47 ta · 42 faol':'47 точек · 42 активны'}
+      action={<Button theme={theme} size="sm" icon={<IconPlus size={15}/>}>{lang==='uz'?"Yangi":'Создать'}</Button>}
+    >
+      <div style={{ padding: 20 }}>
+        {/* Filters row */}
+        <div className="fia fia-1" style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: theme.bg2, borderRadius: 9, padding: '0 12px', height: 36, flex: 1, maxWidth: 320, border: `1px solid ${theme.border}` }}>
+            <IconSearch size={14} stroke={theme.textDim}/>
+            <span style={{ flex: 1, color: theme.textMuted, fontSize: 13 }}>{lang==='uz'?'Qidiruv...':'Название или владелец...'}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[{l:lang==='uz'?'Barchasi':'Все',a:true},{l:lang==='uz'?'Faol':'Активные'},{l:lang==='uz'?'Muzlatilgan':'Заморожены'},{l:'Trial'}].map((c,i)=>(
+              <button key={i} className="chip-hover" style={{ fontFamily:'inherit',fontWeight:600,fontSize:12,padding:'7px 14px',borderRadius:9,background:c.a?theme.accent:theme.bg2,color:c.a?theme.onAccent:theme.text,border:`1px solid ${c.a?'transparent':theme.border}`,cursor:'pointer' }}>{c.l}</button>
+            ))}
+          </div>
+          <button className="btn-press" style={{ height: 36, padding: '0 12px', borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.bg2, color: theme.text, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+            <IconFilter size={14}/> {lang==='uz'?'Filtr':'Фильтр'}
+          </button>
+        </div>
+        {/* Table */}
+        <div className="fia fia-2" style={{ background: theme.bg3, borderRadius: 14, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 1.2fr 1.4fr 0.7fr 0.9fr 0.9fr 44px', gap: 12, padding: '10px 20px', background: theme.bg2, borderBottom: `1px solid ${theme.border}`, fontSize: 10, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', color: theme.textDim }}>
+            <span>{lang==='uz'?'Nom':'Название'}</span>
+            <span>{lang==='uz'?'Egasi':'Владелец'}</span>
+            <span>Telegram</span>
+            <span>{lang==='uz'?'Telefon':'Телефон'}</span>
+            <span>{lang==='uz'?'Reja':'План'}</span>
+            <span>{lang==='uz'?'Holat':'Статус'}</span>
+            <span>{lang==='uz'?"Ro'yxat":'Регистрация'}</span>
+            <span></span>
+          </div>
+          {SHOPS_DATA.map((s, i) => <ShopRow key={i} theme={theme} shop={s} lang={lang} delay={Math.min(i+1,9)}/>)}
+        </div>
+        {/* Pagination */}
+        <div className="fia fia-3" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+          <span style={{ fontSize: 12, color: theme.textDim }}>{lang==='uz'?'47 tadan 1-7':'1–7 из 47'}</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['←', '1', '2', '3', '...', '7', '→'].map((p, i) => (
+              <button key={i} className="btn-press" style={{ minWidth: 32, height: 32, borderRadius: 7, border: `1px solid ${i===1?theme.accent:theme.border}`, background: i===1?theme.accentFaded:'transparent', color: i===1?theme.accent:theme.text, fontFamily: 'inherit', fontSize: 13, fontWeight: i===1?700:500, cursor: 'pointer' }}>{p}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DesktopShell2>
+  );
+}
+
+/* Desktop Log */
+function DesktopLog2({ theme, lang }) {
+  const rows = [
+    { d: '27.04 14:23', src: 'telegram', who: '@alisher_t', shop: 'Точка 14', ok: true, ip: '95.214.176.21' },
+    { d: '27.04 14:08', src: 'login', who: 'jasur.k', shop: 'Точка 7', ok: true, ip: '213.230.94.8' },
+    { d: '27.04 13:51', src: 'telegram', who: '@unknown_user_8821', shop: '—', ok: false, stranger: true, ip: '185.93.82.45' },
+    { d: '27.04 13:40', src: 'bot_start', who: 'tg_id 9821334', shop: '—', ok: false, stranger: true, ip: '178.218.207.9' },
+    { d: '27.04 12:14', src: 'telegram', who: '@bahrom_y', shop: 'Точка 22', ok: true, ip: '95.214.180.4' },
+    { d: '27.04 11:02', src: 'login', who: 'shokh_n', shop: 'Точка 3', ok: false, ip: '213.230.99.18' },
+    { d: '27.04 10:38', src: 'telegram', who: '@dilshod_a', shop: 'Точка 31', ok: true, ip: '95.214.176.21' },
+    { d: '27.04 09:55', src: 'admin', who: '@malika_admin', shop: '—', ok: true, ip: '92.51.108.4' },
+    { d: '27.04 09:14', src: 'telegram', who: '@alisher_t', shop: 'Точка 14', ok: true, ip: '95.214.176.21' },
+    { d: '26.04 22:11', src: 'login', who: 'rustam_kh', shop: 'Точка 8', ok: true, ip: '213.230.99.34' },
+  ];
+  return (
+    <DesktopShell2 theme={theme} lang={lang} active="log"
+      title={lang==='uz'?"Kirish jurnali":'Журнал входов'}
+      sub={lang==='uz'?'Bugun: 47 ta · 3 muvaffaqiyatsiz':'Сегодня: 47 входов · 3 неудачных'}
+    >
+      <div style={{ padding: 20 }}>
+        {/* Alert banner */}
+        <div className="fia fia-1" style={{ background: theme.status.red.bg, borderRadius: 12, border: `1px solid ${theme.status.red.border}`, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <IconAlert size={18} stroke={theme.status.red.text}/>
+          <span style={{ fontSize: 13, color: theme.status.red.text, fontWeight: 600 }}>
+            {lang==='uz'?'2 ta noma\'lum foydalanuvchi kirishga urindi':'2 неизвестных пользователя пытались войти — проверьте log'}
+          </span>
+          <button style={{ marginLeft: 'auto', background: 'none', border: 'none', color: theme.status.red.text, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Подробнее →</button>
+        </div>
+        {/* Filters */}
+        <div className="fia fia-2" style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {[{l:'Все',a:true},{l:'Неудачные · 3',d:true},{l:'Telegram'},{l:'Login'},{l:'Bot'}].map((c,i)=>(
+            <button key={i} className="chip-hover" style={{ fontFamily:'inherit',fontWeight:600,fontSize:12,padding:'7px 12px',borderRadius:9,background:c.a?theme.accent:c.d?theme.status.red.bg:theme.bg2,color:c.a?theme.onAccent:c.d?theme.status.red.text:theme.text,border:`1px solid ${c.a?'transparent':c.d?theme.status.red.border:theme.border}`,cursor:'pointer' }}>{c.l}</button>
+          ))}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="live-dot" style={{ width: 7, height: 7, borderRadius: 4, background: theme.status.green.solid }}/>
+            <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>Live</span>
+          </div>
+        </div>
+        {/* Table */}
+        <div className="fia fia-3" style={{ background: theme.bg3, borderRadius: 14, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '32px 1.2fr 0.8fr 1.6fr 1fr 1.1fr', gap: 12, padding: '10px 20px', background: theme.bg2, borderBottom: `1px solid ${theme.border}`, fontSize: 10, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', color: theme.textDim }}>
+            <span></span><span>Дата</span><span>Источник</span><span>Идентификатор</span><span>Магазин</span><span>IP</span>
+          </div>
+          {rows.map((r, i) => {
+            const c = r.ok ? theme.status.green : theme.status.red;
+            return (
+              <div key={i} className={`row-hover fia fia-${Math.min(i+1,9)}`} style={{ display: 'grid', gridTemplateColumns: '32px 1.2fr 0.8fr 1.6fr 1fr 1.1fr', gap: 12, padding: '11px 20px', borderBottom: i<rows.length-1?`1px solid ${theme.border}`:'none', alignItems: 'center', background: r.stranger ? theme.status.red.bg : 'transparent' }}>
+                <div style={{ width: 24, height: 24, borderRadius: 12, background: c.bg, color: c.text, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${c.border}` }}>
+                  {r.ok ? <IconCheck size={12}/> : <IconX size={12}/>}
+                </div>
+                <span style={{ fontSize: 12, color: theme.textDim, fontFamily: window.MALIKA.mono }}>{r.d}</span>
+                <span style={{ fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: .3 }}>{r.src}</span>
+                <span style={{ fontSize: 12, color: r.stranger ? c.text : theme.text, fontFamily: window.MALIKA.mono, fontWeight: r.stranger ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.who}</span>
+                <span style={{ fontSize: 12, color: theme.textDim }}>{r.shop}</span>
+                <span style={{ fontSize: 11, color: theme.textMuted, fontFamily: window.MALIKA.mono }}>{r.ip}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </DesktopShell2>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* TWEAKS + APP ROOT                                             */
+/* ══════════════════════════════════════════════════════════════ */
+const TWEAK_DEFAULTS = {
+  accent: 'telegram',
+  density: 'balanced',
+  showLight: true,
+  showUzbek: true,
+};
+
+function App() {
+  const [values] = window.useTweaks(TWEAK_DEFAULTS);
+  const dark  = window.makeTheme(true,  values.accent);
+  const light = window.makeTheme(false, values.accent);
+  const lang  = (k) => values.showUzbek && k === 'uz' ? 'uz' : 'ru';
+
+  const Frame = ({ theme, w = 390, h = 780 }) => (props) => (
+    <window.IOSDevice width={w} height={h} dark={theme.name === 'dark'}>
+      {props.children}
+    </window.IOSDevice>
+  );
+
+  const pair = ({ id, label, w = 390, h = 780, render }) => ([
+    <window.DCArtboard key={`${id}-d`} id={`${id}-d`} label={`${label} · Dark`} width={w} height={h}>
+      <window.IOSDevice width={w} height={h} dark>{render(dark, 'ru')}</window.IOSDevice>
+    </window.DCArtboard>,
+    values.showLight && (
+      <window.DCArtboard key={`${id}-l`} id={`${id}-l`} label={`${label} · Light${values.showUzbek?' · O\'zbek':''}`} width={w} height={h}>
+        <window.IOSDevice width={w} height={h}>{render(light, lang('uz'))}</window.IOSDevice>
+      </window.DCArtboard>
+    ),
+  ].filter(Boolean));
+
+  const deskPair = ({ id, label, w = 1024, h = 680, render }) => ([
+    <window.DCArtboard key={`${id}-d`} id={`${id}-d`} label={`${label} · Dark`} width={w} height={h}>
+      {render(dark, 'ru')}
+    </window.DCArtboard>,
+    values.showLight && (
+      <window.DCArtboard key={`${id}-l`} id={`${id}-l`} label={`${label} · Light`} width={w} height={h}>
+        {render(light, lang('uz'))}
+      </window.DCArtboard>
+    ),
+  ].filter(Boolean));
+
+  return (
+    <>
+      <window.TweaksPanel defaults={TWEAK_DEFAULTS}/>
+      <window.DesignCanvas>
+
+        {/* ── INTRO ── */}
+        <window.DCSection id="intro" title="Malika Admin v2" subtitle="Улучшенный дизайн · Анимации · Dashboard · RU + O'zbek · Dark + Light">
+          <window.DCPostIt width={280}>
+            <b>Новое в v2</b><br/><br/>
+            ✦ Дашборд платформы (A0)<br/>
+            ✦ Sparkline-графики на всех KPI<br/>
+            ✦ Stagger-анимации списков<br/>
+            ✦ Live-индикатор в журнале<br/>
+            ✦ Desktop: sidebar + topbar<br/>
+            ✦ Hover-эффекты на всех картах<br/>
+            ✦ Alert-баннер для угроз<br/>
+            ✦ Urgency-цвет по сроку долга
+          </window.DCPostIt>
+          <window.DCPostIt width={260} rotate={2}>
+            <b>Анимации (ux-pro-max)</b><br/><br/>
+            • fadeUp 220ms ease-out<br/>
+            • stagger 30ms per item<br/>
+            • scaleIn spring для KPI<br/>
+            • hover: translateY(-2px)<br/>
+            • active: scale(0.95)<br/>
+            • live-dot pulse 2s<br/>
+            • shimmer skeleton<br/>
+            • chip transition 120ms
+          </window.DCPostIt>
+        </window.DCSection>
+
+        {/* ── MOBILE: DASHBOARD ── */}
+        <window.DCSection id="mobile-dashboard" title="A0 — Дашборд платформы" subtitle="Главный экран админа: KPI, быстрые действия, активность">
+          {pair({ id:'dash', label:'A0 Dashboard', render:(t,l)=><ScreenAdminDashboard theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── MOBILE: SHOPS ── */}
+        <window.DCSection id="mobile-shops" title="A1 — Магазины" subtitle="Список с фильтрами + статусы устройств/продаж">
+          {pair({ id:'shops', label:'A1 Shops', render:(t,l)=><ScreenAdminShops2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── MOBILE: SHOP CARD ── */}
+        <window.DCSection id="mobile-shopcard" title="A2 — Карточка магазина" subtitle="Детальная инфо + история входов + экстренный звонок">
+          {pair({ id:'shopcard', label:'A2 Shop Card', render:(t,l)=><ScreenAdminShopCard theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── MOBILE: CREATE ── */}
+        <window.DCSection id="mobile-create" title="A3 — Создать магазин" subtitle="Форма регистрации новой точки">
+          {pair({ id:'create', label:'A3 Create', render:(t,l)=><ScreenAdminCreate2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── MOBILE: LOG ── */}
+        <window.DCSection id="mobile-log" title="A4 — Журнал входов" subtitle="Live-feed с фильтрами + выделение незнакомцев">
+          {pair({ id:'log', label:'A4 Log', render:(t,l)=><ScreenAdminLog2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── MOBILE: DEBTS ── */}
+        <window.DCSection id="mobile-debts" title="A5 — Просроченные долги" subtitle="Сортировка по дням / сумме + urgency-цвет">
+          {pair({ id:'debts', label:'A5 Debts', render:(t,l)=><ScreenAdminDebts2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── MOBILE: STATS ── */}
+        <window.DCSection id="mobile-stats" title="A6 — Статистика платформы" subtitle="Бары по месяцам + sparklines + сводка Nasiya">
+          {pair({ id:'stats', label:'A6 Stats', render:(t,l)=><ScreenAdminStats2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── DESKTOP: DASHBOARD ── */}
+        <window.DCSection id="desktop-dash" title="Desktop — Дашборд" subtitle="Sidebar + KPI-сетка + активность + планы (1024px)">
+          {deskPair({ id:'ddash', label:'Desktop Dashboard', render:(t,l)=><DesktopDashboard theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── DESKTOP: SHOPS ── */}
+        <window.DCSection id="desktop-shops" title="Desktop — Магазины" subtitle="Таблица с сортировкой, фильтрами, пагинацией">
+          {deskPair({ id:'dshops', label:'Desktop Shops', render:(t,l)=><DesktopShops2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+        {/* ── DESKTOP: LOG ── */}
+        <window.DCSection id="desktop-log" title="Desktop — Журнал входов" subtitle="Alert-баннер угроз + live-индикатор + IP-адреса">
+          {deskPair({ id:'dlog', label:'Desktop Log', render:(t,l)=><DesktopLog2 theme={t} lang={l}/> })}
+        </window.DCSection>
+
+      </window.DesignCanvas>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+
+</body>
+</html>

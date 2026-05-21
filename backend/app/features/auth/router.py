@@ -1,0 +1,73 @@
+"""HTTP endpoints for authentication."""
+
+from fastapi import APIRouter, HTTPException, status
+
+from app.core.deps import CurrentUserId, DbSession
+from app.features.auth import repository as user_repo
+from app.features.auth import service
+from app.features.auth.models import User
+from app.features.auth.schemas import (
+    LoginRequest,
+    SetupPasswordRequest,
+    TelegramAuthRequest,
+    TokenResponse,
+    UserOut,
+)
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _user_out(user: User) -> UserOut:
+    return UserOut(
+        id=user.id,
+        full_name=user.full_name,
+        language=user.language,  # type: ignore[arg-type]  # checked at write time
+        tg_username=user.tg_username,
+        phone=user.phone,
+        has_password=user.has_password,
+    )
+
+
+@router.post("/telegram", response_model=TokenResponse)
+async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenResponse:
+    """Mini App auth: send ``initData``, receive a JWT.
+
+    Creates the user on first call and refreshes their Telegram username
+    on subsequent calls.
+    """
+    try:
+        user, token = await service.login_via_telegram(db, req.init_data)
+    except service.AuthError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+    return TokenResponse(access_token=token, user_id=user.id)
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login_via_password(req: LoginRequest, db: DbSession) -> TokenResponse:
+    """Fallback auth used when Telegram is unavailable."""
+    try:
+        user, token = await service.login_via_password(db, req.login, req.password)
+    except service.AuthError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+    return TokenResponse(access_token=token, user_id=user.id)
+
+
+@router.post("/setup-password", response_model=UserOut)
+async def setup_password(
+    req: SetupPasswordRequest, user_id: CurrentUserId, db: DbSession
+) -> UserOut:
+    """Settings → Security: attach or change the login + password fallback."""
+    try:
+        user = await service.setup_password(db, user_id, req.login, req.password)
+    except service.AuthError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return _user_out(user)
+
+
+@router.get("/me", response_model=UserOut)
+async def me(user_id: CurrentUserId, db: DbSession) -> UserOut:
+    """Return the currently authenticated user — frontend calls this on boot."""
+    user = await user_repo.get_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "user not found")
+    return _user_out(user)

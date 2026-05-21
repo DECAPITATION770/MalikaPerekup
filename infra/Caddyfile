@@ -1,0 +1,26 @@
+# Production reverse proxy. Caddy auto-issues HTTPS certificates from
+# Let's Encrypt — Telegram requires HTTPS for Mini Apps.
+#
+# Replace ``app.example.com`` with the real domain before deploying.
+
+app.example.com {
+    encode gzip
+
+    # Mini App static bundle — built with `pnpm build` and served as files.
+    handle_path /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Everything else → the React Mini App.
+    handle {
+        root * /srv/miniapp
+        try_files {path} /index.html
+        file_server
+    }
+
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
