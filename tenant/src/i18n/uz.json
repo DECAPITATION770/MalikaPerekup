@@ -513,5 +513,10 @@
     "status_active": "Faol",
     "status_returned": "Qaytarildi",
     "status_cancelled": "Bekor"
+  },
+  "errors": {
+    "boundary_title": "Nimadir xato ketdi",
+    "boundary_body": "Xatolik yuz berdi. Sahifani qayta yuklang — ma'lumotlar yo'qolmaydi.",
+    "boundary_reload": "Qayta yuklash"
   }
 }

@@ -517,5 +517,10 @@
     "status_active": "Активна",
     "status_returned": "Возврат",
     "status_cancelled": "Отменена"
+  },
+  "errors": {
+    "boundary_title": "Что-то пошло не так",
+    "boundary_body": "Произошла ошибка. Перезагрузите страницу — данные не потеряются.",
+    "boundary_reload": "Перезагрузить"
   }
 }
