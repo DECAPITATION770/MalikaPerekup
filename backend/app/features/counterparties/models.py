@@ -14,6 +14,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -64,6 +65,14 @@ class Counterparty(Base):
     # reference this row via FK.
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+    # CLAUDE.md §10 — when a counterparty is soft-deleted we owe the user
+    # cleanup of their passport scans from object storage. The
+    # ``cleanup_deleted_counterparty_files`` job flips this true once the
+    # ``doc_photos`` keys have been removed from MinIO/R2.
+    files_cleaned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
     )
 
     created_at: Mapped[datetime] = mapped_column(
