@@ -1,94 +1,95 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from './store/auth';
-import { ToastProvider } from './components/ui/Toast';
-import ErrorBoundary from './components/ErrorBoundary';
-import SessionExpiredToast from './components/SessionExpiredToast';
-import OfflineBanner from './components/OfflineBanner';
-import AppLayout from './components/layout/AppLayout';
-import Spinner from './components/ui/Spinner';
+/**
+ * Root app shell.
+ *
+ * Phase 1 verify-gate stub: renders a centred "Hello shadcn" card via
+ * the new shadcn primitives so we can prove the toolchain (Vite SWC +
+ * Tailwind 3.4 + Radix + shadcn HSL bridge + PWA + Sentry) wires up end
+ * to end before we port the real pages in Phase 3.
+ *
+ * Wraps Telegram + QueryClient + Sentry providers around the tree so
+ * page rewrites can lean on them immediately.
+ */
+import { Suspense } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { Toaster } from 'sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { TelegramProvider, useTgThemeBridge } from '@/lib/telegram';
+import { queryClient, queryPersister, shouldDehydrateQuery } from '@/lib/queryClient';
+import { Sparkles } from 'lucide-react';
+import { Sentry } from '@/lib/sentry';
 
-const Login         = lazy(() => import('./pages/Login'));
-const Today         = lazy(() => import('./pages/Today'));
-const Stock         = lazy(() => import('./pages/Stock'));
-const PurchaseNew   = lazy(() => import('./pages/PurchaseNew'));
-const SaleNew       = lazy(() => import('./pages/SaleNew'));
-const Installments  = lazy(() => import('./pages/Installments'));
-const Reports       = lazy(() => import('./pages/Reports'));
-const Counterparties= lazy(() => import('./pages/Counterparties'));
-const Settings      = lazy(() => import('./pages/Settings'));
-const StockDetail   = lazy(() => import('./pages/StockDetail'));
-const SearchPage    = lazy(() => import('./pages/Search'));
-const DeviceByToken = lazy(() => import('./pages/DeviceByToken'));
-const Purchases    = lazy(() => import('./pages/Purchases'));
-const Sales        = lazy(() => import('./pages/Sales'));
-const CounterpartyDetail = lazy(() => import('./pages/CounterpartyDetail'));
+const SentryErrorBoundary = Sentry.ErrorBoundary;
 
-const qc = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: (failureCount, error: unknown) => {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status && status >= 400 && status < 500) return false;
-        return failureCount < 2;
-      },
-      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
-      staleTime: 30_000,
-      refetchOnReconnect: true,
-    },
-  },
-});
-
-function PageLoader() {
+function HelloShadcn() {
   return (
-    <div className="flex items-center justify-center min-h-[40vh]">
-      <Spinner />
-    </div>
+    <Card className="w-full max-w-md animate-fade-up">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Малика — фундамент готов</CardTitle>
+          <Badge variant="accent">
+            <Sparkles className="size-3" /> rebuild
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-text-dim leading-relaxed">
+          Phase 1 verify-gate. shadcn/ui + Radix + Vaul + Telegram SDK
+          v3 + PWA + Sentry — всё проинициализировано. Можно начинать
+          переписывать страницы.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button>Primary</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="ghost">Ghost</Button>
+          <Button variant="success">Success</Button>
+          <Button variant="danger">Danger</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function RequireAuth({ children }: { children: JSX.Element }) {
-  const { token } = useAuth();
-  if (!token) return <Navigate to="/login" replace />;
-  return children;
+function ThemedShell() {
+  useTgThemeBridge();
+  return (
+    <main className="min-h-dvh flex items-center justify-center p-4 hero-mesh">
+      <Suspense fallback={null}>
+        <HelloShadcn />
+      </Suspense>
+    </main>
+  );
 }
 
-export default function App() {
+export function App() {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={qc}>
-        <AuthProvider>
-          <ToastProvider>
-            <SessionExpiredToast />
-            <OfflineBanner />
-            <BrowserRouter>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-                    <Route path="/"               element={<Today />} />
-                    <Route path="/stock"          element={<Stock />} />
-                    <Route path="/stock/:id"     element={<StockDetail />} />
-                    <Route path="/search"        element={<SearchPage />} />
-                    <Route path="/d/:token"      element={<DeviceByToken />} />
-                    <Route path="/purchases"     element={<Purchases />} />
-                    <Route path="/purchase/new"   element={<PurchaseNew />} />
-                    <Route path="/sales"         element={<Sales />} />
-                    <Route path="/sale/new"       element={<SaleNew />} />
-                    <Route path="/installments"   element={<Installments />} />
-                    <Route path="/reports"        element={<Reports />} />
-                    <Route path="/counterparties" element={<Counterparties />} />
-                    <Route path="/counterparties/:id" element={<CounterpartyDetail />} />
-                    <Route path="/settings"       element={<Settings />} />
-                    <Route path="*"               element={<Navigate to="/" replace />} />
-                  </Route>
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </ToastProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <SentryErrorBoundary fallback={<div className="p-8 text-center text-danger">Что-то сломалось.</div>}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: queryPersister,
+          maxAge: 1000 * 60 * 60 * 24,
+          dehydrateOptions: { shouldDehydrateQuery },
+        }}
+      >
+        <QueryClientProvider client={queryClient}>
+          <TelegramProvider>
+            <TooltipProvider delayDuration={250}>
+              <ThemedShell />
+              <Toaster
+                position="top-center"
+                richColors
+                closeButton
+                theme="dark"
+                toastOptions={{ className: 'card !rounded-xl' }}
+              />
+            </TooltipProvider>
+          </TelegramProvider>
+        </QueryClientProvider>
+      </PersistQueryClientProvider>
+    </SentryErrorBoundary>
   );
 }

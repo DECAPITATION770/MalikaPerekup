@@ -1,49 +1,26 @@
-import { InputHTMLAttributes, ReactNode, forwardRef, useId } from 'react';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-interface Props extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> {
-  label?: string;
-  hint?: string;
-  error?: string;
-  required?: boolean;
-  prefix?: ReactNode;
-  suffix?: ReactNode;
-}
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
-const Input = forwardRef<HTMLInputElement, Props>(function Input(
-  { label, hint, error, required, prefix, suffix, className = '', id, ...rest },
-  ref,
-) {
-  const autoId = useId();
-  const inputId = id ?? autoId;
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {label && (
-        <label htmlFor={inputId} className="text-label text-text-dim font-medium tracking-tight flex items-center gap-1">
-          {label}
-          {required && <span className="text-danger" aria-hidden="true">*</span>}
-        </label>
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type = 'text', ...rest }, ref) => (
+    <input
+      ref={ref}
+      type={type}
+      className={cn(
+        'flex h-12 w-full rounded-xl border border-border bg-bg2 px-3.5 py-2',
+        'text-body-lg font-medium text-text placeholder:text-text-muted',
+        'transition-colors',
+        'focus-visible:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20',
+        'disabled:cursor-not-allowed disabled:opacity-60',
+        'file:border-0 file:bg-transparent file:text-body file:font-medium file:text-text',
+        className,
       )}
-      <div className={`
-        flex items-center gap-2 bg-bg2 rounded-xl border h-12 px-3.5 transition-colors
-        ${error ? 'border-danger' : 'border-border focus-within:border-accent'}
-      `}>
-        {prefix && <span className="text-text-dim shrink-0">{prefix}</span>}
-        <input
-          {...rest}
-          ref={ref}
-          id={inputId}
-          className={`flex-1 bg-transparent text-text text-body-lg font-medium outline-none placeholder:text-text-muted ${className}`}
-        />
-        {suffix && <span className="shrink-0">{suffix}</span>}
-      </div>
-      {error ? (
-        <span role="alert" className="text-xs text-danger animate-fade-in">{error}</span>
-      ) : hint ? (
-        <span className="text-xs text-text-muted">{hint}</span>
-      ) : null}
-    </div>
-  );
-});
+      {...rest}
+    />
+  ),
+);
+Input.displayName = 'Input';
 
-export default Input;
+export { Input };

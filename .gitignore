@@ -249,3 +249,8 @@ __marimo__/
 **/.ruff_cache/
 **/.mypy_cache/
 
+# ── TypeScript build cache ──────────────────────────────────────────────────
+**/*.tsbuildinfo
+**/dev-dist/
+
+

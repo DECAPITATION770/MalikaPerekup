@@ -1,58 +1,67 @@
-import { ButtonHTMLAttributes, ReactNode } from 'react';
-import Spinner from './Spinner';
+import * as React from 'react';
+import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
-type Size = 'sm' | 'md' | 'lg';
+const buttonVariants = cva(
+  [
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap',
+    'rounded-xl font-semibold tracking-tight',
+    'transition-all active:scale-[0.97]',
+    'disabled:pointer-events-none disabled:opacity-60',
+    'outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  ].join(' '),
+  {
+    variants: {
+      variant: {
+        primary:
+          'bg-accent hover:bg-accent-hover text-[rgb(var(--c-on-accent))] shadow-glow-accent',
+        secondary:
+          'bg-bg3 hover:bg-border text-text border border-border hover:border-border-strong',
+        ghost: 'bg-transparent hover:bg-bg3 text-text-dim hover:text-text',
+        danger: 'bg-danger hover:bg-danger/90 text-white',
+        success: 'bg-success hover:bg-success/90 text-bg shadow-glow-success',
+        outline:
+          'bg-transparent border border-border-strong text-text hover:bg-bg3',
+        link: 'bg-transparent text-accent underline-offset-4 hover:underline',
+      },
+      size: {
+        sm: 'h-9 px-3 text-label',
+        md: 'h-11 px-5 text-body',
+        lg: 'h-12 px-6 text-body-lg',
+        icon: 'h-10 w-10',
+      },
+      full: { true: 'w-full', false: '' },
+    },
+    defaultVariants: { variant: 'primary', size: 'md', full: false },
+  },
+);
 
-interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
-  full?: boolean;
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
   loading?: boolean;
-  icon?: ReactNode;
 }
 
-const V: Record<Variant, string> = {
-  primary:   'bg-accent hover:bg-accent-hover text-white shadow-glow-accent',
-  secondary: 'bg-bg3 hover:bg-border text-text border border-border hover:border-border-strong',
-  ghost:     'bg-transparent hover:bg-bg3 text-text-dim hover:text-text',
-  danger:    'bg-danger hover:bg-danger/90 text-white',
-  success:   'bg-success hover:bg-success/90 text-bg shadow-glow-success',
-};
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, full, asChild = false, loading = false, disabled, children, ...rest }, ref) => {
+    const Comp = asChild ? Slot : 'button';
+    return (
+      <Comp
+        ref={ref}
+        className={cn(buttonVariants({ variant, size, full }), className)}
+        disabled={disabled || loading}
+        {...rest}
+      >
+        {loading ? <Loader2 className="animate-spin" /> : null}
+        {children}
+      </Comp>
+    );
+  },
+);
+Button.displayName = 'Button';
 
-const S: Record<Size, string> = {
-  sm: 'h-9 px-3 text-label',
-  md: 'h-11 px-5 text-body',
-  lg: 'h-12 px-6 text-body-lg',
-};
-
-export default function Button({
-  variant = 'primary',
-  size = 'md',
-  full = false,
-  loading = false,
-  icon,
-  children,
-  className = '',
-  disabled,
-  ...rest
-}: Props) {
-  return (
-    <button
-      {...rest}
-      disabled={disabled || loading}
-      className={`
-        ${V[variant]} ${S[size]} ${full ? 'w-full' : ''}
-        rounded-xl font-semibold tracking-tight
-        flex items-center justify-center gap-2
-        transition-all active:scale-[0.97]
-        disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100
-        focus-ring cursor-pointer
-        ${className}
-      `}
-    >
-      {loading ? <Spinner size={16} /> : icon}
-      {children}
-    </button>
-  );
-}
+export { Button, buttonVariants };
