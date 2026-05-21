@@ -1,67 +1,28 @@
 /**
  * Root app shell.
  *
- * Phase 1 verify-gate stub: renders a centred "Hello shadcn" card via
- * the new shadcn primitives so we can prove the toolchain (Vite SWC +
- * Tailwind 3.4 + Radix + shadcn HSL bridge + PWA + Sentry) wires up end
- * to end before we port the real pages in Phase 3.
+ * Phase 2 — replaces the Phase 1 "Hello shadcn" stub with /dev/showcase
+ * as the default route so designers can review every primitive + brand
+ * mark + 7 custom icons + 4 illustrations + KpiCard (real useCountUp)
+ * in both dark and light theme.
  *
- * Wraps Telegram + QueryClient + Sentry providers around the tree so
- * page rewrites can lean on them immediately.
+ * Phase 3 will introduce the production router and turn `/dev/showcase`
+ * into an actual dev-only path.
  */
-import { Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Toaster } from 'sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { TelegramProvider, useTgThemeBridge } from '@/lib/telegram';
 import { queryClient, queryPersister, shouldDehydrateQuery } from '@/lib/queryClient';
-import { Sparkles } from 'lucide-react';
+import { Showcase } from '@/pages/_dev/Showcase';
 import { Sentry } from '@/lib/sentry';
 
 const SentryErrorBoundary = Sentry.ErrorBoundary;
 
-function HelloShadcn() {
-  return (
-    <Card className="w-full max-w-md animate-fade-up">
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle>Малика — фундамент готов</CardTitle>
-          <Badge variant="accent">
-            <Sparkles className="size-3" /> rebuild
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-text-dim leading-relaxed">
-          Phase 1 verify-gate. shadcn/ui + Radix + Vaul + Telegram SDK
-          v3 + PWA + Sentry — всё проинициализировано. Можно начинать
-          переписывать страницы.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button>Primary</Button>
-          <Button variant="secondary">Secondary</Button>
-          <Button variant="ghost">Ghost</Button>
-          <Button variant="success">Success</Button>
-          <Button variant="danger">Danger</Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function ThemedShell() {
   useTgThemeBridge();
-  return (
-    <main className="min-h-dvh flex items-center justify-center p-4 hero-mesh">
-      <Suspense fallback={null}>
-        <HelloShadcn />
-      </Suspense>
-    </main>
-  );
+  return <Showcase />;
 }
 
 export function App() {
