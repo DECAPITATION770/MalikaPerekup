@@ -506,7 +506,18 @@
     "payment_failed": "To'lovni yozib bo'lmadi",
     "plan_total": "Umumiy summa",
     "payment_queued": "To'lov oflayn saqlandi — aloqa paydo bo'lганda yuboriladi",
-    "synced_n": "Sinxronlangan to'lovlar: {{count}}"
+    "synced_n": "Sinxronlangan to'lovlar: {{count}}",
+    "next_payment": "Keyingi to'lov: {{date}}",
+    "overdue_days": "{{count}} kun kechikkan",
+    "pay_full": "Butun qoldiq",
+    "copy_phone": "Raqamni nusxalash",
+    "phone_copied": "Raqam nusxalandi",
+    "payoff": "Muddatidan oldin yopish",
+    "payoff_confirm_title": "Nasiya yopilsinmi?",
+    "payoff_confirm_body": "{{amount}} qoldiq to'langan deb belgilanadi, reja yopiladi. Amal qaytarib bo'lmaydi.",
+    "payoff_done": "Nasiya yopildi",
+    "payoff_failed": "Yopib bo'lmadi",
+    "queued_pending": "{{count}} ta to'lov sinxronlanishini kutmoqda"
   },
   "settings": {
     "title": "Sozlamalar",

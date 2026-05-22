@@ -9,14 +9,20 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { BadgeDollarSign, Check, Phone, Send } from 'lucide-react';
+import {
+  AlertTriangle,
+  BadgeDollarSign,
+  CalendarClock,
+  Check,
+  CheckCheck,
+  Copy,
+  CloudOff,
+  Phone,
+  Send,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,22 +38,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { NoInstallmentsIllustration } from '@/components/illustrations';
 
 import {
   listInstallments,
   makePayment,
+  payoff,
+  type PeriodType,
   type PlanOut,
   type PlanStatus,
 } from '@/api/installments';
-import { fmtUzs } from '@/lib/fmt';
-import {
-  fmtMoneyInput,
-  moneyToNumber,
-  parseMoneyInput,
-} from '@/lib/money';
+import { fmtDate, fmtUzs } from '@/lib/fmt';
+import { fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
 import { useTgHaptic } from '@/lib/telegram';
-import { enqueuePayment } from '@/lib/offlineQueue';
+import { enqueuePayment, queueSize } from '@/lib/offlineQueue';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +76,41 @@ const STATUS_VARIANT: Record<PlanStatus, 'danger' | 'success' | 'muted' | 'accen
   cancelled: 'muted',
   active: 'accent',
 };
+
+/** Add ``step`` periods to ``start`` — mirrors backend schedule._next_due_date
+ *  (monthly clamps day-of-month to the target month's last day). */
+function addPeriod(start: Date, type: PeriodType, step: number): Date {
+  const d = new Date(start);
+  if (type === 'daily') d.setDate(d.getDate() + step);
+  else if (type === 'weekly') d.setDate(d.getDate() + step * 7);
+  else {
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + step);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+  }
+  return d;
+}
+
+/** Next unpaid installment's due date + how many days it's overdue. Replicates
+ *  the server schedule (down payment due at start, periodic i due at start+i)
+ *  so we can show "overdue N days" / "next payment …" from the list data. */
+function nextDueInfo(plan: PlanOut): { nextDue: Date | null; daysOverdue: number } {
+  const start = new Date(`${plan.start_date}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return { nextDue: null, daysOverdue: 0 };
+  const dues: Date[] = [];
+  if (moneyToNumber(plan.down_payment) > 0) dues.push(new Date(start));
+  for (let i = 1; i <= plan.period_count; i++) dues.push(addPeriod(start, plan.period_type, i));
+  const nextDue = dues[plan.paid_count ?? 0] ?? null;
+  let daysOverdue = 0;
+  if (nextDue) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    daysOverdue = Math.max(0, Math.floor((today.getTime() - nextDue.getTime()) / 86_400_000));
+  }
+  return { nextDue, daysOverdue };
+}
 
 // ── Payment-record dialog ─────────────────────────────────────────────
 
@@ -78,6 +128,10 @@ function PaymentDialog({
   const qc = useQueryClient();
   const [amount, setAmount] = useState('');
   const numeric = moneyToNumber(amount);
+  const remaining = Math.max(
+    0,
+    moneyToNumber(plan.total_amount) - moneyToNumber(plan.paid_amount ?? '0'),
+  );
 
   const m = useMutation({
     mutationFn: async () => {
@@ -116,41 +170,55 @@ function PaymentDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {t('installments.record_payment_title', { name: buyerName })}
-          </DialogTitle>
+          <DialogTitle>{t('installments.record_payment_title', { name: buyerName })}</DialogTitle>
           <DialogDescription>
             {t('installments.plan_total')}: {fmtUzs(plan.total_amount)} UZS
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          <label className="text-label text-text-dim font-medium tracking-tight">
+          <label className="text-label font-medium tracking-tight text-text-dim">
             {t('installments.amount_label')}
           </label>
-          <div className="flex items-center gap-2 bg-bg2 rounded-2xl border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15 h-14 px-4 transition-colors">
+          <div className="flex h-14 items-center gap-2 rounded-2xl border border-border bg-bg2 px-4 transition-colors focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
             <input
               autoFocus
               inputMode="numeric"
               placeholder="0"
               value={amount}
               onChange={(e) => setAmount(fmtMoneyInput(e.target.value))}
-              className="flex-1 bg-transparent outline-none text-title-sm font-bold text-text placeholder:text-text-muted tabular-nums"
+              className="flex-1 bg-transparent text-title-sm font-bold tabular-nums text-text outline-none placeholder:text-text-muted"
             />
-            <span className="text-text-muted text-hint font-bold">UZS</span>
+            <span className="text-hint font-bold text-text-muted">UZS</span>
           </div>
+          {remaining > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {[0.25, 0.5, 0.75].map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setAmount(fmtMoneyInput(String(Math.round(remaining * f))))}
+                  className="h-8 cursor-pointer rounded-lg border border-border bg-bg2 px-3 text-hint font-bold tabular-nums text-text-dim transition-colors hover:border-border-strong hover:text-text"
+                >
+                  {Math.round(f * 100)}%
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAmount(fmtMoneyInput(String(Math.round(remaining))))}
+                className="h-8 cursor-pointer rounded-lg border border-success/40 bg-success-faded px-3 text-hint font-bold text-success transition-colors hover:bg-success/15"
+              >
+                {t('installments.pay_full')}
+              </button>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="secondary" full onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button
-            full
-            disabled={numeric <= 0}
-            loading={m.isPending}
-            onClick={() => m.mutate()}
-          >
+          <Button full disabled={numeric <= 0} loading={m.isPending} onClick={() => m.mutate()}>
             <Check className="size-4" />
             {t('installments.record_payment')}
           </Button>
@@ -165,6 +233,7 @@ function PaymentDialog({
 function PlanCard({ plan }: { plan: PlanOut }) {
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
   const hasContact = Boolean(plan.buyer_phone || plan.buyer_tg_username);
   const canRecord = plan.status === 'active' || plan.status === 'overdue';
@@ -177,15 +246,36 @@ function PlanCard({ plan }: { plan: PlanOut }) {
   const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
   const paidCount = plan.paid_count ?? 0;
   const paymentsCount = plan.payments_count ?? plan.period_count;
+  const { nextDue, daysOverdue } = nextDueInfo(plan);
+
+  const payoffM = useMutation({
+    mutationFn: () => payoff(plan.id),
+    onSuccess: () => {
+      haptic.notify('success');
+      toast.success(t('installments.payoff_done'));
+      qc.invalidateQueries({ queryKey: ['installments'] });
+    },
+    onError: () => {
+      haptic.notify('error');
+      toast.error(t('installments.payoff_failed'));
+    },
+  });
+
+  const copyPhone = async () => {
+    if (!plan.buyer_phone) return;
+    await navigator.clipboard.writeText(plan.buyer_phone);
+    haptic.tap('light');
+    toast.success(t('installments.phone_copied'));
+  };
 
   return (
-    <div className={cn('card p-4 flex flex-col gap-3', isOverdue && 'border-danger/30')}>
+    <div className={cn('card flex flex-col gap-3 p-4', isOverdue && 'border-danger/30')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-body-lg font-bold tracking-tight truncate">
+          <div className="truncate text-body-lg font-bold tracking-tight">
             {plan.buyer_name || t('installments.debtor')}
           </div>
-          <div className="text-hint text-text-muted mt-0.5">
+          <div className="mt-0.5 text-hint text-text-muted">
             {t('installments.sale_id', { id: plan.sale_id })}
           </div>
         </div>
@@ -197,22 +287,17 @@ function PlanCard({ plan }: { plan: PlanOut }) {
       {/* Headline number — how much's left to collect */}
       <div>
         <div className="flex items-baseline justify-between gap-2">
-          <div className="text-caption text-text-muted uppercase tracking-wider font-semibold">
+          <div className="text-caption font-semibold uppercase tracking-wider text-text-muted">
             {t('installments.remaining')}
           </div>
-          <div className="text-caption text-text-muted tabular-nums">
+          <div className="text-caption tabular-nums text-text-muted">
             {paidCount}/{paymentsCount} {t('installments.payments_short')}
           </div>
         </div>
-        <div
-          className={cn(
-            'text-title font-bold tabular-nums mt-0.5',
-            isOverdue && 'text-danger',
-          )}
-        >
+        <div className={cn('mt-0.5 text-title font-bold tabular-nums', isOverdue && 'text-danger')}>
           {fmtUzs(remaining)} UZS
         </div>
-        <div className="text-caption text-text-muted tabular-nums">
+        <div className="text-caption tabular-nums text-text-muted">
           {t('installments.of_total', { total: `${fmtUzs(total)} UZS` })}
         </div>
         <Progress
@@ -225,18 +310,45 @@ function PlanCard({ plan }: { plan: PlanOut }) {
         />
       </div>
 
-      {/* One-tap contact */}
+      {/* Due-date line: overdue urgency or the next payment date */}
+      {isOverdue && daysOverdue > 0 ? (
+        <div className="flex items-center gap-1.5 text-hint font-semibold text-danger">
+          <AlertTriangle size={14} />
+          {t('installments.overdue_days', { count: daysOverdue })}
+          {nextDue && <span className="text-text-muted">· {fmtDate(nextDue.toISOString())}</span>}
+        </div>
+      ) : (
+        canRecord &&
+        nextDue && (
+          <div className="flex items-center gap-1.5 text-hint text-text-dim">
+            <CalendarClock size={14} className="text-text-muted" />
+            {t('installments.next_payment', { date: fmtDate(nextDue.toISOString()) })}
+          </div>
+        )
+      )}
+
+      {/* One-tap contact — stacks on narrow screens for fat-finger taps */}
       {hasContact ? (
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {plan.buyer_phone && (
-            <a
-              href={`tel:${plan.buyer_phone}`}
-              onClick={() => haptic.tap('light')}
-              className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-bg3 border border-border text-label font-bold hover:border-border-strong active:scale-[0.98] transition-all focus-ring"
-            >
-              <Phone size={16} className="text-success" />
-              {t('installments.call')}
-            </a>
+            <div className="flex flex-1 gap-2">
+              <a
+                href={`tel:${plan.buyer_phone}`}
+                onClick={() => haptic.tap('light')}
+                className="focus-ring flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-bg3 text-label font-bold transition-all hover:border-border-strong active:scale-[0.98]"
+              >
+                <Phone size={16} className="text-success" />
+                {t('installments.call')}
+              </a>
+              <button
+                type="button"
+                onClick={copyPhone}
+                aria-label={t('installments.copy_phone')}
+                className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg3 text-text-dim transition-all hover:border-border-strong hover:text-text active:scale-[0.98]"
+              >
+                <Copy size={16} />
+              </button>
+            </div>
           )}
           {plan.buyer_tg_username && (
             <a
@@ -244,7 +356,7 @@ function PlanCard({ plan }: { plan: PlanOut }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => haptic.tap('light')}
-              className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-accent-faded border border-accent/40 text-accent text-label font-bold hover:bg-accent/20 active:scale-[0.98] transition-all focus-ring"
+              className="focus-ring flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent-faded text-label font-bold text-accent transition-all hover:bg-accent/20 active:scale-[0.98]"
             >
               <Send size={15} />
               {t('installments.write_tg')}
@@ -252,21 +364,52 @@ function PlanCard({ plan }: { plan: PlanOut }) {
           )}
         </div>
       ) : (
-        <div className="text-caption text-text-muted text-center py-1">
+        <div className="py-1 text-center text-caption text-text-muted">
           {t('installments.no_contact')}
         </div>
       )}
 
-      {/* Record payment */}
+      {/* Record payment + early payoff */}
       {canRecord && (
-        <button
-          type="button"
-          onClick={() => setPayOpen(true)}
-          className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-success-faded border border-success/40 text-success text-label font-bold hover:bg-success/15 active:scale-[0.98] transition-all focus-ring"
-        >
-          <BadgeDollarSign size={16} />
-          {t('installments.record_payment')}
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setPayOpen(true)}
+            className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-success/40 bg-success-faded text-label font-bold text-success transition-all hover:bg-success/15 active:scale-[0.98]"
+          >
+            <BadgeDollarSign size={16} />
+            {t('installments.record_payment')}
+          </button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                className="focus-ring flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 text-hint font-semibold text-text-muted transition-colors hover:text-text"
+              >
+                <CheckCheck size={15} />
+                {t('installments.payoff')}
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('installments.payoff_confirm_title')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('installments.payoff_confirm_body', { amount: `${fmtUzs(remaining)} UZS` })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => payoffM.mutate()}
+                  className="bg-success text-bg hover:bg-success/90"
+                >
+                  <CheckCheck className="size-4" />
+                  {t('installments.payoff')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       )}
 
       <PaymentDialog plan={plan} open={payOpen} onClose={() => setPayOpen(false)} />
@@ -303,11 +446,24 @@ export default function Installments() {
       }),
   });
 
+  const { data: queued = 0 } = useQuery({
+    queryKey: ['offline-queue-size'],
+    queryFn: queueSize,
+    refetchInterval: 5_000,
+  });
+
   const items = data?.items ?? [];
 
   return (
-    <div className="flex flex-col gap-4 animate-fade-up">
+    <div className="flex animate-fade-up flex-col gap-4">
       <h1 className="text-title font-bold tracking-tight">{t('installments.title')}</h1>
+
+      {queued > 0 && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning-faded/40 px-3.5 py-2.5 text-label font-semibold text-warning">
+          <CloudOff size={16} />
+          {t('installments.queued_pending', { count: queued })}
+        </div>
+      )}
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
         <TabsList className="w-full md:w-auto">
