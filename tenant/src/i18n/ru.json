@@ -467,7 +467,9 @@
     "amount_label": "Сумма (UZS)",
     "payment_recorded": "Платёж записан",
     "payment_failed": "Не удалось записать платёж",
-    "plan_total": "Общая сумма"
+    "plan_total": "Общая сумма",
+    "payment_queued": "Платёж записан офлайн — синхронизирую при связи",
+    "synced_n": "Синхронизировано платежей: {{count}}"
   },
   "settings": {
     "title": "Настройки",

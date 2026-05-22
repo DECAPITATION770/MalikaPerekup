@@ -41,6 +41,7 @@ import { useDebounced } from '@/lib/useDebounced';
 import { fmtMoneyInput, parseMoneyInput, moneyToNumber } from '@/lib/money';
 import { fmtUzs } from '@/lib/fmt';
 import { useTgBackButton, useTgMainButton, useTgHaptic } from '@/lib/telegram';
+import { track } from '@/lib/analytics';
 import { SegmentedRow } from './purchase/primitives';
 import { SellerSearch as CounterpartySearch } from './purchase/SellerSearch';
 import { cn } from '@/lib/utils';
@@ -240,6 +241,7 @@ export default function SaleNew() {
     },
     onSuccess: () => {
       haptic.notify('success');
+      track('sale_created', { type: saleType });
       setDone(true);
     },
     onError: () => {

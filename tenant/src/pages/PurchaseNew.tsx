@@ -25,6 +25,7 @@ import {
 import { getExchangeRateHint } from '@/api/reports';
 import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
 import { useTgBackButton, useTgHaptic } from '@/lib/telegram';
+import { track } from '@/lib/analytics';
 
 import {
   type FormValues,
@@ -188,6 +189,7 @@ export default function PurchaseNew() {
     mutationFn: createPurchase,
     onSuccess: (data) => {
       haptic.notify('success');
+      track('purchase_created', { currency: getValues('currency') });
       localStorage.removeItem(DRAFT_KEY);
       setDone(data);
     },

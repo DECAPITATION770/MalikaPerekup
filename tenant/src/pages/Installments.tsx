@@ -47,6 +47,8 @@ import {
   parseMoneyInput,
 } from '@/lib/money';
 import { useTgHaptic } from '@/lib/telegram';
+import { enqueuePayment } from '@/lib/offlineQueue';
+import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
 type Filter = PlanStatus | 'all';
@@ -78,11 +80,27 @@ function PaymentDialog({
   const numeric = moneyToNumber(amount);
 
   const m = useMutation({
-    mutationFn: () => makePayment(plan.id, parseMoneyInput(amount)),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const value = parseMoneyInput(amount);
+      // Offline-first: if there's no connection, queue the payment in
+      // IndexedDB and let OfflineSync replay it when we're back online.
+      if (!navigator.onLine) {
+        await enqueuePayment(plan.id, value);
+        return { queued: true as const };
+      }
+      await makePayment(plan.id, value);
+      return { queued: false as const };
+    },
+    onSuccess: (res) => {
       haptic.notify('success');
-      toast.success(t('installments.payment_recorded'));
-      qc.invalidateQueries({ queryKey: ['installments'] });
+      if (res.queued) {
+        track('installment_paid_offline', { plan_id: plan.id });
+        toast.success(t('installments.payment_queued'));
+      } else {
+        track('installment_paid', { plan_id: plan.id });
+        toast.success(t('installments.payment_recorded'));
+        qc.invalidateQueries({ queryKey: ['installments'] });
+      }
       setAmount('');
       onClose();
     },

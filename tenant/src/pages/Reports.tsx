@@ -45,6 +45,7 @@ import {
 } from '@/api/reports';
 import { fmtUzs, fmtUzsCompact } from '@/lib/fmt';
 import { useTgHaptic } from '@/lib/telegram';
+import { track } from '@/lib/analytics';
 
 const COMPACT = { thousand: 'тыс', million: 'млн', billion: 'млрд' };
 
@@ -100,6 +101,7 @@ export default function Reports() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      track('report_exported', { preset });
     } finally {
       setExporting(false);
     }

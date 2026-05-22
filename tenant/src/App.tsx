@@ -33,6 +33,7 @@ import { Loader2 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { OfflineSync } from '@/components/OfflineSync';
 import { SessionExpiredToast } from '@/components/SessionExpiredToast';
 import { AppLayout } from '@/components/layout/AppLayout';
 
@@ -86,6 +87,7 @@ function ThemedShell() {
   return (
     <>
       <OfflineBanner />
+      <OfflineSync />
       <SessionExpiredToast />
       <Suspense fallback={<PageLoader />}>
         <Routes>

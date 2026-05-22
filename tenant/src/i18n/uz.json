@@ -463,7 +463,9 @@
     "amount_label": "Summa (UZS)",
     "payment_recorded": "To'lov yozildi",
     "payment_failed": "To'lovni yozib bo'lmadi",
-    "plan_total": "Umumiy summa"
+    "plan_total": "Umumiy summa",
+    "payment_queued": "To'lov oflayn saqlandi — aloqa paydo bo'lганda yuboriladi",
+    "synced_n": "Sinxronlangan to'lovlar: {{count}}"
   },
   "settings": {
     "title": "Sozlamalar",
