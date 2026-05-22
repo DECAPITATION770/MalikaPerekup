@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -17,14 +18,14 @@ import {
   Search,
   ShoppingCart,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import { KpiCard, type KpiDelta } from '@/components/ui/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { FrozenIcon } from '@/components/icons';
 import { EmptyStockIllustration } from '@/components/illustrations';
-import { getShopMe, getToday } from '@/api/reports';
+import { getPeriodReport, getShopMe, getToday } from '@/api/reports';
 import { compactUnits, fmtUzs, fmtUzsCompact, greetingKey } from '@/lib/fmt';
 import { useAuth } from '@/store/auth';
 import { useTgHaptic } from '@/lib/telegram';
@@ -36,6 +37,11 @@ const parseNum = (v: string | number | null | undefined): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const isoTashkent = (d: Date): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(d);
+const SPARK_TO = isoTashkent(new Date());
+const SPARK_FROM = isoTashkent(new Date(Date.now() - 6 * 86_400_000));
+
 export default function Today() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -43,10 +49,20 @@ export default function Today() {
 
   const todayQ = useQuery({ queryKey: ['reports', 'today'], queryFn: getToday });
   const shopQ = useQuery({ queryKey: ['shops', 'me'], queryFn: getShopMe });
+  const sparkQ = useQuery({
+    queryKey: ['reports', 'period', SPARK_FROM, SPARK_TO],
+    queryFn: () => getPeriodReport(SPARK_FROM, SPARK_TO),
+    staleTime: 5 * 60_000,
+  });
+  const sparkData = (sparkQ.data?.profit_by_day ?? []).map((d) => ({
+    day: d.day,
+    profit: parseNum(d.profit_uzs),
+  }));
 
   const greeting = t(greetingKey());
   const firstName = user?.full_name?.split(' ')[0] ?? '';
   const COMPACT_UNITS = compactUnits(t);
+  const overdueCount = todayQ.data?.overdue_payments_count ?? 0;
 
   const profitDelta: KpiDelta | undefined = todayQ.data
     ? (() => {
@@ -86,21 +102,25 @@ export default function Today() {
           <h1 className="mt-1 text-title-lg font-bold tracking-tight md:text-display">
             {firstName || t('today.title')}
           </h1>
-          {shopQ.data && (
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-dim">
-              <span>{shopQ.data.name}</span>
-              {shopQ.data.is_frozen && (
-                <Badge variant="warning" size="sm">
-                  <FrozenIcon size={11} /> {t('today.frozen_badge')}
-                </Badge>
-              )}
-            </div>
-          )}
+          {shopQ.data && <div className="mt-1 text-sm text-text-dim">{shopQ.data.name}</div>}
         </div>
       </motion.header>
 
+      {/* Frozen-shop banner — account suspended, business endpoints 403 */}
+      {shopQ.data?.is_frozen && (
+        <div className="card-elev flex items-center gap-4 border-danger/40 bg-danger-faded/40 p-4 md:p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-faded text-danger">
+            <FrozenIcon size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-body font-bold text-danger">{t('today.frozen_title')}</div>
+            <div className="mt-0.5 text-hint text-text-dim">{t('today.frozen_body')}</div>
+          </div>
+        </div>
+      )}
+
       {/* Overdue alert */}
-      {todayQ.data && todayQ.data.overdue_payments_count > 0 && (
+      {overdueCount > 0 && (
         <Link
           to="/installments?status=overdue"
           onClick={() => haptic.tap('medium')}
@@ -115,7 +135,7 @@ export default function Today() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-body font-bold text-text">
-              {t('today.overdue_alert_title', { count: todayQ.data.overdue_payments_count })}
+              {t('today.overdue_alert_title', { count: overdueCount })}
             </div>
             <div className="mt-0.5 text-hint text-text-dim">{t('today.overdue_alert_body')}</div>
           </div>
@@ -139,13 +159,18 @@ export default function Today() {
           loading={todayQ.isLoading}
           delay={60}
           delta={profitDelta}
+          footer={sparkData.length >= 2 ? <ProfitSpark data={sparkData} /> : undefined}
         />
         <KpiCard
           label={t('today.kpi_inventory_value')}
           value={parseNum(todayQ.data?.inventory_value_uzs)}
           format={(n) => fmtUzsCompact(n, COMPACT_UNITS)}
           unit={t('common.currency_uzs')}
-          hint={t('today.kpi_inventory_value_hint')}
+          hint={
+            todayQ.data
+              ? t('today.kpi_inventory_count', { count: todayQ.data.in_stock_count })
+              : undefined
+          }
           icon={<Package size={18} strokeWidth={2} />}
           tone="warning"
           loading={todayQ.isLoading}
@@ -156,20 +181,47 @@ export default function Today() {
           value={parseNum(todayQ.data?.nasiya_debt_uzs)}
           format={(n) => fmtUzsCompact(n, COMPACT_UNITS)}
           unit={t('common.currency_uzs')}
-          hint={t('today.kpi_nasiya_debt_hint')}
+          hint={
+            overdueCount > 0
+              ? t('today.kpi_nasiya_overdue', { count: overdueCount })
+              : t('today.kpi_nasiya_debt_hint')
+          }
           icon={<CalendarClock size={18} strokeWidth={2} />}
-          tone={todayQ.data && todayQ.data.overdue_payments_count > 0 ? 'danger' : 'accent'}
+          tone={overdueCount > 0 ? 'danger' : 'accent'}
           loading={todayQ.isLoading}
           delay={180}
         />
       </section>
+
+      {/* Money of the day — already-fetched figures that were hidden */}
+      {todayQ.data && (
+        <section
+          className="card grid animate-fade-up grid-cols-3 divide-x divide-border p-0"
+          style={{ animationDelay: '210ms' }}
+        >
+          <FlowStat
+            label={t('today.sold')}
+            value={String(todayQ.data.sales_count_today)}
+            tone="success"
+          />
+          <FlowStat
+            label={t('today.bought')}
+            value={String(todayQ.data.purchases_count_today)}
+            tone="accent"
+          />
+          <FlowStat
+            label={t('today.revenue')}
+            value={fmtUzsCompact(parseNum(todayQ.data.revenue_today), COMPACT_UNITS)}
+          />
+        </section>
+      )}
 
       {/* Quick actions */}
       <section className="animate-fade-up" style={{ animationDelay: '240ms' }}>
         <h2 className="mb-3 text-label font-bold uppercase tracking-wider text-text-dim">
           {t('today.quick_actions')}
         </h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <QuickAction
             to="/purchase/new"
             icon={<ShoppingCart size={20} />}
@@ -186,6 +238,12 @@ export default function Today() {
             to="/search"
             icon={<Search size={20} />}
             label={t('today.action_search')}
+            tone="neutral"
+          />
+          <QuickAction
+            to="/counterparties"
+            icon={<Users size={20} />}
+            label={t('nav.counterparties')}
             tone="neutral"
           />
           <QuickAction
@@ -215,6 +273,56 @@ export default function Today() {
             }
           />
         )}
+    </div>
+  );
+}
+
+function ProfitSpark({ data }: { data: { day: string; profit: number }[] }) {
+  return (
+    <div className="-mx-1 h-9">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
+          <defs>
+            <linearGradient id="today-spark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgb(var(--c-success))" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="rgb(var(--c-success))" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="profit"
+            stroke="rgb(var(--c-success))"
+            strokeWidth={2}
+            fill="url(#today-spark)"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function FlowStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'success' | 'accent';
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 px-2 py-3.5">
+      <span className="text-caption text-text-muted">{label}</span>
+      <span
+        className={cn(
+          'text-body-lg font-bold tabular-nums',
+          tone === 'success' ? 'text-success' : tone === 'accent' ? 'text-accent' : 'text-text',
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }

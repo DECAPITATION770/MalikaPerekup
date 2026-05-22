@@ -40,10 +40,14 @@ interface Props {
   /** Mount-time stagger, ms. */
   delay?: number;
   delta?: KpiDelta;
+  /** Optional content rendered below the value (e.g. a sparkline). */
+  footer?: React.ReactNode;
 }
 
 const defaultFmt = (n: number) =>
-  Math.round(n).toLocaleString('ru', { useGrouping: true }).replace(/ /g, ' ');
+  Math.round(n)
+    .toLocaleString('ru', { useGrouping: true })
+    .replace(/\u00A0/g, ' ');
 
 export function KpiCard({
   label,
@@ -56,27 +60,36 @@ export function KpiCard({
   loading,
   delay = 0,
   delta,
+  footer,
 }: Props) {
   const animated = useCountUp(loading ? 0 : value);
   const t = TONE[tone];
-  const DeltaIcon = delta ? (delta.dir === 'up' ? ArrowUp : delta.dir === 'down' ? ArrowDown : Minus) : null;
+  const DeltaIcon = delta
+    ? delta.dir === 'up'
+      ? ArrowUp
+      : delta.dir === 'down'
+        ? ArrowDown
+        : Minus
+    : null;
 
   return (
     <div
-      className="card p-5 md:p-6 transition-all hover:border-border-strong hover:bg-bg3 group animate-fade-up"
+      className="card group animate-fade-up p-5 transition-all hover:border-border-strong hover:bg-bg3 md:p-6"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="text-label font-semibold text-text-dim tracking-tight uppercase">{label}</div>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="text-label font-semibold uppercase tracking-tight text-text-dim">
+          {label}
+        </div>
         {icon && (
           <div className={cn('relative shrink-0', t.text)}>
             <span
               aria-hidden
-              className="absolute inset-0 rounded-full bg-current blur-xl opacity-25 scale-125 transition-opacity group-hover:opacity-40"
+              className="absolute inset-0 scale-125 rounded-full bg-current opacity-25 blur-xl transition-opacity group-hover:opacity-40"
             />
             <div
               className={cn(
-                'relative w-9 h-9 rounded-xl flex items-center justify-center ring-1 transition-transform group-hover:scale-110',
+                'relative flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition-transform group-hover:scale-110',
                 t.bg,
                 t.text,
                 t.ring,
@@ -93,7 +106,7 @@ export function KpiCard({
           <Skeleton className="h-9 w-32" />
         ) : (
           <>
-            <span className="text-title-lg md:text-[32px] font-bold tracking-tight tabular-nums leading-none">
+            <span className="text-title-lg font-bold tabular-nums leading-none tracking-tight md:text-[32px]">
               {format(animated)}
             </span>
             {unit && <span className="text-sm font-semibold text-text-muted">{unit}</span>}
@@ -106,7 +119,7 @@ export function KpiCard({
           {delta && DeltaIcon && (
             <span
               className={cn(
-                'inline-flex items-center gap-0.5 font-bold tabular-nums px-1.5 py-0.5 rounded-md',
+                'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-bold tabular-nums',
                 DELTA_CLS[delta.dir],
               )}
             >
@@ -119,6 +132,8 @@ export function KpiCard({
           )}
         </div>
       )}
+
+      {footer && !loading && <div className="mt-3">{footer}</div>}
     </div>
   );
 }
