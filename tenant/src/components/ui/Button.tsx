@@ -44,11 +44,28 @@ export interface ButtonProps
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
+  /** Convenience leading icon (rendered before children). Equivalent to
+   *  putting an <svg> as the first child — kept for ergonomic call sites. */
+  icon?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, full, asChild = false, loading = false, disabled, children, ...rest }, ref) => {
+  ({ className, variant, size, full, asChild = false, loading = false, icon, disabled, children, ...rest }, ref) => {
     const Comp = asChild ? Slot : 'button';
+    // With asChild, Radix Slot requires exactly one child element — don't
+    // inject loader/icon siblings in that mode.
+    if (asChild) {
+      return (
+        <Comp
+          ref={ref}
+          className={cn(buttonVariants({ variant, size, full }), className)}
+          disabled={disabled || loading}
+          {...rest}
+        >
+          {children}
+        </Comp>
+      );
+    }
     return (
       <Comp
         ref={ref}
@@ -56,7 +73,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         {...rest}
       >
-        {loading ? <Loader2 className="animate-spin" /> : null}
+        {loading ? <Loader2 className="animate-spin" /> : icon}
         {children}
       </Comp>
     );
