@@ -4,7 +4,7 @@
  * Select for language, shadcn AlertDialog for logout confirm. Three
  * cards (shop / plan / password) on a clean stack.
  */
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -122,18 +122,22 @@ function PasswordSection() {
   );
 }
 
-// Tiny <Input>+<Label>+error trio. Local to this page; if reused later we'll
-// promote to components/ui/field.tsx.
-const Field = (() => {
-  type FieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
-    id: string;
-    label: string;
-    error?: string;
-  };
-  const Cmp = ({ id, label, error, ...rest }: FieldProps) => (
+// Tiny <Input>+<Label>+error trio. forwardRef so react-hook-form's
+// register() ref reaches the underlying <input> (otherwise: "Function
+// components cannot be given refs" + no focus-on-error).
+interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  id: string;
+  label: string;
+  error?: string;
+}
+const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
+  { id, label, error, ...rest },
+  ref,
+) {
+  return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} {...rest} aria-invalid={!!error} />
+      <Input id={id} ref={ref} {...rest} aria-invalid={!!error} />
       {error && (
         <span role="alert" className="text-xs text-danger animate-fade-in">
           {error}
@@ -141,9 +145,7 @@ const Field = (() => {
       )}
     </div>
   );
-  Cmp.displayName = 'Field';
-  return Cmp;
-})();
+});
 
 // ── Shop section ──────────────────────────────────────────────────────
 

@@ -139,7 +139,15 @@
     "col_status": "Holat",
     "days_n": "{{n}} kun",
     "open": "Ochish",
-    "detail_qr_print": "Stiker chop etish"
+    "detail_qr_print": "Stiker chop etish",
+    "return_action": "Qaytarishni rasmiylashtirish",
+    "return_title": "Qurilmani qaytarish",
+    "return_body": "Qurilma vitrinaga qaytadi, sotuv qaytarilgan deb belgilanadi. Amal qaytarib bo'lmaydi.",
+    "return_reason_label": "Sabab (ixtiyoriy)",
+    "return_reason_ph": "masalan, nuqson",
+    "return_confirm": "Qaytarishni tasdiqlash",
+    "return_ok": "Qaytarish rasmiylashtirildi",
+    "return_failed": "Qaytarishni rasmiylashtirib bo'lmadi"
   },
   "status": {
     "in_stock": "Vitrinada",

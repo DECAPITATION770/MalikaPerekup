@@ -90,3 +90,11 @@ export async function getSalesByDevice(deviceId: number): Promise<SaleOut[]> {
   const { data } = await api.get<SaleOut[]>(`/sales/by-device/${deviceId}`);
   return data;
 }
+
+/** Process a buyer return — flips the device back to in_stock. */
+export async function returnSale(saleId: number, reason?: string): Promise<SaleOut> {
+  const { data } = await api.post<SaleOut>(`/sales/${saleId}/return`, {
+    reason: reason?.trim() || null,
+  });
+  return data;
+}

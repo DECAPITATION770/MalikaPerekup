@@ -6,8 +6,9 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   BadgeDollarSign,
@@ -33,7 +34,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { QrStickerIcon } from '@/components/icons';
 import {
@@ -43,7 +43,7 @@ import {
   type DeviceOut,
 } from '@/api/devices';
 import { getPurchaseByDevice, type PurchaseOut } from '@/api/purchases';
-import { getSalesByDevice, type SaleOut } from '@/api/sales';
+import { getSalesByDevice, returnSale, type SaleOut } from '@/api/sales';
 import { fmtDate, fmtUzs } from '@/lib/fmt';
 import { formatSpecValue } from '@/lib/specsFmt';
 import { useTgMainButton, useTgHaptic } from '@/lib/telegram';
@@ -223,6 +223,8 @@ export default function StockDetail() {
 
       <DeviceTimeline deviceId={d.id} />
 
+      <ReturnSaleAction deviceId={d.id} deviceStatus={d.status} />
+
       {/* QR token + print */}
       <div className="card p-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -242,13 +244,11 @@ export default function StockDetail() {
             {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
             {copied ? t('stock.detail_qr_copied') : t('stock.detail_qr_copy')}
           </button>
+          <Button size="sm" onClick={() => setQrOpen(true)}>
+            <Printer className="size-4" />
+            {t('stock.detail_qr_print')}
+          </Button>
           <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Printer className="size-4" />
-                {t('stock.detail_qr_print')}
-              </Button>
-            </DialogTrigger>
             <QrStickerDialog deviceId={d.id} label={`${d.brand} ${d.model}`} />
           </Dialog>
         </div>
@@ -315,6 +315,87 @@ function QrStickerDialog({ deviceId, label }: { deviceId: number; label: string 
         </Button>
       </div>
     </DialogContent>
+  );
+}
+
+// ── Return action ─────────────────────────────────────────────────────
+
+function ReturnSaleAction({
+  deviceId,
+  deviceStatus,
+}: {
+  deviceId: number;
+  deviceStatus: DeviceOut['status'];
+}) {
+  const { t } = useTranslation();
+  const haptic = useTgHaptic();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const salesQ = useQuery({
+    queryKey: ['sales-by-device', deviceId],
+    queryFn: () => getSalesByDevice(deviceId),
+  });
+  const activeSale = (salesQ.data ?? []).find((s) => s.status === 'active');
+
+  const m = useMutation({
+    mutationFn: () => returnSale(activeSale!.id, reason),
+    onSuccess: () => {
+      haptic.notify('success');
+      toast.success(t('stock.return_ok'));
+      qc.invalidateQueries({ queryKey: ['device', deviceId] });
+      qc.invalidateQueries({ queryKey: ['sales-by-device', deviceId] });
+      qc.invalidateQueries({ queryKey: ['devices'] });
+      qc.invalidateQueries({ queryKey: ['reports'] });
+      setOpen(false);
+      setReason('');
+    },
+    onError: () => {
+      haptic.notify('error');
+      toast.error(t('stock.return_failed'));
+    },
+  });
+
+  // Only offer a return when the device is currently sold with an active sale.
+  if (deviceStatus !== 'sold' || !activeSale) return null;
+
+  return (
+    <>
+      <Button variant="secondary" className="self-start" onClick={() => setOpen(true)}>
+        <RotateCcw className="size-4" />
+        {t('stock.return_action')}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('stock.return_title')}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-text-dim leading-relaxed">{t('stock.return_body')}</p>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-label text-text-dim font-medium">
+            {t('stock.return_reason_label')}
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={t('stock.return_reason_ph')}
+            rows={2}
+            className="bg-bg2 rounded-xl border border-border px-3.5 py-2.5 text-body text-text outline-none focus:border-accent transition-colors resize-none placeholder:text-text-muted"
+          />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" full onClick={() => setOpen(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="danger" full loading={m.isPending} onClick={() => m.mutate()}>
+            <RotateCcw className="size-4" />
+            {t('stock.return_confirm')}
+          </Button>
+        </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
