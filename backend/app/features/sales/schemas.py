@@ -4,8 +4,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.common.dates import today_tashkent
 from app.features.purchases.schemas import CurrencyLiteral
 
 SaleTypeLiteral = Literal["cash", "nasiya"]
@@ -41,7 +42,14 @@ class SaleCreate(BaseModel):
     )
 
     sale_date: date
-    comment: str | None = None
+    comment: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("sale_date")
+    @classmethod
+    def _no_future_date(cls, v: date) -> date:
+        if v > today_tashkent():
+            raise ValueError("sale_date cannot be in the future")
+        return v
 
     @model_validator(mode="after")
     def _require_rate_for_usd(self) -> "SaleCreate":

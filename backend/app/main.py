@@ -40,9 +40,44 @@ init_sentry()
 settings = get_settings()
 
 
+async def _verify_migrations(db) -> None:
+    """Warn loudly (and fail in prod) if the DB schema isn't at head.
+
+    Chaos-test finding #1: a deployed model change whose migration wasn't
+    applied turned every INSERT into a 500. This catches that at boot.
+    """
+    from pathlib import Path
+
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import text
+
+    try:
+        cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+        head = ScriptDirectory.from_config(cfg).get_current_head()
+        current = (
+            await db.execute(text("SELECT version_num FROM alembic_version"))
+        ).scalar_one_or_none()
+    except Exception as exc:  # noqa: BLE001 — never block boot on the check itself
+        logger.warning("migrations.check_failed", error=str(exc))
+        return
+
+    if current != head:
+        logger.warning("migrations.out_of_date", current=current, head=head)
+        if settings.is_prod:
+            raise RuntimeError(
+                f"DB schema out of date: at {current}, expected {head}. "
+                "Run `alembic upgrade head`."
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start bot polling, scheduler, channel registry, bootstrap admins."""
+    # 0. Fail fast if the schema isn't migrated to head.
+    async with SessionFactory() as db:
+        await _verify_migrations(db)
+
     # 1. Seed first admins from env (no-op if any admin already exists).
     async with SessionFactory() as db:
         await admin_service.bootstrap_admins_if_needed(

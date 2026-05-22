@@ -9,8 +9,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.common.dates import today_tashkent
 from app.features.devices.schemas import (
     DeviceCategoryLiteral,
     DeviceConditionLiteral,
@@ -35,7 +36,7 @@ class DeviceOnPurchase(BaseModel):
     specs: dict[str, Any] = Field(default_factory=dict)
     photos: list[str] = Field(default_factory=list)
     defects: list[str] = Field(default_factory=list, max_length=32)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class SellerOnPurchase(BaseModel):
@@ -67,7 +68,14 @@ class PurchaseCreate(BaseModel):
     """Required for USD deals: how many UZS per 1 USD at the time of purchase."""
 
     purchase_date: date
-    comment: str | None = None
+    comment: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("purchase_date")
+    @classmethod
+    def _no_future_date(cls, v: date) -> date:
+        if v > today_tashkent():
+            raise ValueError("purchase_date cannot be in the future")
+        return v
 
     @model_validator(mode="after")
     def _require_rate_for_usd(self) -> "PurchaseCreate":
