@@ -4,15 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Controller, type Control, type UseFormSetValue } from 'react-hook-form';
 import { Repeat, Plus, ChevronRight, Pencil } from 'lucide-react';
 
-import {
-  getRecentModels,
-  type RecentModelOut,
-} from '@/api/devices';
+import { getRecentModels, type RecentModelOut } from '@/api/devices';
 import { POPULAR_BRANDS } from '@/lib/popularBrands';
-import {
-  getLastPurchase,
-  type LastPurchaseTemplate,
-} from '@/api/purchases';
+import { brandColor, brandTint } from '@/lib/brand';
+import { getLastPurchase, type LastPurchaseTemplate } from '@/api/purchases';
 
 import { StepShell } from '../Wizard';
 import { CATEGORY_ICON, CategoryPicker, Field } from '../primitives';
@@ -31,7 +26,12 @@ interface Props {
 }
 
 export default function Step1Model({
-  control, values, setValue, onRepeatLast, onPicked, errors,
+  control,
+  values,
+  setValue,
+  onRepeatLast,
+  onPicked,
+  errors,
 }: Props) {
   const { t } = useTranslation();
   const [manual, setManual] = useState(false);
@@ -60,30 +60,30 @@ export default function Step1Model({
     <button
       type="button"
       onClick={() => onRepeatLast(lastTpl)}
-      className="w-full text-left card-elev p-4 md:p-5 flex items-center gap-4 hover:border-accent/40 active:scale-[0.998] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+      className="card-elev flex w-full cursor-pointer items-center gap-4 p-4 text-left transition-all hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 active:scale-[0.998] md:p-5"
     >
-      <div className="w-12 h-12 rounded-2xl bg-accent-faded text-accent flex items-center justify-center shrink-0">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-faded text-accent">
         <Repeat size={22} strokeWidth={2.2} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-caption text-text-muted font-semibold tracking-wider uppercase">
+      <div className="min-w-0 flex-1">
+        <div className="text-caption font-semibold uppercase tracking-wider text-text-muted">
           {t('purchase.repeat_last_eyebrow')}
         </div>
-        <div className="text-body-xl font-bold tracking-tight truncate mt-0.5">
+        <div className="mt-0.5 truncate text-body-xl font-bold tracking-tight">
           {lastTpl.device.brand} {lastTpl.device.model}
         </div>
-        <div className="text-label text-text-dim mt-0.5 truncate">
+        <div className="mt-0.5 truncate text-label text-text-dim">
           {t('purchase.repeat_last_from', { seller: lastTpl.seller.full_name })}
         </div>
       </div>
-      <ChevronRight size={20} className="text-text-muted shrink-0" />
+      <ChevronRight size={20} className="shrink-0 text-text-muted" />
     </button>
   );
 
   // ─── Recent chip grid ─────────────────────────────────────────────────
   const chips = recent.length > 0 && (
     <div className="flex flex-col gap-2">
-      <div className="text-caption text-text-muted font-semibold tracking-wider uppercase px-1">
+      <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
         {t('purchase.recent_models')}
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -95,19 +95,20 @@ export default function Step1Model({
               key={`${m.brand}-${m.model}-${m.category}`}
               type="button"
               onClick={() => pickChip(m)}
-              className={`text-left rounded-2xl border p-3.5 flex items-center gap-3 transition-all cursor-pointer
-                ${active
-                  ? 'bg-accent-faded border-accent/50 text-accent'
-                  : 'bg-bg2 border-border hover:border-border-strong active:scale-[0.99]'}`}
+              className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 text-left transition-all ${
+                active
+                  ? 'border-accent/50 bg-accent-faded text-accent'
+                  : 'border-border bg-bg2 hover:border-border-strong active:scale-[0.99]'
+              }`}
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0
-                ${active ? 'bg-accent/20 text-accent' : 'bg-bg3 text-text-dim'}`}
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-accent/20 text-accent' : 'bg-bg3 text-text-dim'}`}
               >
                 <Icon size={18} strokeWidth={1.8} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-label font-bold tracking-tight truncate">{m.brand}</div>
-                <div className="text-caption text-text-dim truncate">{m.model}</div>
+                <div className="truncate text-label font-bold tracking-tight">{m.brand}</div>
+                <div className="truncate text-caption text-text-dim">{m.model}</div>
               </div>
             </button>
           );
@@ -119,20 +120,18 @@ export default function Step1Model({
   // ─── Manual fallback (revealed by "+ другая модель") ─────────────────
   const popular = POPULAR_BRANDS[values.category] ?? [];
   const manualFields = (
-    <div className="flex flex-col gap-4 animate-fade-up">
+    <div className="flex animate-fade-up flex-col gap-4">
       <Field label={t('purchase.category_label')} required>
         <Controller
           control={control}
           name="category"
-          render={({ field }) => (
-            <CategoryPicker value={field.value} onChange={field.onChange} />
-          )}
+          render={({ field }) => <CategoryPicker value={field.value} onChange={field.onChange} />}
         />
       </Field>
 
       {popular.length > 0 && (
         <Field label={t('purchase.brand_label')} required>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-1">
+          <div className="mb-1 grid grid-cols-3 gap-2 md:grid-cols-6">
             {popular.map((brand) => {
               const active = values.brand === brand;
               return (
@@ -140,17 +139,25 @@ export default function Step1Model({
                   key={brand}
                   type="button"
                   onClick={() => setValue('brand', brand, { shouldValidate: true })}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer min-w-0
-                    ${active
-                      ? 'bg-accent-faded border-accent/50 text-accent shadow-glow-accent'
-                      : 'bg-bg2 border-border text-text-dim hover:border-border-strong hover:text-text'}`}
+                  className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border p-2.5 transition-all ${
+                    active
+                      ? 'border-accent/50 bg-accent-faded text-accent shadow-glow-accent'
+                      : 'border-border bg-bg2 text-text-dim hover:border-border-strong hover:text-text'
+                  }`}
                 >
-                  <span className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold text-label
-                    ${active ? 'bg-accent/20 text-accent' : 'bg-bg3 text-text'}`}
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-label font-bold ${active ? 'bg-accent/20 text-accent' : ''}`}
+                    style={
+                      active
+                        ? undefined
+                        : { backgroundColor: brandTint(brand, 0.16), color: brandColor(brand) }
+                    }
                   >
                     {brand[0]}
                   </span>
-                  <span className="text-caption font-semibold tracking-tight truncate">{brand}</span>
+                  <span className="truncate text-caption font-semibold tracking-tight">
+                    {brand}
+                  </span>
                 </button>
               );
             })}
@@ -193,23 +200,20 @@ export default function Step1Model({
   // First-use: no history → show manual fields by default so the user
   // is not staring at an empty step.
   const showManualByDefault = !lastTpl && recent.length === 0;
-  const expandManual = manual || showManualByDefault || (!!values.brand && !recent.some(
-    (r) => r.brand === values.brand && r.model === values.model,
-  ));
+  const expandManual =
+    manual ||
+    showManualByDefault ||
+    (!!values.brand && !recent.some((r) => r.brand === values.brand && r.model === values.model));
 
   return (
-    <StepShell
-      step={0}
-      title={t('purchase.step1_title')}
-      subtitle={t('purchase.step1_subtitle')}
-    >
+    <StepShell step={0} title={t('purchase.step1_title')} subtitle={t('purchase.step1_subtitle')}>
       {repeatCard}
 
       {repeatCard && (chips || expandManual) && (
         <div className="flex items-center gap-3 text-caption text-text-muted">
-          <div className="flex-1 h-px bg-border" />
+          <div className="h-px flex-1 bg-border" />
           <span className="font-semibold uppercase tracking-wider">{t('purchase.or')}</span>
-          <div className="flex-1 h-px bg-border" />
+          <div className="h-px flex-1 bg-border" />
         </div>
       )}
 
@@ -219,22 +223,20 @@ export default function Step1Model({
         <button
           type="button"
           onClick={() => setManual(true)}
-          className="card p-4 flex items-center gap-3 hover:border-border-strong active:scale-[0.99] transition-all cursor-pointer"
+          className="card flex cursor-pointer items-center gap-3 p-4 transition-all hover:border-border-strong active:scale-[0.99]"
         >
-          <div className="w-10 h-10 rounded-xl bg-bg3 text-accent flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-bg3 text-accent">
             <Plus size={18} strokeWidth={2} />
           </div>
-          <div className="text-label font-bold tracking-tight">
-            {t('purchase.other_model')}
-          </div>
+          <div className="text-label font-bold tracking-tight">{t('purchase.other_model')}</div>
         </button>
       )}
 
       {expandManual && (
         <div className="card p-5 md:p-6">
-          <div className="flex items-center gap-2 mb-4 text-caption text-text-muted">
+          <div className="mb-4 flex items-center gap-2 text-caption text-text-muted">
             <Pencil size={13} className="text-text-dim" />
-            <span className="font-semibold tracking-wider uppercase">
+            <span className="font-semibold uppercase tracking-wider">
               {t('purchase.other_model')}
             </span>
           </div>

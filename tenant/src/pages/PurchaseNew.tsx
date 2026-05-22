@@ -17,11 +17,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-  createPurchase,
-  type LastPurchaseTemplate,
-  type PurchaseWithDeviceOut,
-} from '@/api/purchases';
+import { createPurchase, type LastPurchaseTemplate } from '@/api/purchases';
 import { getExchangeRateHint } from '@/api/reports';
 import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
 import { useTgBackButton, useTgHaptic } from '@/lib/telegram';
@@ -44,7 +40,7 @@ import Step1Model from './purchase/steps/Step1Model';
 import Step2Device from './purchase/steps/Step2Device';
 import Step3Seller from './purchase/steps/Step3Seller';
 import Step4Price from './purchase/steps/Step4Price';
-import { DraftRestoreModal, SuccessModal } from './purchase/modals';
+import { DraftRestoreModal } from './purchase/modals';
 
 interface Draft extends FormValues {
   _step?: WizardStep;
@@ -60,7 +56,6 @@ export default function PurchaseNew() {
   useTgBackButton(() => navigate(-1));
 
   const [step, setStep] = useState<WizardStep>(0);
-  const [done, setDone] = useState<PurchaseWithDeviceOut | null>(null);
   const [draftPrompt, setDraftPrompt] = useState<Draft | null>(null);
   const [priceResetKey, setPriceResetKey] = useState(0);
   const [devicePhotos, setDevicePhotos] = useState<string[]>([]);
@@ -119,7 +114,6 @@ export default function PurchaseNew() {
     } catch {
       localStorage.removeItem(DRAFT_KEY);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Draft autosave.
@@ -191,7 +185,15 @@ export default function PurchaseNew() {
       haptic.notify('success');
       track('purchase_created', { currency: getValues('currency') });
       localStorage.removeItem(DRAFT_KEY);
-      setDone(data);
+      // No success modal — go straight to the showcase with a toast, and
+      // highlight the just-created device there (one tap to its card).
+      toast.success(t('purchase.success_toast'), {
+        action: {
+          label: t('purchase.toast_open'),
+          onClick: () => navigate(`/stock/${data.device.id}`),
+        },
+      });
+      navigate('/stock', { state: { highlightId: data.device.id } });
     },
     onError: (err: unknown) => {
       haptic.notify('error');
@@ -249,15 +251,6 @@ export default function PurchaseNew() {
     }
   }, [step, haptic]);
 
-  const handleAnother = useCallback(() => {
-    localStorage.removeItem(DRAFT_KEY);
-    setDone(null);
-    setDevicePhotos([]);
-    setSellerPhotos([]);
-    setStep(0);
-    reset(emptyDefaults());
-  }, [reset]);
-
   const submitLabel = (() => {
     const priceNum = moneyToNumber(price);
     if (priceNum <= 0) return t('purchase.submit');
@@ -268,17 +261,17 @@ export default function PurchaseNew() {
   })();
 
   return (
-    <div className="flex flex-col gap-5 animate-fade-up max-w-3xl mx-auto w-full">
+    <div className="mx-auto flex w-full max-w-3xl animate-fade-up flex-col gap-5">
       <header className="flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-xl border border-border bg-bg2 hover:border-border-strong text-text-dim hover:text-text transition-colors flex items-center justify-center cursor-pointer shrink-0"
+          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-bg2 text-text-dim transition-colors hover:border-border-strong hover:text-text"
           aria-label={t('purchase.wizard_back')}
         >
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-title md:text-title-lg font-bold tracking-tight">
+          <h1 className="text-title font-bold tracking-tight md:text-title-lg">
             {t('purchase.title')}
           </h1>
         </div>
@@ -350,8 +343,6 @@ export default function PurchaseNew() {
           submitLabel={submitLabel}
         />
       </form>
-
-      <SuccessModal result={done} onClose={() => navigate('/stock')} onAnother={handleAnother} />
 
       <DraftRestoreModal
         open={draftPrompt !== null}
