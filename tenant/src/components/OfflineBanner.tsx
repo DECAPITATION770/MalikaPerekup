@@ -1,40 +1,61 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { WifiOff, Wifi } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CloudOff, Wifi } from 'lucide-react';
 
-export default function OfflineBanner() {
+/**
+ * Top fixed banner that materialises when navigator goes offline and
+ * stays visible until the connection returns. On reconnect it briefly
+ * flips to a positive «вернулась связь» state, then auto-hides.
+ *
+ * Uses framer-motion AnimatePresence for the slide-in/out — replaces the
+ * legacy CSS-animation pattern.
+ */
+export function OfflineBanner() {
   const { t } = useTranslation();
   const [online, setOnline] = useState(navigator.onLine);
-  const [showBack, setShowBack] = useState(false);
+  const [showRecovered, setShowRecovered] = useState(false);
 
   useEffect(() => {
-    const onUp = () => {
+    const goOffline = () => setOnline(false);
+    const goOnline = () => {
       setOnline(true);
-      setShowBack(true);
-      setTimeout(() => setShowBack(false), 2400);
+      setShowRecovered(true);
+      window.setTimeout(() => setShowRecovered(false), 2400);
     };
-    const onDown = () => setOnline(false);
-    window.addEventListener('online', onUp);
-    window.addEventListener('offline', onDown);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
     return () => {
-      window.removeEventListener('online', onUp);
-      window.removeEventListener('offline', onDown);
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
     };
   }, []);
 
-  if (!online) {
-    return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-warning-faded border-b border-warning/40 text-warning text-label font-semibold tracking-tight flex items-center justify-center gap-2 py-2 animate-fade-in">
-        <WifiOff size={14} /> {t('common.offline_banner')}
-      </div>
-    );
-  }
-  if (showBack) {
-    return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-success-faded border-b border-success/40 text-success text-label font-semibold tracking-tight flex items-center justify-center gap-2 py-2 animate-fade-in">
-        <Wifi size={14} /> {t('common.online_again')}
-      </div>
-    );
-  }
-  return null;
+  const visible = !online || showRecovered;
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key={online ? 'recovered' : 'offline'}
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -50, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+          className={`fixed top-0 inset-x-0 z-50 pt-safe ${
+            online ? 'bg-success-faded text-success' : 'bg-warning-faded text-warning'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="container py-2 flex items-center gap-2 text-sm font-semibold">
+            {online ? <Wifi size={16} /> : <CloudOff size={16} />}
+            <span>
+              {online ? t('common.online_again') : t('common.offline_banner')}
+            </span>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }

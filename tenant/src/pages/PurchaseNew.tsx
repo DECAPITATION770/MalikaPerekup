@@ -1,22 +1,42 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+/**
+ * PurchaseNew — 4-step purchase wizard with localStorage draft autosave,
+ * "repeat last" prefill, and per-step validation.
+ *
+ * Phase 3 port: legacy toast → sonner, legacy useTgBack → useTgBackButton,
+ * framer-motion AnimatePresence between steps + Tg haptic on step change.
+ * Step components + primitives were copied wholesale into ./purchase and
+ * re-pathed to the new module aliases.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-
-import { useToast } from '../components/ui/Toast';
-import {
-  createPurchase, type PurchaseWithDeviceOut, type LastPurchaseTemplate,
-} from '../api/purchases';
-import { getExchangeRateHint } from '../api/reports';
-import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '../lib/money';
-import { useTgBack } from '../lib/useTelegram';
+import { toast } from 'sonner';
 
 import {
-  type FormValues, makeSchema, emptyDefaults, computeStepStatus,
-  DRAFT_KEY, DRAFT_DEBOUNCE_MS, TOTAL_STEPS, STEP_FIELDS, type WizardStep,
+  createPurchase,
+  type LastPurchaseTemplate,
+  type PurchaseWithDeviceOut,
+} from '@/api/purchases';
+import { getExchangeRateHint } from '@/api/reports';
+import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
+import { useTgBackButton, useTgHaptic } from '@/lib/telegram';
+import { track } from '@/lib/analytics';
+
+import {
+  type FormValues,
+  makeSchema,
+  emptyDefaults,
+  computeStepStatus,
+  DRAFT_KEY,
+  DRAFT_DEBOUNCE_MS,
+  TOTAL_STEPS,
+  STEP_FIELDS,
+  type WizardStep,
   conditionFromDefects,
 } from './purchase/types';
 import { WizardProgress, WizardFooter } from './purchase/Wizard';
@@ -34,10 +54,10 @@ interface Draft extends FormValues {
 
 export default function PurchaseNew() {
   const { t } = useTranslation();
-  const toast = useToast();
   const navigate = useNavigate();
+  const haptic = useTgHaptic();
 
-  useTgBack(() => navigate(-1));
+  useTgBackButton(() => navigate(-1));
 
   const [step, setStep] = useState<WizardStep>(0);
   const [done, setDone] = useState<PurchaseWithDeviceOut | null>(null);
@@ -49,7 +69,14 @@ export default function PurchaseNew() {
   const schema = useMemo(() => makeSchema(t), [t]);
 
   const {
-    register, handleSubmit, control, watch, setValue, reset, getValues, trigger,
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    reset,
+    getValues,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
@@ -60,22 +87,25 @@ export default function PurchaseNew() {
   const values = watch();
   const { currency, price, exchange_rate: rateRaw } = values;
 
-  // ─── Exchange-rate hint (USD autofill on step 4) ──────────────────────
   const { data: rateHints } = useQuery({
     queryKey: ['exchange-rate-hint'],
     queryFn: getExchangeRateHint,
     staleTime: 5 * 60_000,
   });
 
+  // USD autofill of exchange rate on step 4.
   useEffect(() => {
     if (currency !== 'USD') return;
     const current = getValues('exchange_rate');
     if (current && moneyToNumber(current) > 0) return;
     const hint = rateHints?.cb_uz ?? rateHints?.last_used;
-    if (hint) setValue('exchange_rate', fmtMoneyInput(String(parseFloat(hint.rate))), { shouldValidate: false });
+    if (hint)
+      setValue('exchange_rate', fmtMoneyInput(String(parseFloat(hint.rate))), {
+        shouldValidate: false,
+      });
   }, [currency, rateHints, getValues, setValue]);
 
-  // ─── Draft restore (mount once) ───────────────────────────────────────
+  // Draft restore (mount once).
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -92,15 +122,24 @@ export default function PurchaseNew() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Draft autosave ───────────────────────────────────────────────────
+  // Draft autosave.
   useEffect(() => {
-    if (draftPrompt) return; // wait until user decides
+    if (draftPrompt) return;
     const timer = setTimeout(() => {
       const v = getValues();
       const meaningful = v.brand || v.model || v.seller_full_name || v.price || v.imei;
       if (meaningful) {
-        const draft: Draft = { ...v, _step: step, _devicePhotos: devicePhotos, _sellerPhotos: sellerPhotos };
-        try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* quota */ }
+        const draft: Draft = {
+          ...v,
+          _step: step,
+          _devicePhotos: devicePhotos,
+          _sellerPhotos: sellerPhotos,
+        };
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        } catch {
+          /* quota */
+        }
       }
     }, DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -122,38 +161,40 @@ export default function PurchaseNew() {
     setDraftPrompt(null);
   }, []);
 
-  // ─── Step status (drives the progress bar) ────────────────────────────
-  const stepStatus = useMemo(
-    () => computeStepStatus(values, errors),
-    [values, errors],
+  const stepStatus = useMemo(() => computeStepStatus(values, errors), [values, errors]);
+
+  const onRepeatLast = useCallback(
+    (tpl: LastPurchaseTemplate) => {
+      setValue('category', tpl.device.category, { shouldValidate: true });
+      setValue('brand', tpl.device.brand, { shouldValidate: true });
+      setValue('model', tpl.device.model, { shouldValidate: true });
+      setValue('condition', tpl.device.condition);
+      setValue('defects', tpl.device.defects);
+      setValue('specs', tpl.device.specs ?? {});
+      setValue('counterparty_id', tpl.seller.counterparty_id);
+      setValue('seller_full_name', tpl.seller.full_name, { shouldValidate: true });
+      setValue('seller_phone', tpl.seller.phone ?? '', { shouldValidate: true });
+      setValue('seller_doc_type', tpl.seller.doc_type ?? '');
+      setValue('seller_doc_number', tpl.seller.doc_number ?? '');
+      setValue(
+        'seller_tg',
+        tpl.seller.tg_username ? `@${tpl.seller.tg_username.replace(/^@/, '')}` : '',
+      );
+      setStep(3);
+    },
+    [setValue],
   );
 
-  // ─── "Repeat last": prefill device + seller, jump to price step ──────
-  const onRepeatLast = useCallback((tpl: LastPurchaseTemplate) => {
-    setValue('category', tpl.device.category, { shouldValidate: true });
-    setValue('brand', tpl.device.brand, { shouldValidate: true });
-    setValue('model', tpl.device.model, { shouldValidate: true });
-    setValue('condition', tpl.device.condition);
-    setValue('defects', tpl.device.defects);
-    setValue('specs', tpl.device.specs ?? {});
-    setValue('counterparty_id', tpl.seller.counterparty_id);
-    setValue('seller_full_name', tpl.seller.full_name, { shouldValidate: true });
-    setValue('seller_phone', tpl.seller.phone ?? '', { shouldValidate: true });
-    setValue('seller_doc_type', tpl.seller.doc_type ?? '');
-    setValue('seller_doc_number', tpl.seller.doc_number ?? '');
-    setValue('seller_tg', tpl.seller.tg_username ? `@${tpl.seller.tg_username.replace(/^@/, '')}` : '');
-    // IMEI/serial/price/photos stay empty — those identify the new unit.
-    setStep(3);
-  }, [setValue]);
-
-  // ─── Submit ───────────────────────────────────────────────────────────
   const mutation = useMutation({
     mutationFn: createPurchase,
     onSuccess: (data) => {
+      haptic.notify('success');
+      track('purchase_created', { currency: getValues('currency') });
       localStorage.removeItem(DRAFT_KEY);
       setDone(data);
     },
     onError: (err: unknown) => {
+      haptic.notify('error');
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 409) toast.error(t('purchase.errors.imei_conflict'));
       else toast.error(t('purchase.errors.submit_failed'));
@@ -163,8 +204,6 @@ export default function PurchaseNew() {
   const onSubmit = handleSubmit((v) => {
     const cleaned = parseMoneyInput(v.price);
     const rate = parseMoneyInput(v.exchange_rate);
-    // ``condition`` is kept in sync with ``defects`` in Step2 — derive once
-    // more here as a defence-in-depth (CLAUDE.md §1: don't trust the form).
     const condition = conditionFromDefects(v.defects);
     mutation.mutate({
       device: {
@@ -195,17 +234,20 @@ export default function PurchaseNew() {
     });
   });
 
-  // ─── Step navigation ──────────────────────────────────────────────────
   const goNext = useCallback(async () => {
     const fields = STEP_FIELDS[step];
     const ok = await trigger(fields, { shouldFocus: true });
     if (!ok) return;
+    haptic.select();
     if (step < TOTAL_STEPS - 1) setStep((s) => (s + 1) as WizardStep);
-  }, [step, trigger]);
+  }, [step, trigger, haptic]);
 
   const goBack = useCallback(() => {
-    if (step > 0) setStep((s) => (s - 1) as WizardStep);
-  }, [step]);
+    if (step > 0) {
+      haptic.select();
+      setStep((s) => (s - 1) as WizardStep);
+    }
+  }, [step, haptic]);
 
   const handleAnother = useCallback(() => {
     localStorage.removeItem(DRAFT_KEY);
@@ -216,7 +258,6 @@ export default function PurchaseNew() {
     reset(emptyDefaults());
   }, [reset]);
 
-  // ─── Submit button label: amount in the button itself ─────────────────
   const submitLabel = (() => {
     const priceNum = moneyToNumber(price);
     if (priceNum <= 0) return t('purchase.submit');
@@ -246,49 +287,59 @@ export default function PurchaseNew() {
       <WizardProgress step={step} completed={stepStatus} onJump={setStep} />
 
       <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
-        {step === 0 && (
-          <Step1Model
-            control={control}
-            values={values}
-            setValue={setValue}
-            onRepeatLast={onRepeatLast}
-            onPicked={() => setStep(1)}
-            errors={{ brand: errors.brand?.message, model: errors.model?.message }}
-          />
-        )}
-        {step === 1 && (
-          <Step2Device
-            control={control}
-            register={register}
-            values={values}
-            setValue={(name, v) => setValue(name, v)}
-            errors={errors}
-            devicePhotos={devicePhotos}
-            onDevicePhotosChange={setDevicePhotos}
-          />
-        )}
-        {step === 2 && (
-          <Step3Seller
-            control={control}
-            register={register}
-            setValue={setValue}
-            values={values}
-            errors={errors}
-            sellerPhotos={sellerPhotos}
-            onSellerPhotosChange={setSellerPhotos}
-          />
-        )}
-        {step === 3 && (
-          <Step4Price
-            control={control}
-            register={register}
-            setValue={setValue}
-            values={values}
-            errors={errors}
-            rateHints={rateHints}
-            priceResetKey={priceResetKey}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {step === 0 && (
+              <Step1Model
+                control={control}
+                values={values}
+                setValue={setValue}
+                onRepeatLast={onRepeatLast}
+                onPicked={() => setStep(1)}
+                errors={{ brand: errors.brand?.message, model: errors.model?.message }}
+              />
+            )}
+            {step === 1 && (
+              <Step2Device
+                control={control}
+                register={register}
+                values={values}
+                setValue={(name, v) => setValue(name, v)}
+                errors={errors}
+                devicePhotos={devicePhotos}
+                onDevicePhotosChange={setDevicePhotos}
+              />
+            )}
+            {step === 2 && (
+              <Step3Seller
+                control={control}
+                register={register}
+                setValue={setValue}
+                values={values}
+                errors={errors}
+                sellerPhotos={sellerPhotos}
+                onSellerPhotosChange={setSellerPhotos}
+              />
+            )}
+            {step === 3 && (
+              <Step4Price
+                control={control}
+                register={register}
+                setValue={setValue}
+                values={values}
+                errors={errors}
+                rateHints={rateHints}
+                priceResetKey={priceResetKey}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
 
         <WizardFooter
           step={step}
@@ -300,11 +351,7 @@ export default function PurchaseNew() {
         />
       </form>
 
-      <SuccessModal
-        result={done}
-        onClose={() => navigate('/stock')}
-        onAnother={handleAnother}
-      />
+      <SuccessModal result={done} onClose={() => navigate('/stock')} onAnother={handleAnother} />
 
       <DraftRestoreModal
         open={draftPrompt !== null}

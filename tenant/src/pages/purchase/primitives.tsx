@@ -4,7 +4,7 @@ import {
   Smartphone, Tablet, Laptop, Watch, Headphones, Package as PackageIcon,
   Check, type LucideIcon,
 } from 'lucide-react';
-import type { DeviceCategory } from '../../api/devices';
+import type { DeviceCategory } from '@/api/devices';
 import { CATEGORIES } from './types';
 
 export const CATEGORY_ICON: Record<DeviceCategory, LucideIcon> = {

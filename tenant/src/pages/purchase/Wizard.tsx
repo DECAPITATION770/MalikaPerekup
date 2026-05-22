@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
-import Button from '../../components/ui/Button';
+import Button from '@/components/ui/button-default';
 import { TOTAL_STEPS, type WizardStep } from './types';
 
 // ─── Step header (single bar with 4 dots) ──────────────────────────────

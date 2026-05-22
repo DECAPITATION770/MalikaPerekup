@@ -1,38 +1,163 @@
-import { useState, useEffect } from 'react';
+/**
+ * Settings — shop profile + language, password setup, logout.
+ * Phase 3 port: shadcn Form-pattern via react-hook-form + zod, shadcn
+ * Select for language, shadcn AlertDialog for logout confirm. Three
+ * cards (shop / plan / password) on a clean stack.
+ */
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../store/auth';
-import { getShopMe } from '../api/reports';
-import { setupPassword, updateShop } from '../api/auth';
-import { useToast } from '../components/ui/Toast';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Modal from '../components/ui/Modal';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
 import { LogOut } from 'lucide-react';
-import { fmtDate } from '../lib/fmt';
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+import { setupPassword, updateShop } from '@/api/auth';
+import { getShopMe } from '@/api/reports';
+import { useAuth } from '@/store/auth';
+import { useTgHaptic } from '@/lib/telegram';
+import { fmtDate } from '@/lib/fmt';
+import { cn } from '@/lib/utils';
+
+// ── Password form ─────────────────────────────────────────────────────
+
+function passwordSchema(t: (k: string) => string) {
+  return z
+    .object({
+      login: z.string().trim().min(3, t('login.min_login')),
+      password: z.string().min(8, t('login.min_password')),
+      confirm: z.string(),
+    })
+    .refine((v) => v.password === v.confirm, {
+      path: ['confirm'],
+      message: t('settings.password_mismatch'),
+    });
+}
+
+function PasswordSection() {
+  const { t } = useTranslation();
+  const haptic = useTgHaptic();
+
+  const {
+    register,
+    handleSubmit,
+    reset: resetForm,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<{ login: string; password: string; confirm: string }>({
+    resolver: zodResolver(passwordSchema(t)),
+    defaultValues: { login: '', password: '', confirm: '' },
+    mode: 'onBlur',
+  });
+
+  const onSubmit = handleSubmit(async ({ login, password }) => {
+    try {
+      await setupPassword(login.trim(), password);
+      haptic.notify('success');
+      toast.success(t('settings.password_ok'));
+      resetForm();
+    } catch {
+      haptic.notify('error');
+      toast.error(t('settings.password_failed'));
+    }
+  });
+
   return (
-    <div className="card p-5 flex flex-col gap-4">
-      <h2 className="text-body-lg font-bold tracking-tight">{title}</h2>
-      {children}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.password_section')}</CardTitle>
+        <p className="text-hint text-text-muted mt-1">{t('settings.password_hint')}</p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+          <Field
+            id="login"
+            label={t('settings.login_label')}
+            placeholder={t('settings.login_placeholder')}
+            autoComplete="username"
+            error={errors.login?.message}
+            {...register('login')}
+          />
+          <Field
+            id="password"
+            type="password"
+            label={t('settings.new_password_label')}
+            placeholder={t('settings.new_password_placeholder')}
+            autoComplete="new-password"
+            error={errors.password?.message}
+            {...register('password')}
+          />
+          <Field
+            id="confirm"
+            type="password"
+            label={t('settings.confirm_label')}
+            placeholder={t('settings.new_password_placeholder')}
+            autoComplete="new-password"
+            error={errors.confirm?.message}
+            {...register('confirm')}
+          />
+          <Button type="submit" disabled={!isValid} loading={isSubmitting}>
+            {t('settings.save')}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
-export default function Settings() {
+// Tiny <Input>+<Label>+error trio. Local to this page; if reused later we'll
+// promote to components/ui/field.tsx.
+const Field = (() => {
+  type FieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
+    id: string;
+    label: string;
+    error?: string;
+  };
+  const Cmp = ({ id, label, error, ...rest }: FieldProps) => (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} {...rest} aria-invalid={!!error} />
+      {error && (
+        <span role="alert" className="text-xs text-danger animate-fade-in">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+  Cmp.displayName = 'Field';
+  return Cmp;
+})();
+
+// ── Shop section ──────────────────────────────────────────────────────
+
+function ShopSection() {
   const { t, i18n } = useTranslation();
-  const toast = useToast();
+  const haptic = useTgHaptic();
   const qc = useQueryClient();
-  const { logout } = useAuth();
 
   const { data: shop } = useQuery({ queryKey: ['shop-me'], queryFn: getShopMe });
 
   const [shopName, setShopName] = useState('');
-  const [lang, setLang]         = useState<'ru' | 'uz'>('ru');
-  const [shopDirty, setShopDirty] = useState(false);
-  const [synced, setSynced]       = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [lang, setLang] = useState<'ru' | 'uz'>('ru');
+  const [dirty, setDirty] = useState(false);
+  const [synced, setSynced] = useState(false);
 
   useEffect(() => {
     if (shop && !synced) {
@@ -42,118 +167,156 @@ export default function Settings() {
     }
   }, [shop, synced]);
 
-  const shopMutation = useMutation({
+  const m = useMutation({
     mutationFn: () => updateShop({ name: shopName.trim(), language_default: lang }),
     onSuccess: () => {
+      haptic.notify('success');
       toast.success(t('settings.save_ok'));
-      i18n.changeLanguage(lang);
+      void i18n.changeLanguage(lang);
       qc.invalidateQueries({ queryKey: ['shop-me'] });
-      setShopDirty(false);
+      qc.invalidateQueries({ queryKey: ['shops', 'me'] });
+      setDirty(false);
     },
-    onError: () => toast.error(t('common.error_load')),
+    onError: () => {
+      haptic.notify('error');
+      toast.error(t('common.error_load'));
+    },
   });
-
-  const [login, setLogin]       = useState('');
-  const [newPass, setNewPass]   = useState('');
-  const [confirmPass, setConfirm] = useState('');
-  const [passErr, setPassErr]   = useState('');
-
-  const passMutation = useMutation({
-    mutationFn: () => setupPassword(login.trim(), newPass),
-    onSuccess: () => { toast.success(t('settings.password_ok')); setLogin(''); setNewPass(''); setConfirm(''); setPassErr(''); },
-    onError: () => toast.error(t('settings.password_failed')),
-  });
-
-  const handlePassSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPass !== confirmPass) { setPassErr(t('settings.password_mismatch')); return; }
-    setPassErr('');
-    passMutation.mutate();
-  };
-
-  const handleLogout = () => { localStorage.setItem('tenant_manual_logout', '1'); logout(); };
 
   return (
-    <div className="flex flex-col gap-4 animate-fade-up">
-      <h1 className="text-title font-bold tracking-tight">{t('settings.title')}</h1>
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.shop_section')}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <Field
+          id="shop_name"
+          label={t('settings.shop_name_label')}
+          placeholder={t('settings.shop_name_placeholder')}
+          value={shopName}
+          onChange={(e) => {
+            setShopName(e.target.value);
+            setDirty(true);
+          }}
+        />
 
-      <Section title={t('settings.shop_section')}>
-        <Input label={t('settings.shop_name_label')} placeholder={t('settings.shop_name_placeholder')}
-          value={shopName} onChange={(e) => { setShopName(e.target.value); setShopDirty(true); }} />
         <div className="flex flex-col gap-1.5">
-          <label className="text-label text-text-dim font-medium">{t('settings.language_label')}</label>
+          <Label>{t('settings.language_label')}</Label>
           <div className="flex gap-2">
             {(['ru', 'uz'] as const).map((l) => (
-              <button key={l} type="button" onClick={() => { setLang(l); setShopDirty(true); }}
-                className={`h-9 px-4 rounded-lg border text-label font-semibold transition-all cursor-pointer
-                  ${lang === l ? 'bg-accent-faded border-accent/40 text-accent' : 'bg-bg2 border-border text-text-dim'}`}>
+              <button
+                key={l}
+                type="button"
+                onClick={() => {
+                  setLang(l);
+                  setDirty(true);
+                }}
+                className={cn(
+                  'h-9 px-4 rounded-lg border text-label font-semibold transition-all cursor-pointer',
+                  lang === l
+                    ? 'bg-accent-faded border-accent/40 text-accent'
+                    : 'bg-bg2 border-border text-text-dim hover:border-border-strong hover:text-text',
+                )}
+              >
                 {t(`settings.lang_${l}`)}
               </button>
             ))}
           </div>
         </div>
-        <Button size="md" disabled={!shopDirty || !shopName.trim()} loading={shopMutation.isPending}
-          onClick={() => shopMutation.mutate()}>{t('settings.save')}</Button>
-      </Section>
 
-      {shop && (
-        <Section title={t('settings.plan_section')}>
-          <div className="flex items-center justify-between">
-            <span className="text-body font-semibold">
-              {shop.plan === 'trial' ? t('settings.plan_trial') : t('settings.plan_active')}
-            </span>
-            {shop.plan_until && (
-              <span className="text-hint text-text-dim">{t('settings.plan_until', { date: fmtDate(shop.plan_until) })}</span>
-            )}
-          </div>
-        </Section>
-      )}
-
-      <Section title={t('settings.password_section')}>
-        <p className="text-hint text-text-muted">{t('settings.password_hint')}</p>
-        <form onSubmit={handlePassSubmit} className="flex flex-col gap-3">
-          <Input label={t('settings.login_label')} placeholder={t('settings.login_placeholder')}
-            autoComplete="username" autoCapitalize="none" value={login}
-            onChange={(e) => setLogin(e.target.value)} />
-          <Input label={t('settings.new_password_label')} placeholder={t('settings.new_password_placeholder')}
-            type="password" autoComplete="new-password" value={newPass}
-            onChange={(e) => setNewPass(e.target.value)} />
-          <Input label={t('settings.confirm_label')} placeholder={t('settings.new_password_placeholder')}
-            type="password" autoComplete="new-password" error={passErr} value={confirmPass}
-            onChange={(e) => { setConfirm(e.target.value); if (passErr) setPassErr(''); }} />
-          <Button type="submit" size="md" disabled={!login || newPass.length < 8 || !confirmPass}
-            loading={passMutation.isPending}>{t('settings.save')}</Button>
-        </form>
-      </Section>
-
-      <Section title={t('settings.account_section')}>
-        <Button variant="secondary" size="md" onClick={() => setConfirmLogout(true)}>
-          {t('settings.logout')}
+        <Button
+          disabled={!dirty || !shopName.trim()}
+          loading={m.isPending}
+          onClick={() => m.mutate()}
+        >
+          {t('settings.save')}
         </Button>
-      </Section>
+      </CardContent>
+    </Card>
+  );
+}
 
-      <Modal
-        open={confirmLogout}
-        onClose={() => setConfirmLogout(false)}
-        title={t('logout.title')}
-        footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" full onClick={() => setConfirmLogout(false)}>
-              {t('common.cancel')}
+// ── Plan section ──────────────────────────────────────────────────────
+
+function PlanSection() {
+  const { t } = useTranslation();
+  const { data: shop } = useQuery({ queryKey: ['shop-me'], queryFn: getShopMe });
+  if (!shop) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.plan_section')}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex items-center justify-between gap-3">
+        <Badge variant={shop.plan === 'trial' ? 'warning' : 'success'}>
+          {shop.plan === 'trial' ? t('settings.plan_trial') : t('settings.plan_active')}
+        </Badge>
+        {shop.plan_until && (
+          <span className="text-hint text-text-dim">
+            {t('settings.plan_until', { date: fmtDate(shop.plan_until) })}
+          </span>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Account section ───────────────────────────────────────────────────
+
+function AccountSection() {
+  const { t } = useTranslation();
+  const { logout } = useAuth();
+  const handleLogout = () => {
+    localStorage.setItem('tenant_manual_logout', '1');
+    logout();
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.account_section')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="secondary">
+              <LogOut className="size-4" />
+              {t('settings.logout')}
             </Button>
-            <Button
-              variant="danger"
-              full
-              icon={<LogOut size={15} />}
-              onClick={() => { setConfirmLogout(false); handleLogout(); }}
-            >
-              {t('common.logout')}
-            </Button>
-          </div>
-        }
-      >
-        <p className="text-sm text-text-dim leading-relaxed">{t('logout.body')}</p>
-      </Modal>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('logout.title')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('logout.body')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleLogout}
+                className="bg-danger hover:bg-danger/90 text-white"
+              >
+                <LogOut className="size-4" /> {t('common.logout')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────
+
+export default function Settings() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-4 max-w-2xl animate-fade-up">
+      <h1 className="text-title font-bold tracking-tight">{t('settings.title')}</h1>
+      <ShopSection />
+      <PlanSection />
+      <PasswordSection />
+      <AccountSection />
     </div>
   );
 }

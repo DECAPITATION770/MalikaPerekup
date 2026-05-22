@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingDown, TrendingUp, History, Sparkles } from 'lucide-react';
-import { getPriceHint } from '../../api/devices';
-import { fmtAmount, moneyToNumber } from '../../lib/money';
+import { getPriceHint } from '@/api/devices';
+import { fmtAmount, moneyToNumber } from '@/lib/money';
 
 interface Props {
   brand: string;

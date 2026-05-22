@@ -41,7 +41,10 @@
     "upload_failed": "Yuklab bo'lmadi",
     "photo_n": "Hujjat {{n}}",
     "today": "Bugun",
-    "yesterday": "Kecha"
+    "yesterday": "Kecha",
+    "page_n_of_m": "{{current}} / {{total}}-bet",
+    "prev": "Orqaga",
+    "next": "Oldinga"
   },
   "login": {
     "title": "Malika",
@@ -135,7 +138,8 @@
     "col_days": "Kun",
     "col_status": "Holat",
     "days_n": "{{n}} kun",
-    "open": "Ochish"
+    "open": "Ochish",
+    "detail_qr_print": "Stiker chop etish"
   },
   "status": {
     "in_stock": "Vitrinada",
@@ -459,7 +463,9 @@
     "amount_label": "Summa (UZS)",
     "payment_recorded": "To'lov yozildi",
     "payment_failed": "To'lovni yozib bo'lmadi",
-    "plan_total": "Umumiy summa"
+    "plan_total": "Umumiy summa",
+    "payment_queued": "To'lov oflayn saqlandi — aloqa paydo bo'lганda yuboriladi",
+    "synced_n": "Sinxronlangan to'lovlar: {{count}}"
   },
   "settings": {
     "title": "Sozlamalar",
@@ -513,5 +519,10 @@
     "status_active": "Faol",
     "status_returned": "Qaytarildi",
     "status_cancelled": "Bekor"
+  },
+  "errors": {
+    "boundary_title": "Nimadir xato ketdi",
+    "boundary_body": "Xatolik yuz berdi. Sahifani qayta yuklang — ma'lumotlar yo'qolmaydi.",
+    "boundary_reload": "Qayta yuklash"
   }
 }

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import type { TFunction } from 'i18next';
 import type { FieldErrors } from 'react-hook-form';
-import type { Currency } from '../../api/purchases';
-import type { DeviceCategory, DeviceCondition } from '../../api/devices';
-import { parseMoneyInput, moneyToNumber } from '../../lib/money';
+import type { Currency } from '@/api/purchases';
+import type { DeviceCategory, DeviceCondition } from '@/api/devices';
+import { parseMoneyInput, moneyToNumber } from '@/lib/money';
 
 export const CATEGORIES: DeviceCategory[] = ['phone', 'tablet', 'laptop', 'smartwatch', 'accessory', 'other'];
 export const CONDITIONS: DeviceCondition[] = ['new', 'good', 'normal', 'broken'];

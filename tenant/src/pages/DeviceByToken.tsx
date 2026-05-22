@@ -1,13 +1,16 @@
-import { useParams, Navigate, Link } from 'react-router-dom';
+/**
+ * QR landing: {WEBAPP}/d/{token}. Resolves a printed sticker's token to a
+ * device and forwards to its detail card. On failure shows a back link +
+ * retry instead of a dead end.
+ */
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft } from 'lucide-react';
-import { getDeviceByToken } from '../api/devices';
-import Spinner from '../components/ui/Spinner';
-import QueryError from '../components/ui/QueryError';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { getDeviceByToken } from '@/api/devices';
 
-// Lands here when a printed QR sticker is scanned: {WEBAPP}/d/{token}.
-// Resolves the token to a device, then forwards to its detail card.
 export default function DeviceByToken() {
   const { token } = useParams<{ token: string }>();
   const { t } = useTranslation();
@@ -22,7 +25,7 @@ export default function DeviceByToken() {
   if (q.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <Spinner />
+        <Loader2 className="size-6 text-accent animate-spin" />
       </div>
     );
   }
@@ -36,9 +39,13 @@ export default function DeviceByToken() {
         >
           <ArrowLeft size={16} /> {t('stock.back')}
         </Link>
-        <QueryError
-          status={(q.error as { response?: { status?: number } })?.response?.status}
-          onRetry={() => q.refetch()}
+        <EmptyState
+          title={t('common.error_load')}
+          action={
+            <Button variant="secondary" onClick={() => q.refetch()}>
+              {t('common.retry')}
+            </Button>
+          }
         />
       </div>
     );

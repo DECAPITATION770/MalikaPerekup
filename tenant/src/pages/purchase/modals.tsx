@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ShoppingCart, Check, Printer } from 'lucide-react';
 import { CATEGORY_ICON } from './primitives';
-import Modal from '../../components/ui/Modal';
-import Button from '../../components/ui/Button';
-import type { PurchaseWithDeviceOut } from '../../api/purchases';
-import { getDeviceQrPng } from '../../api/devices';
-import { specsSummary } from '../../lib/specsFmt';
+import Modal from '@/components/ui/modal';
+import Button from '@/components/ui/button-default';
+import type { PurchaseWithDeviceOut } from '@/api/purchases';
+import { getDeviceQrPng } from '@/api/devices';
+import { specsSummary } from '@/lib/specsFmt';
 
 // ─── Draft restore modal ────────────────────────────────────────────────
 

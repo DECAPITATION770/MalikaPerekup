@@ -37,6 +37,7 @@ from app.features.notifications import service as notify_service
 from app.features.notifications.models import NotificationKind
 from app.features.sales.models import Sale
 from app.features.shops.models import Shop
+from bot.jobs.cleanup_deleted_files import cleanup_deleted_counterparty_files
 
 
 # ─── Job: 08:00 morning summary per shop ───────────────────────────────
@@ -200,6 +201,15 @@ def build_scheduler() -> AsyncIOScheduler:
         _dispatch_notifications,
         trigger=IntervalTrigger(seconds=30),
         id="dispatch_notifications",
+        max_instances=1,
+        coalesce=True,
+    )
+    # CLAUDE.md §10 — sweep MinIO/R2 hourly so soft-deleted counterparties
+    # don't leave PII attachments behind.
+    scheduler.add_job(
+        cleanup_deleted_counterparty_files,
+        trigger=IntervalTrigger(hours=1),
+        id="cleanup_deleted_counterparty_files",
         max_instances=1,
         coalesce=True,
     )

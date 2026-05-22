@@ -7,12 +7,12 @@ import { Repeat, Plus, ChevronRight, Pencil } from 'lucide-react';
 import {
   getRecentModels,
   type RecentModelOut,
-} from '../../../api/devices';
-import { POPULAR_BRANDS } from '../../../lib/popularBrands';
+} from '@/api/devices';
+import { POPULAR_BRANDS } from '@/lib/popularBrands';
 import {
   getLastPurchase,
   type LastPurchaseTemplate,
-} from '../../../api/purchases';
+} from '@/api/purchases';
 
 import { StepShell } from '../Wizard';
 import { CATEGORY_ICON, CategoryPicker, Field } from '../primitives';

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X, ArrowLeft } from 'lucide-react';
-import { listCounterparties, type CounterpartyOut, type CounterpartyType } from '../../api/counterparties';
-import { useDebounced } from '../../lib/useDebounced';
+import { listCounterparties, type CounterpartyOut, type CounterpartyType } from '@/api/counterparties';
+import { useDebounced } from '@/lib/useDebounced';
 
 // ─── Counterparty autocomplete (works for both seller in purchase and
 //     buyer in sale; pass `type` to scope the search). ──────────────────

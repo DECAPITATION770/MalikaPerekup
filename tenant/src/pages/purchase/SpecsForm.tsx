@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pencil } from 'lucide-react';
-import type { DeviceCategory } from '../../api/devices';
+import type { DeviceCategory } from '@/api/devices';
 
 interface Props {
   category: DeviceCategory;

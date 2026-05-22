@@ -5,10 +5,10 @@ import {
 } from 'react-hook-form';
 import { Check, X, ChevronDown } from 'lucide-react';
 
-import Input from '../../../components/ui/Input';
-import DocumentUploader from '../../../components/ui/DocumentUploader';
-import { requestPurchaseUploadUrl } from '../../../api/purchases';
-import { type CounterpartyOut } from '../../../api/counterparties';
+import Input from '@/components/ui/labeled-input';
+import DocumentUploader from '@/components/DocumentUploader';
+import { requestPurchaseUploadUrl } from '@/api/purchases';
+import { type CounterpartyOut } from '@/api/counterparties';
 
 import { StepShell } from '../Wizard';
 import { Field, SegmentedRow } from '../primitives';

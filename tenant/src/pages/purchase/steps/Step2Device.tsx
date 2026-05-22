@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Controller, type Control, type UseFormRegister, type FieldErrors } from 'react-hook-form';
 import { ChevronDown } from 'lucide-react';
 
-import Input from '../../../components/ui/Input';
-import DocumentUploader from '../../../components/ui/DocumentUploader';
-import { requestDeviceUploadUrl } from '../../../api/devices';
+import Input from '@/components/ui/labeled-input';
+import DocumentUploader from '@/components/DocumentUploader';
+import { requestDeviceUploadUrl } from '@/api/devices';
 
 import { StepShell } from '../Wizard';
 import { TextArea } from '../primitives';

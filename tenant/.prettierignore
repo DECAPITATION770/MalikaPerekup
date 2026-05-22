@@ -1,0 +1,8 @@
+dist
+.legacy
+dev-dist
+node_modules
+coverage
+playwright-report
+*.lock
+pnpm-lock.yaml

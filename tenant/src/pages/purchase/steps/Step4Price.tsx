@@ -3,16 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Controller, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors } from 'react-hook-form';
 import { ChevronDown } from 'lucide-react';
 
-import CurrencyDualInput from '../../../components/ui/CurrencyDualInput';
-import { fmtMoneyInput, moneyToNumber } from '../../../lib/money';
+import CurrencyDualInput from '@/components/CurrencyDualInput';
+import { fmtMoneyInput, moneyToNumber } from '@/lib/money';
 
 import { StepShell } from '../Wizard';
 import { TextArea } from '../primitives';
 import PriceHint from '../PriceHint';
 import DateChips from '../DateChips';
 import { type FormValues } from '../types';
-import type { Currency } from '../../../api/purchases';
-import type { ExchangeRateHint } from '../../../api/reports';
+import type { Currency } from '@/api/purchases';
+import type { ExchangeRateHint } from '@/api/reports';
 
 interface Props {
   control: Control<FormValues>;

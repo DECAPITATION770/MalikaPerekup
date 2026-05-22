@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
-import { checkImei } from '../../api/devices';
-import { useDebounced } from '../../lib/useDebounced';
-import { fmtDate } from '../../lib/fmt';
+import { checkImei } from '@/api/devices';
+import { useDebounced } from '@/lib/useDebounced';
+import { fmtDate } from '@/lib/fmt';
 
 // ─── Duplicate-IMEI soft warning (non-blocking) ─────────────────────────
 

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useController, type Control } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
-import Input from '../../components/ui/Input';
-import { getDeviceSuggestions } from '../../api/devices';
-import { useDebounced } from '../../lib/useDebounced';
+import Input from '@/components/ui/labeled-input';
+import { getDeviceSuggestions } from '@/api/devices';
+import { useDebounced } from '@/lib/useDebounced';
 import type { FormValues } from './types';
 
 // ─── Brand / model autocomplete (own shop history) ──────────────────────

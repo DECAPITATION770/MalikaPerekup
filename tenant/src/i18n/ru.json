@@ -41,7 +41,10 @@
     "upload_failed": "Не удалось загрузить",
     "photo_n": "Документ {{n}}",
     "today": "Сегодня",
-    "yesterday": "Вчера"
+    "yesterday": "Вчера",
+    "page_n_of_m": "Стр. {{current}} из {{total}}",
+    "prev": "Назад",
+    "next": "Вперёд"
   },
   "login": {
     "title": "Malika",
@@ -139,7 +142,8 @@
     "days_n_few": "{{n}} дня",
     "days_n_many": "{{n}} дней",
     "days_n": "{{n}} дн.",
-    "open": "Открыть"
+    "open": "Открыть",
+    "detail_qr_print": "Печать стикера"
   },
   "status": {
     "in_stock": "На витрине",
@@ -463,7 +467,9 @@
     "amount_label": "Сумма (UZS)",
     "payment_recorded": "Платёж записан",
     "payment_failed": "Не удалось записать платёж",
-    "plan_total": "Общая сумма"
+    "plan_total": "Общая сумма",
+    "payment_queued": "Платёж записан офлайн — синхронизирую при связи",
+    "synced_n": "Синхронизировано платежей: {{count}}"
   },
   "settings": {
     "title": "Настройки",
@@ -517,5 +523,10 @@
     "status_active": "Активна",
     "status_returned": "Возврат",
     "status_cancelled": "Отменена"
+  },
+  "errors": {
+    "boundary_title": "Что-то пошло не так",
+    "boundary_body": "Произошла ошибка. Перезагрузите страницу — данные не потеряются.",
+    "boundary_reload": "Перезагрузить"
   }
 }
