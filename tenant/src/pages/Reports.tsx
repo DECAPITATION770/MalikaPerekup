@@ -38,16 +38,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  getInventoryValue,
-  getPeriodReport,
-  getPeriodReportXlsx,
-} from '@/api/reports';
-import { fmtUzs, fmtUzsCompact } from '@/lib/fmt';
+import { getInventoryValue, getPeriodReport, getPeriodReportXlsx } from '@/api/reports';
+import { compactUnits, fmtUzs, fmtUzsCompact } from '@/lib/fmt';
 import { useTgHaptic } from '@/lib/telegram';
 import { track } from '@/lib/analytics';
-
-const COMPACT = { thousand: 'тыс', million: 'млн', billion: 'млрд' };
 
 function todayStr() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
@@ -63,6 +57,7 @@ type Preset = '7d' | '30d' | '90d' | 'custom';
 export default function Reports() {
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const COMPACT = compactUnits(t);
   const [preset, setPreset] = useState<Preset>('30d');
   const [customFrom, setCustomFrom] = useState(daysAgo(30));
   const [customTo, setCustomTo] = useState(todayStr());
@@ -120,7 +115,7 @@ export default function Reports() {
   const hasChartData = dayData.length >= 2 && dayData.some((d) => d.profit > 0);
 
   return (
-    <div className="flex flex-col gap-5 animate-fade-up">
+    <div className="flex animate-fade-up flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-title font-bold tracking-tight">{t('reports.title')}</h1>
         <Button
@@ -145,8 +140,8 @@ export default function Reports() {
       </Tabs>
 
       {preset === 'custom' && (
-        <Card className="p-4 flex flex-col sm:flex-row gap-3 animate-fade-in">
-          <div className="flex flex-col gap-1 flex-1">
+        <Card className="flex animate-fade-in flex-col gap-3 p-4 sm:flex-row">
+          <div className="flex flex-1 flex-col gap-1">
             <Label htmlFor="from">{t('reports.from')}</Label>
             <Input
               id="from"
@@ -157,7 +152,7 @@ export default function Reports() {
               className="h-11"
             />
           </div>
-          <div className="flex flex-col gap-1 flex-1">
+          <div className="flex flex-1 flex-col gap-1">
             <Label htmlFor="to">{t('reports.to')}</Label>
             <Input
               id="to"
@@ -173,7 +168,7 @@ export default function Reports() {
       )}
 
       {inv && (
-        <Card className="p-4 flex items-center justify-between gap-4">
+        <Card className="flex items-center justify-between gap-4 p-4">
           <div className="flex items-center gap-2 text-text-dim">
             <Package size={15} />
             <span className="text-label font-semibold">{t('reports.inventory_title')}</span>
@@ -202,7 +197,7 @@ export default function Reports() {
       ) : !data || (data.sales_count === 0 && data.purchases_count === 0) ? (
         <EmptyState
           illustration={
-            <div className="w-14 h-14 rounded-2xl bg-bg3 flex items-center justify-center text-text-muted">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-bg3 text-text-muted">
               <BarChart2 size={26} />
             </div>
           }
@@ -246,7 +241,7 @@ export default function Reports() {
 
           {/* Profit by day — recharts area */}
           {hasChartData && (
-            <Card className="p-4 flex flex-col gap-3">
+            <Card className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-2 text-text-dim">
                 <TrendingUp size={14} />
                 <span className="text-caption font-semibold uppercase tracking-wider">
@@ -261,7 +256,11 @@ export default function Reports() {
                       <stop offset="100%" stopColor="rgb(var(--c-success))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--c-border))" vertical={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgb(var(--c-border))"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="day"
                     tick={{ fontSize: 10, fill: 'rgb(var(--c-text-muted))' }}
@@ -291,7 +290,7 @@ export default function Reports() {
 
           {/* Top models — recharts horizontal bars */}
           {topData.length > 0 && (
-            <Card className="p-4 flex flex-col gap-3">
+            <Card className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-2 text-text-dim">
                 <BarChart2 size={14} />
                 <span className="text-caption font-semibold uppercase tracking-wider">
@@ -313,7 +312,10 @@ export default function Reports() {
                     tickLine={false}
                     axisLine={false}
                   />
-                  <RTooltip content={<ChartTooltip unit="UZS" />} cursor={{ fill: 'rgb(var(--c-bg3))' }} />
+                  <RTooltip
+                    content={<ChartTooltip unit="UZS" />}
+                    cursor={{ fill: 'rgb(var(--c-bg3))' }}
+                  />
                   <Bar dataKey="profit" radius={[0, 6, 6, 0]} barSize={20}>
                     {topData.map((_, i) => (
                       <Cell key={i} fill="rgb(var(--c-accent))" />
@@ -325,7 +327,7 @@ export default function Reports() {
           )}
 
           {data.avg_days_in_stock !== null && (
-            <Card className="p-4 flex items-center justify-between">
+            <Card className="flex items-center justify-between p-4">
               <div className="flex items-center gap-2 text-text-dim">
                 <Clock size={14} />
                 <span className="text-label font-semibold">{t('reports.avg_days')}</span>
@@ -355,13 +357,13 @@ function StatCard({
   accent?: boolean;
 }) {
   return (
-    <Card className="p-4 flex flex-col gap-2">
+    <Card className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2 text-text-dim">
         {icon}
         <span className="text-caption font-semibold uppercase tracking-wider">{label}</span>
       </div>
       <div
-        className={`text-title-sm font-bold tabular-nums tracking-tight leading-tight ${
+        className={`text-title-sm font-bold tabular-nums leading-tight tracking-tight ${
           accent ? 'text-success' : ''
         }`}
       >
@@ -386,13 +388,13 @@ function ChartTooltip({
   if (!active || !payload?.length) return null;
   const p = payload[0];
   return (
-    <div className="rounded-lg border border-border bg-bg3 px-3 py-2 shadow-lg text-xs">
+    <div className="rounded-lg border border-border bg-bg3 px-3 py-2 text-xs shadow-lg">
       <div className="text-text-muted">{p.payload.name ?? label}</div>
       <div className="font-bold tabular-nums text-text">
         {fmtUzs(p.value)} {unit}
       </div>
       {p.payload.units !== undefined && (
-        <div className="text-text-muted tabular-nums">{p.payload.units} шт</div>
+        <div className="tabular-nums text-text-muted">{p.payload.units} шт</div>
       )}
     </div>
   );

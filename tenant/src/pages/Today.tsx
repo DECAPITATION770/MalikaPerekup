@@ -25,12 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { FrozenIcon } from '@/components/icons';
 import { EmptyStockIllustration } from '@/components/illustrations';
 import { getShopMe, getToday } from '@/api/reports';
-import { fmtUzs, fmtUzsCompact, greetingKey } from '@/lib/fmt';
+import { compactUnits, fmtUzs, fmtUzsCompact, greetingKey } from '@/lib/fmt';
 import { useAuth } from '@/store/auth';
 import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
-
-const COMPACT_UNITS = { thousand: 'тыс', million: 'млн', billion: 'млрд' };
 
 const parseNum = (v: string | number | null | undefined): number => {
   if (v === null || v === undefined || v === '') return 0;
@@ -48,6 +46,7 @@ export default function Today() {
 
   const greeting = t(greetingKey());
   const firstName = user?.full_name?.split(' ')[0] ?? '';
+  const COMPACT_UNITS = compactUnits(t);
 
   const profitDelta: KpiDelta | undefined = todayQ.data
     ? (() => {
@@ -69,7 +68,7 @@ export default function Today() {
       {/* Ambient mesh behind the hero — pure decoration */}
       <div
         aria-hidden
-        className="hero-mesh pointer-events-none absolute inset-x-0 -top-6 md:-top-10 h-64 -z-10"
+        className="hero-mesh pointer-events-none absolute inset-x-0 -top-6 -z-10 h-64 md:-top-10"
       />
 
       {/* Header */}
@@ -80,15 +79,15 @@ export default function Today() {
         className="flex items-end justify-between gap-3"
       >
         <div>
-          <div className="text-label text-text-muted font-semibold uppercase tracking-wider">
+          <div className="text-label font-semibold uppercase tracking-wider text-text-muted">
             {greeting}
             {firstName ? ',' : ''}
           </div>
-          <h1 className="text-title-lg md:text-display font-bold tracking-tight mt-1">
+          <h1 className="mt-1 text-title-lg font-bold tracking-tight md:text-display">
             {firstName || t('today.title')}
           </h1>
           {shopQ.data && (
-            <div className="mt-1 text-sm text-text-dim flex items-center gap-2 flex-wrap">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-dim">
               <span>{shopQ.data.name}</span>
               {shopQ.data.is_frozen && (
                 <Badge variant="warning" size="sm">
@@ -106,31 +105,29 @@ export default function Today() {
           to="/installments?status=overdue"
           onClick={() => haptic.tap('medium')}
           className={cn(
-            'card-elev p-4 md:p-5 flex items-center gap-4',
-            'border-warning/40 hover:border-warning transition-all group animate-fade-up',
+            'card-elev flex items-center gap-4 p-4 md:p-5',
+            'group animate-fade-up border-warning/40 transition-all hover:border-warning',
           )}
           style={{ animationDelay: '40ms' }}
         >
-          <div className="w-10 h-10 rounded-xl bg-warning-faded text-warning flex items-center justify-center shrink-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-faded text-warning">
             <AlertTriangle size={20} />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-body font-bold text-text">
               {t('today.overdue_alert_title', { count: todayQ.data.overdue_payments_count })}
             </div>
-            <div className="text-hint text-text-dim mt-0.5">
-              {t('today.overdue_alert_body')}
-            </div>
+            <div className="mt-0.5 text-hint text-text-dim">{t('today.overdue_alert_body')}</div>
           </div>
           <ArrowUpRight
             size={18}
-            className="text-text-muted group-hover:text-warning transition-colors shrink-0"
+            className="shrink-0 text-text-muted transition-colors group-hover:text-warning"
           />
         </Link>
       )}
 
       {/* 3 headline KPI */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
         <KpiCard
           label={t('today.kpi_profit_today')}
           value={parseNum(todayQ.data?.profit_today)}
@@ -161,9 +158,7 @@ export default function Today() {
           unit={t('common.currency_uzs')}
           hint={t('today.kpi_nasiya_debt_hint')}
           icon={<CalendarClock size={18} strokeWidth={2} />}
-          tone={
-            todayQ.data && todayQ.data.overdue_payments_count > 0 ? 'danger' : 'accent'
-          }
+          tone={todayQ.data && todayQ.data.overdue_payments_count > 0 ? 'danger' : 'accent'}
           loading={todayQ.isLoading}
           delay={180}
         />
@@ -171,14 +166,34 @@ export default function Today() {
 
       {/* Quick actions */}
       <section className="animate-fade-up" style={{ animationDelay: '240ms' }}>
-        <h2 className="text-label font-bold text-text-dim uppercase tracking-wider mb-3">
+        <h2 className="mb-3 text-label font-bold uppercase tracking-wider text-text-dim">
           {t('today.quick_actions')}
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <QuickAction to="/purchase/new" icon={<ShoppingCart size={20} />} label={t('today.action_purchase')} tone="accent" />
-          <QuickAction to="/sale/new" icon={<BadgeDollarSign size={20} />} label={t('today.action_sale')} tone="success" />
-          <QuickAction to="/search" icon={<Search size={20} />} label={t('today.action_search')} tone="neutral" />
-          <QuickAction to="/installments" icon={<CalendarClock size={20} />} label={t('nav.installments')} tone="neutral" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <QuickAction
+            to="/purchase/new"
+            icon={<ShoppingCart size={20} />}
+            label={t('today.action_purchase')}
+            tone="accent"
+          />
+          <QuickAction
+            to="/sale/new"
+            icon={<BadgeDollarSign size={20} />}
+            label={t('today.action_sale')}
+            tone="success"
+          />
+          <QuickAction
+            to="/search"
+            icon={<Search size={20} />}
+            label={t('today.action_search')}
+            tone="neutral"
+          />
+          <QuickAction
+            to="/installments"
+            icon={<CalendarClock size={20} />}
+            label={t('nav.installments')}
+            tone="neutral"
+          />
         </div>
       </section>
 
@@ -227,18 +242,18 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="card p-4 md:p-5 flex flex-col items-start gap-3 group transition-all hover:border-border-strong cursor-pointer"
+      className="card group flex cursor-pointer flex-col items-start gap-3 p-4 transition-all hover:border-border-strong md:p-5"
     >
       <div
         className={cn(
-          'w-10 h-10 rounded-xl bg-bg3 flex items-center justify-center ring-1 ring-border transition-all',
+          'flex h-10 w-10 items-center justify-center rounded-xl bg-bg3 ring-1 ring-border transition-all',
           iconTone,
           ring,
         )}
       >
         {icon}
       </div>
-      <div className="text-label md:text-body font-semibold tracking-tight">{label}</div>
+      <div className="text-label font-semibold tracking-tight md:text-body">{label}</div>
     </Link>
   );
 }
