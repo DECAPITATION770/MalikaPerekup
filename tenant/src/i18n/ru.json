@@ -41,7 +41,10 @@
     "upload_failed": "Не удалось загрузить",
     "photo_n": "Документ {{n}}",
     "today": "Сегодня",
-    "yesterday": "Вчера"
+    "yesterday": "Вчера",
+    "page_n_of_m": "Стр. {{current}} из {{total}}",
+    "prev": "Назад",
+    "next": "Вперёд"
   },
   "login": {
     "title": "Malika",
@@ -139,7 +142,8 @@
     "days_n_few": "{{n}} дня",
     "days_n_many": "{{n}} дней",
     "days_n": "{{n}} дн.",
-    "open": "Открыть"
+    "open": "Открыть",
+    "detail_qr_print": "Печать стикера"
   },
   "status": {
     "in_stock": "На витрине",

@@ -41,7 +41,10 @@
     "upload_failed": "Yuklab bo'lmadi",
     "photo_n": "Hujjat {{n}}",
     "today": "Bugun",
-    "yesterday": "Kecha"
+    "yesterday": "Kecha",
+    "page_n_of_m": "{{current}} / {{total}}-bet",
+    "prev": "Orqaga",
+    "next": "Oldinga"
   },
   "login": {
     "title": "Malika",
@@ -135,7 +138,8 @@
     "col_days": "Kun",
     "col_status": "Holat",
     "days_n": "{{n}} kun",
-    "open": "Ochish"
+    "open": "Ochish",
+    "detail_qr_print": "Stiker chop etish"
   },
   "status": {
     "in_stock": "Vitrinada",

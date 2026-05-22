@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Pagination } from '@/components/ui/pagination';
 import {
   Table,
   TableBody,
@@ -465,7 +466,7 @@ export default function Stock() {
       {data && data.items.length > 0 && (
         <>
           <DeviceList items={data.items} />
-          <SimplePagination
+          <Pagination
             total={data.total}
             limit={PAGE_SIZE}
             offset={offset}
@@ -634,7 +635,7 @@ function DeviceRowMobile({ d, delay }: { d: DeviceWithPurchaseOut; delay: number
   );
 }
 
-// ── Tiny chips + pagination ───────────────────────────────────────────
+// ── Tiny chips ────────────────────────────────────────────────────────
 
 function ActiveFilterChip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
@@ -672,48 +673,6 @@ function Chip({
     >
       {children}
     </button>
-  );
-}
-
-function SimplePagination({
-  total,
-  limit,
-  offset,
-  onChange,
-}: {
-  total: number;
-  limit: number;
-  offset: number;
-  onChange: (n: number) => void;
-}) {
-  const { t } = useTranslation();
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const currentPage = Math.floor(offset / limit) + 1;
-  if (totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-text-dim tabular-nums">
-        {t('common.page_n_of_m', { current: currentPage, total: totalPages })}
-      </span>
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={offset === 0}
-          onClick={() => onChange(Math.max(0, offset - limit))}
-        >
-          {t('common.prev')}
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={offset + limit >= total}
-          onClick={() => onChange(offset + limit)}
-        >
-          {t('common.next')}
-        </Button>
-      </div>
-    </div>
   );
 }
 
