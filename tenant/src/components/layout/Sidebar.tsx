@@ -11,6 +11,7 @@ import {
   BarChart3,
   Users as UsersIcon,
   Settings as SettingsIcon,
+  Search,
   LogOut,
   Globe,
 } from 'lucide-react';
@@ -40,6 +41,8 @@ interface NavSpec {
 const NAV_PRIMARY: readonly NavSpec[] = [
   { to: '/', icon: LayoutDashboard, key: 'nav.today', end: true },
   { to: '/stock', icon: Package, key: 'nav.stock' },
+  { to: '/search', icon: Search, key: 'nav.search' },
+  { to: '/counterparties', icon: UsersIcon, key: 'nav.counterparties' },
   { to: '/installments', icon: CalendarClock, key: 'nav.installments' },
   { to: '/reports', icon: BarChart3, key: 'nav.reports' },
   { to: '/settings', icon: SettingsIcon, key: 'nav.settings' },
@@ -48,7 +51,6 @@ const NAV_PRIMARY: readonly NavSpec[] = [
 const NAV_ARCHIVE: readonly NavSpec[] = [
   { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
   { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
-  { to: '/counterparties', icon: UsersIcon, key: 'nav.counterparties' },
 ];
 
 export function Sidebar() {
@@ -75,6 +77,24 @@ export function Sidebar() {
       {/* Brand */}
       <div className="border-b border-border px-5 pb-5 pt-6">
         <MalikaWordmark size="md" className="text-text" />
+      </div>
+
+      {/* Money actions — the two verbs the shop runs all day */}
+      <div className="flex flex-col gap-2 px-3 pt-4">
+        <NavLink
+          to="/purchase/new"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-label font-bold text-[rgb(var(--c-on-accent))] transition-colors hover:bg-accent-hover"
+        >
+          <ShoppingCart size={17} strokeWidth={2.2} />
+          {t('nav.buy')}
+        </NavLink>
+        <NavLink
+          to="/sale/new"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-success text-label font-bold text-bg transition-opacity hover:opacity-90"
+        >
+          <BadgeDollarSign size={17} strokeWidth={2.2} />
+          {t('nav.sell')}
+        </NavLink>
       </div>
 
       {/* Nav */}
