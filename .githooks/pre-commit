@@ -1,0 +1,12 @@
+#!/bin/sh
+# Run frontend lint/typecheck/format via lefthook, but only if tenant/ files
+# are staged — keeps backend-only commits fast and noise-free.
+[ "$LEFTHOOK" = "0" ] && exit 0
+ROOT="$(git rev-parse --show-toplevel)"
+if git diff --cached --name-only | grep -q '^tenant/'; then
+  BIN="$ROOT/tenant/node_modules/.bin/lefthook"
+  if [ -x "$BIN" ]; then
+    ( cd "$ROOT/tenant" && "$BIN" run pre-commit ) || exit 1
+  fi
+fi
+exit 0

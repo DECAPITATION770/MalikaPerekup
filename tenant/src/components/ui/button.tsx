@@ -21,7 +21,10 @@ const buttonVariants = cva(
         secondary:
           'bg-bg3 hover:bg-border text-text border border-border hover:border-border-strong',
         ghost: 'bg-transparent hover:bg-bg3 text-text-dim hover:text-text',
-        danger: 'bg-danger hover:bg-danger/90 text-white',
+        // text-bg = page background colour → in dark theme that's dark text
+        // on the bright coral, in light theme light text on the darker red.
+        // Either way it clears WCAG AA, unlike fixed white-on-coral (~2.9:1).
+        danger: 'bg-danger hover:bg-danger/90 text-bg',
         success: 'bg-success hover:bg-success/90 text-bg shadow-glow-success',
         outline:
           'bg-transparent border border-border-strong text-text hover:bg-bg3',

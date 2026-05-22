@@ -34,6 +34,9 @@ test.describe('a11y', () => {
   test.use({ colorScheme: 'dark' });
   test('login passes WCAG 2 A/AA (dark)', async ({ page }) => {
     await page.goto('/login');
+    await page.addStyleTag({
+      content: '*,*::before,*::after{animation:none!important;transition:none!important}',
+    });
     await injectAxe(page);
     const violations = await getViolations(page, undefined, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
