@@ -20,7 +20,10 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile',
-      use: { ...devices['iPhone 13'] },
+      // iPhone 13 viewport + touch, but on Chromium (WebKit binary not
+      // installed in this env — Chromium device-emulation is enough for
+      // our layout/flow checks).
+      use: { ...devices['iPhone 13'], browserName: 'chromium' },
     },
     {
       name: 'desktop',
