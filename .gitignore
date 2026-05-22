@@ -253,4 +253,10 @@ __marimo__/
 **/*.tsbuildinfo
 **/dev-dist/
 
+# ── Frontend app source wrongly caught by the Python `lib/` rule above ───────
+# `tenant/src/lib/` is application code (utils, hooks, formatters), not a
+# Python build dir — keep it tracked.
+!tenant/src/lib/
+!tenant/src/lib/**
+
 

@@ -29,16 +29,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { QrStickerIcon } from '@/components/icons';
 import {
   getDevice,
   getDeviceQrPng,
+  getDevicePhotoUrls,
   type DeviceCategory,
   type DeviceOut,
 } from '@/api/devices';
@@ -46,6 +42,8 @@ import { getPurchaseByDevice, type PurchaseOut } from '@/api/purchases';
 import { getSalesByDevice, returnSale, type SaleOut } from '@/api/sales';
 import { fmtDate, fmtUzs } from '@/lib/fmt';
 import { formatSpecValue } from '@/lib/specsFmt';
+import BrandBadge from '@/components/BrandBadge';
+import { brandColor, brandTint } from '@/lib/brand';
 import { useTgMainButton, useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 
@@ -79,6 +77,46 @@ const CONDITION_VARIANT: Record<
   broken: 'danger',
 };
 
+function daysInStock(createdIso: string): number {
+  const ms = Date.now() - new Date(createdIso).getTime();
+  return Math.max(0, Math.floor(ms / 86_400_000));
+}
+
+function StatTile({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1 rounded-2xl border border-border/60 bg-bg3 p-3.5">
+      <div className="text-caption text-text-muted">{label}</div>
+      <div className={cn('text-body-lg font-bold tabular-nums', accent && 'text-accent')}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function BatteryTile({ label, pct }: { label: string; pct: number }) {
+  const tone = pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger';
+  return (
+    <div className="flex flex-col gap-1 rounded-2xl border border-border/60 bg-bg3 p-3.5">
+      <div className="text-caption text-text-muted">{label}</div>
+      <div className="text-body-lg font-bold tabular-nums">{pct}%</div>
+      <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-bg">
+        <div
+          className={cn('h-full rounded-full', tone)}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function StockDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
@@ -90,6 +128,24 @@ export default function StockDetail() {
     queryKey: ['device', Number(id)],
     queryFn: () => getDevice(Number(id!)),
     enabled: Boolean(id),
+  });
+
+  // Photos are private — fetch short-lived signed URLs once the device (and
+  // therefore its photo count) is known.
+  const photosQuery = useQuery({
+    queryKey: ['device-photos', Number(id)],
+    queryFn: () => getDevicePhotoUrls(Number(id!)),
+    enabled: Boolean(query.data?.photos.length),
+  });
+  const photoUrls = photosQuery.data ?? [];
+
+  // Purchase price for the hero facts. Same queryKey as DeviceTimeline → the
+  // two share one network request via React Query's cache.
+  const purchaseQuery = useQuery({
+    queryKey: ['purchase-by-device', Number(id)],
+    queryFn: () => getPurchaseByDevice(Number(id!)),
+    enabled: Boolean(id),
+    retry: false,
   });
 
   // Tg MainButton → open QR sticker print dialog.
@@ -114,7 +170,7 @@ export default function StockDetail() {
   const BackLink = (
     <Link
       to="/stock"
-      className="flex items-center gap-1.5 text-text-dim hover:text-text transition-colors text-label font-semibold w-fit"
+      className="flex w-fit items-center gap-1.5 text-label font-semibold text-text-dim transition-colors hover:text-text"
     >
       <ArrowLeft size={16} /> {t('stock.back')}
     </Link>
@@ -124,7 +180,7 @@ export default function StockDetail() {
 
   if (query.isError) {
     return (
-      <div className="flex flex-col gap-6 animate-fade-up">
+      <div className="flex animate-fade-up flex-col gap-6">
         {BackLink}
         <EmptyState
           title={t('common.error_load')}
@@ -142,35 +198,51 @@ export default function StockDetail() {
   if (!d) return null;
 
   const Icon = CATEGORY_ICON[d.category];
-  const photo = d.photos[0];
-  const specs = Object.entries(d.specs ?? {}).filter(([, v]) => v !== null && v !== '');
+  const heroUrl = photoUrls[0];
+  const allSpecs = Object.entries(d.specs ?? {}).filter(([, v]) => v !== null && v !== '');
+  // Battery shows in the facts strip, so keep it out of the generic spec chips.
+  const specs = allSpecs.filter(([k]) => k !== 'battery_health_pct');
+  const batteryPct = Number(d.specs?.battery_health_pct);
+  const hasBattery = Number.isFinite(batteryPct) && batteryPct > 0;
+  const days = daysInStock(d.created_at);
+  const priceUzs = purchaseQuery.data?.price_uzs ?? null;
 
   return (
-    <div className="flex flex-col gap-5 animate-fade-up max-w-2xl">
+    <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
       {BackLink}
 
       {/* Hero */}
-      <div className="card p-5 flex flex-col sm:flex-row gap-5">
-        <div className="w-full sm:w-32 h-44 sm:h-32 shrink-0 rounded-xl bg-bg3 ring-1 ring-border flex items-center justify-center text-text-muted overflow-hidden">
-          {photo ? (
-            <img src={photo} alt="" className="w-full h-full object-cover" />
+      <div className="card flex flex-col gap-5 p-5 sm:flex-row">
+        <div
+          className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-border sm:h-36 sm:w-36"
+          style={
+            heroUrl
+              ? undefined
+              : { backgroundColor: brandTint(d.brand, 0.14), color: brandColor(d.brand) }
+          }
+        >
+          {heroUrl ? (
+            <img src={heroUrl} alt="" className="h-full w-full object-cover" />
+          ) : d.photos.length > 0 && photosQuery.isLoading ? (
+            <Skeleton className="h-full w-full" />
           ) : (
-            <Icon size={40} strokeWidth={1.4} />
+            <Icon size={44} strokeWidth={1.4} />
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <h1 className="text-title font-bold tracking-tight leading-tight">
-            {d.brand} {d.model}
-          </h1>
-          <div className="text-caption text-text-muted font-mono mt-1">
-            {d.imei
-              ? `${t('stock.imei')} ${d.imei}`
-              : d.serial
-                ? `${t('stock.serial')} ${d.serial}`
-                : t('stock.no_imei')}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div>
+            <BrandBadge brand={d.brand} size="md" />
+            <h1 className="mt-1.5 text-title font-bold leading-tight tracking-tight">{d.model}</h1>
+            <div className="mt-1 font-mono text-caption text-text-muted">
+              {d.imei
+                ? `${t('stock.imei')} ${d.imei}`
+                : d.serial
+                  ? `${t('stock.serial')} ${d.serial}`
+                  : t('stock.no_imei')}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 mt-3">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[d.status]} size="sm">
               {t(`status.${d.status}`)}
             </Badge>
@@ -181,43 +253,76 @@ export default function StockDetail() {
               {t(`category.${d.category}`)}
             </Badge>
           </div>
-          <div className="flex flex-wrap gap-x-4 mt-4 text-caption text-text-muted">
-            <span>
-              {t('stock.detail_created')}: {fmtDate(d.created_at)}
-            </span>
-            {d.updated_at !== d.created_at && (
-              <span>
-                {t('stock.detail_updated')}: {fmtDate(d.updated_at)}
-              </span>
-            )}
+          <div className="text-caption text-text-muted">
+            {t('stock.detail_created')}: {fmtDate(d.created_at)}
           </div>
         </div>
       </div>
 
+      {/* Key facts */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatTile
+          label={t('sale.detail_purchase_price')}
+          accent
+          value={
+            priceUzs ? (
+              <>
+                {fmtUzs(priceUzs)}{' '}
+                <span className="text-caption font-normal text-text-muted">UZS</span>
+              </>
+            ) : (
+              '—'
+            )
+          }
+        />
+        <StatTile label={t('stock.detail_days_in_stock')} value={t('stock.days_n', { n: days })} />
+        {hasBattery && <BatteryTile label={t('specs.battery_health')} pct={batteryPct} />}
+      </div>
+
+      {/* Photos */}
+      {d.photos.length > 0 && (
+        <PhotoGallery urls={photoUrls} loading={photosQuery.isLoading} count={d.photos.length} />
+      )}
+
       {/* Specs */}
       {specs.length > 0 && (
-        <div className="card p-5 flex flex-col gap-3">
+        <div className="card flex flex-col gap-3 p-5">
           <h2 className="text-body-lg font-bold tracking-tight">{t('stock.detail_specs')}</h2>
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+          <div className="flex flex-wrap gap-2">
             {specs.map(([key, val]) => (
-              <div key={key}>
-                <dt className="text-caption text-text-muted">
+              <span
+                key={key}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-bg3 px-3 text-label"
+              >
+                <span className="text-text-muted">
                   {t(`specs.${key}`, { defaultValue: key.replace(/_/g, ' ') })}
-                </dt>
-                <dd className="text-label font-semibold text-text mt-0.5 break-words">
-                  {formatSpecValue(key, val)}
-                </dd>
-              </div>
+                </span>
+                <span className="font-bold text-text">{formatSpecValue(key, val)}</span>
+              </span>
             ))}
-          </dl>
+          </div>
+        </div>
+      )}
+
+      {/* Defects */}
+      {d.defects.length > 0 && (
+        <div className="card flex flex-col gap-3 p-5">
+          <h2 className="text-body-lg font-bold tracking-tight">{t('purchase.defects_label')}</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {d.defects.map((k) => (
+              <Badge key={k} variant="warning" size="sm">
+                {t(`purchase.defects.${k}`, { defaultValue: k })}
+              </Badge>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Notes */}
       {d.notes && (
-        <div className="card p-5 flex flex-col gap-2">
+        <div className="card flex flex-col gap-2 p-5">
           <h2 className="text-body-lg font-bold tracking-tight">{t('stock.detail_notes')}</h2>
-          <p className="text-body text-text-dim leading-relaxed">{d.notes}</p>
+          <p className="text-body leading-relaxed text-text-dim">{d.notes}</p>
         </div>
       )}
 
@@ -226,20 +331,20 @@ export default function StockDetail() {
       <ReturnSaleAction deviceId={d.id} deviceStatus={d.status} />
 
       {/* QR token + print */}
-      <div className="card p-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-accent-faded flex items-center justify-center shrink-0 text-accent">
+      <div className="card flex items-center justify-between gap-4 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-faded text-accent">
             <QrStickerIcon size={20} />
           </div>
           <div className="min-w-0">
             <div className="text-label font-bold">{t('stock.detail_qr')}</div>
-            <div className="text-caption text-text-muted font-mono truncate">{d.qr_token}</div>
+            <div className="truncate font-mono text-caption text-text-muted">{d.qr_token}</div>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex shrink-0 gap-2">
           <button
             onClick={copyQr}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-border bg-bg3 text-label font-semibold hover:border-border-strong transition-all cursor-pointer"
+            className="flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-bg3 px-3.5 text-label font-semibold transition-all hover:border-border-strong"
           >
             {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
             {copied ? t('stock.detail_qr_copied') : t('stock.detail_qr_copy')}
@@ -253,6 +358,58 @@ export default function StockDetail() {
           </Dialog>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Photo gallery ─────────────────────────────────────────────────────
+
+function PhotoGallery({
+  urls,
+  loading,
+  count,
+}: {
+  urls: string[];
+  loading: boolean;
+  count: number;
+}) {
+  const { t } = useTranslation();
+  const [active, setActive] = useState<number | null>(null);
+  return (
+    <div className="card flex flex-col gap-3 p-5">
+      <h2 className="text-body-lg font-bold tracking-tight">
+        {t('stock.detail_photos')} · {count}
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {loading
+          ? Array.from({ length: count }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-24 rounded-xl" />
+            ))
+          : urls.map((u, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setActive(i)}
+                className="h-24 w-24 cursor-pointer overflow-hidden rounded-xl border border-border bg-bg3 transition-all hover:border-border-strong active:scale-[0.98]"
+              >
+                <img src={u} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+      </div>
+      <Dialog open={active !== null} onOpenChange={(o) => !o && setActive(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('stock.detail_photos')}</DialogTitle>
+          </DialogHeader>
+          {active !== null && urls[active] && (
+            <img
+              src={urls[active]}
+              alt=""
+              className="max-h-[70vh] w-full rounded-xl bg-bg3 object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -299,16 +456,20 @@ function QrStickerDialog({ deviceId, label }: { deviceId: number; label: string 
         <DialogTitle>{t('stock.detail_qr_print')}</DialogTitle>
       </DialogHeader>
       <div className="flex flex-col items-center gap-4 py-2">
-        <div className="size-48 rounded-xl bg-white p-3 flex items-center justify-center">
+        <div className="flex size-48 items-center justify-center rounded-xl bg-white p-3">
           {loading ? (
             <Skeleton className="size-full" />
           ) : url ? (
-            <img src={url} alt="QR" className="size-full object-contain [image-rendering:pixelated]" />
+            <img
+              src={url}
+              alt="QR"
+              className="size-full object-contain [image-rendering:pixelated]"
+            />
           ) : (
-            <span className="text-danger text-sm">{t('common.error_load')}</span>
+            <span className="text-sm text-danger">{t('common.error_load')}</span>
           )}
         </div>
-        <div className="text-label font-bold text-center">{label}</div>
+        <div className="text-center text-label font-bold">{label}</div>
         <Button full onClick={print} disabled={!url}>
           <Printer className="size-4" />
           {t('stock.detail_qr_print')}
@@ -368,31 +529,31 @@ function ReturnSaleAction({
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('stock.return_title')}</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-text-dim leading-relaxed">{t('stock.return_body')}</p>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-label text-text-dim font-medium">
-            {t('stock.return_reason_label')}
-          </label>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder={t('stock.return_reason_ph')}
-            rows={2}
-            className="bg-bg2 rounded-xl border border-border px-3.5 py-2.5 text-body text-text outline-none focus:border-accent transition-colors resize-none placeholder:text-text-muted"
-          />
-        </div>
-        <div className="flex gap-2 pt-1">
-          <Button variant="secondary" full onClick={() => setOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="danger" full loading={m.isPending} onClick={() => m.mutate()}>
-            <RotateCcw className="size-4" />
-            {t('stock.return_confirm')}
-          </Button>
-        </div>
+          <DialogHeader>
+            <DialogTitle>{t('stock.return_title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed text-text-dim">{t('stock.return_body')}</p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-label font-medium text-text-dim">
+              {t('stock.return_reason_label')}
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={t('stock.return_reason_ph')}
+              rows={2}
+              className="resize-none rounded-xl border border-border bg-bg2 px-3.5 py-2.5 text-body text-text outline-none transition-colors placeholder:text-text-muted focus:border-accent"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button variant="secondary" full onClick={() => setOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" full loading={m.isPending} onClick={() => m.mutate()}>
+              <RotateCcw className="size-4" />
+              {t('stock.return_confirm')}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -453,7 +614,7 @@ function DeviceTimeline({ deviceId }: { deviceId: number }) {
 
   if (purchaseQ.isLoading || salesQ.isLoading) {
     return (
-      <div className="card p-5 flex flex-col gap-3">
+      <div className="card flex flex-col gap-3 p-5">
         <h2 className="text-body-lg font-bold tracking-tight">{t('stock.detail_history')}</h2>
         <Skeleton className="h-12 w-full" />
       </div>
@@ -462,7 +623,7 @@ function DeviceTimeline({ deviceId }: { deviceId: number }) {
   if (events.length === 0) return null;
 
   return (
-    <div className="card p-5 flex flex-col gap-3">
+    <div className="card flex flex-col gap-3 p-5">
       <h2 className="text-body-lg font-bold tracking-tight">{t('stock.detail_history')}</h2>
       <ol className="flex flex-col gap-3">
         {events.map((e, i) => (
@@ -495,16 +656,21 @@ function TimelineRow({ e }: { e: TimelineEvent }) {
   const { Icon } = cfg;
   return (
     <li className="flex items-center gap-3">
-      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center ring-1 shrink-0', cfg.tone)}>
+      <div
+        className={cn(
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1',
+          cfg.tone,
+        )}
+      >
         <Icon size={16} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-label font-semibold tracking-tight truncate">
-          {cfg.label} · <span className="text-text-dim font-normal">{e.party}</span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-label font-semibold tracking-tight">
+          {cfg.label} · <span className="font-normal text-text-dim">{e.party}</span>
         </div>
         <div className="text-caption text-text-muted">{fmtDate(e.date)}</div>
       </div>
-      <div className="text-right shrink-0">
+      <div className="shrink-0 text-right">
         <div className="text-label font-bold tabular-nums">{fmtUzs(e.amount)}</div>
         <div className="text-micro text-text-muted">UZS</div>
       </div>
@@ -514,14 +680,14 @@ function TimelineRow({ e }: { e: TimelineEvent }) {
 
 function DetailSkeleton() {
   return (
-    <div className="flex flex-col gap-5 animate-fade-up max-w-2xl">
+    <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
       <Skeleton className="h-4 w-20" />
-      <div className="card p-5 flex gap-5">
+      <div className="card flex gap-5 p-5">
         <Skeleton className="size-32 rounded-xl" />
-        <div className="flex-1 flex flex-col gap-3 pt-1">
+        <div className="flex flex-1 flex-col gap-3 pt-1">
           <Skeleton className="h-5 w-[65%]" />
           <Skeleton className="h-3 w-2/5" />
-          <div className="flex gap-2 mt-1">
+          <div className="mt-1 flex gap-2">
             <Skeleton className="h-5 w-16 rounded-full" />
             <Skeleton className="h-5 w-12 rounded-full" />
           </div>

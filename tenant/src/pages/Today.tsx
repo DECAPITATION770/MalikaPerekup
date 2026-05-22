@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -17,26 +18,29 @@ import {
   Search,
   ShoppingCart,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import { KpiCard, type KpiDelta } from '@/components/ui/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { FrozenIcon } from '@/components/icons';
 import { EmptyStockIllustration } from '@/components/illustrations';
-import { getShopMe, getToday } from '@/api/reports';
-import { fmtUzs, fmtUzsCompact, greetingKey } from '@/lib/fmt';
+import { getPeriodReport, getShopMe, getToday } from '@/api/reports';
+import { compactUnits, fmtUzs, fmtUzsCompact, greetingKey } from '@/lib/fmt';
 import { useAuth } from '@/store/auth';
 import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
-
-const COMPACT_UNITS = { thousand: 'тыс', million: 'млн', billion: 'млрд' };
 
 const parseNum = (v: string | number | null | undefined): number => {
   if (v === null || v === undefined || v === '') return 0;
   const n = typeof v === 'string' ? Number(v) : v;
   return Number.isFinite(n) ? n : 0;
 };
+
+const isoTashkent = (d: Date): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(d);
+const SPARK_TO = isoTashkent(new Date());
+const SPARK_FROM = isoTashkent(new Date(Date.now() - 6 * 86_400_000));
 
 export default function Today() {
   const { t } = useTranslation();
@@ -45,9 +49,20 @@ export default function Today() {
 
   const todayQ = useQuery({ queryKey: ['reports', 'today'], queryFn: getToday });
   const shopQ = useQuery({ queryKey: ['shops', 'me'], queryFn: getShopMe });
+  const sparkQ = useQuery({
+    queryKey: ['reports', 'period', SPARK_FROM, SPARK_TO],
+    queryFn: () => getPeriodReport(SPARK_FROM, SPARK_TO),
+    staleTime: 5 * 60_000,
+  });
+  const sparkData = (sparkQ.data?.profit_by_day ?? []).map((d) => ({
+    day: d.day,
+    profit: parseNum(d.profit_uzs),
+  }));
 
   const greeting = t(greetingKey());
   const firstName = user?.full_name?.split(' ')[0] ?? '';
+  const COMPACT_UNITS = compactUnits(t);
+  const overdueCount = todayQ.data?.overdue_payments_count ?? 0;
 
   const profitDelta: KpiDelta | undefined = todayQ.data
     ? (() => {
@@ -69,7 +84,7 @@ export default function Today() {
       {/* Ambient mesh behind the hero — pure decoration */}
       <div
         aria-hidden
-        className="hero-mesh pointer-events-none absolute inset-x-0 -top-6 md:-top-10 h-64 -z-10"
+        className="hero-mesh pointer-events-none absolute inset-x-0 -top-6 -z-10 h-64 md:-top-10"
       />
 
       {/* Header */}
@@ -80,57 +95,59 @@ export default function Today() {
         className="flex items-end justify-between gap-3"
       >
         <div>
-          <div className="text-label text-text-muted font-semibold uppercase tracking-wider">
+          <div className="text-label font-semibold uppercase tracking-wider text-text-muted">
             {greeting}
             {firstName ? ',' : ''}
           </div>
-          <h1 className="text-title-lg md:text-display font-bold tracking-tight mt-1">
+          <h1 className="mt-1 text-title-lg font-bold tracking-tight md:text-display">
             {firstName || t('today.title')}
           </h1>
-          {shopQ.data && (
-            <div className="mt-1 text-sm text-text-dim flex items-center gap-2 flex-wrap">
-              <span>{shopQ.data.name}</span>
-              {shopQ.data.is_frozen && (
-                <Badge variant="warning" size="sm">
-                  <FrozenIcon size={11} /> {t('today.frozen_badge')}
-                </Badge>
-              )}
-            </div>
-          )}
+          {shopQ.data && <div className="mt-1 text-sm text-text-dim">{shopQ.data.name}</div>}
         </div>
       </motion.header>
 
+      {/* Frozen-shop banner — account suspended, business endpoints 403 */}
+      {shopQ.data?.is_frozen && (
+        <div className="card-elev flex items-center gap-4 border-danger/40 bg-danger-faded/40 p-4 md:p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger-faded text-danger">
+            <FrozenIcon size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-body font-bold text-danger">{t('today.frozen_title')}</div>
+            <div className="mt-0.5 text-hint text-text-dim">{t('today.frozen_body')}</div>
+          </div>
+        </div>
+      )}
+
       {/* Overdue alert */}
-      {todayQ.data && todayQ.data.overdue_payments_count > 0 && (
+      {overdueCount > 0 && (
         <Link
           to="/installments?status=overdue"
           onClick={() => haptic.tap('medium')}
           className={cn(
-            'card-elev p-4 md:p-5 flex items-center gap-4',
-            'border-warning/40 hover:border-warning transition-all group animate-fade-up',
+            'card-elev flex items-center gap-4 p-4 md:p-5',
+            'group animate-fade-up border-warning/40 transition-all hover:border-warning',
           )}
           style={{ animationDelay: '40ms' }}
         >
-          <div className="w-10 h-10 rounded-xl bg-warning-faded text-warning flex items-center justify-center shrink-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-faded text-warning">
             <AlertTriangle size={20} />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-body font-bold text-text">
-              {t('today.overdue_alert_title', { count: todayQ.data.overdue_payments_count })}
+              {t('today.overdue_alert_title', { count: overdueCount })}
             </div>
-            <div className="text-hint text-text-dim mt-0.5">
-              {t('today.overdue_alert_body')}
-            </div>
+            <div className="mt-0.5 text-hint text-text-dim">{t('today.overdue_alert_body')}</div>
           </div>
           <ArrowUpRight
             size={18}
-            className="text-text-muted group-hover:text-warning transition-colors shrink-0"
+            className="shrink-0 text-text-muted transition-colors group-hover:text-warning"
           />
         </Link>
       )}
 
       {/* 3 headline KPI */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
         <KpiCard
           label={t('today.kpi_profit_today')}
           value={parseNum(todayQ.data?.profit_today)}
@@ -142,13 +159,18 @@ export default function Today() {
           loading={todayQ.isLoading}
           delay={60}
           delta={profitDelta}
+          footer={sparkData.length >= 2 ? <ProfitSpark data={sparkData} /> : undefined}
         />
         <KpiCard
           label={t('today.kpi_inventory_value')}
           value={parseNum(todayQ.data?.inventory_value_uzs)}
           format={(n) => fmtUzsCompact(n, COMPACT_UNITS)}
           unit={t('common.currency_uzs')}
-          hint={t('today.kpi_inventory_value_hint')}
+          hint={
+            todayQ.data
+              ? t('today.kpi_inventory_count', { count: todayQ.data.in_stock_count })
+              : undefined
+          }
           icon={<Package size={18} strokeWidth={2} />}
           tone="warning"
           loading={todayQ.isLoading}
@@ -159,26 +181,77 @@ export default function Today() {
           value={parseNum(todayQ.data?.nasiya_debt_uzs)}
           format={(n) => fmtUzsCompact(n, COMPACT_UNITS)}
           unit={t('common.currency_uzs')}
-          hint={t('today.kpi_nasiya_debt_hint')}
-          icon={<CalendarClock size={18} strokeWidth={2} />}
-          tone={
-            todayQ.data && todayQ.data.overdue_payments_count > 0 ? 'danger' : 'accent'
+          hint={
+            overdueCount > 0
+              ? t('today.kpi_nasiya_overdue', { count: overdueCount })
+              : t('today.kpi_nasiya_debt_hint')
           }
+          icon={<CalendarClock size={18} strokeWidth={2} />}
+          tone={overdueCount > 0 ? 'danger' : 'accent'}
           loading={todayQ.isLoading}
           delay={180}
         />
       </section>
 
+      {/* Money of the day — already-fetched figures that were hidden */}
+      {todayQ.data && (
+        <section
+          className="card grid animate-fade-up grid-cols-3 divide-x divide-border p-0"
+          style={{ animationDelay: '210ms' }}
+        >
+          <FlowStat
+            label={t('today.sold')}
+            value={String(todayQ.data.sales_count_today)}
+            tone="success"
+          />
+          <FlowStat
+            label={t('today.bought')}
+            value={String(todayQ.data.purchases_count_today)}
+            tone="accent"
+          />
+          <FlowStat
+            label={t('today.revenue')}
+            value={fmtUzsCompact(parseNum(todayQ.data.revenue_today), COMPACT_UNITS)}
+          />
+        </section>
+      )}
+
       {/* Quick actions */}
       <section className="animate-fade-up" style={{ animationDelay: '240ms' }}>
-        <h2 className="text-label font-bold text-text-dim uppercase tracking-wider mb-3">
+        <h2 className="mb-3 text-label font-bold uppercase tracking-wider text-text-dim">
           {t('today.quick_actions')}
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <QuickAction to="/purchase/new" icon={<ShoppingCart size={20} />} label={t('today.action_purchase')} tone="accent" />
-          <QuickAction to="/sale/new" icon={<BadgeDollarSign size={20} />} label={t('today.action_sale')} tone="success" />
-          <QuickAction to="/search" icon={<Search size={20} />} label={t('today.action_search')} tone="neutral" />
-          <QuickAction to="/installments" icon={<CalendarClock size={20} />} label={t('nav.installments')} tone="neutral" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <QuickAction
+            to="/purchase/new"
+            icon={<ShoppingCart size={20} />}
+            label={t('today.action_purchase')}
+            tone="accent"
+          />
+          <QuickAction
+            to="/sale/new"
+            icon={<BadgeDollarSign size={20} />}
+            label={t('today.action_sale')}
+            tone="success"
+          />
+          <QuickAction
+            to="/search"
+            icon={<Search size={20} />}
+            label={t('today.action_search')}
+            tone="neutral"
+          />
+          <QuickAction
+            to="/counterparties"
+            icon={<Users size={20} />}
+            label={t('nav.counterparties')}
+            tone="neutral"
+          />
+          <QuickAction
+            to="/installments"
+            icon={<CalendarClock size={20} />}
+            label={t('nav.installments')}
+            tone="neutral"
+          />
         </div>
       </section>
 
@@ -200,6 +273,56 @@ export default function Today() {
             }
           />
         )}
+    </div>
+  );
+}
+
+function ProfitSpark({ data }: { data: { day: string; profit: number }[] }) {
+  return (
+    <div className="-mx-1 h-9">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
+          <defs>
+            <linearGradient id="today-spark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgb(var(--c-success))" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="rgb(var(--c-success))" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="profit"
+            stroke="rgb(var(--c-success))"
+            strokeWidth={2}
+            fill="url(#today-spark)"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function FlowStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'success' | 'accent';
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 px-2 py-3.5">
+      <span className="text-caption text-text-muted">{label}</span>
+      <span
+        className={cn(
+          'text-body-lg font-bold tabular-nums',
+          tone === 'success' ? 'text-success' : tone === 'accent' ? 'text-accent' : 'text-text',
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -227,18 +350,18 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="card p-4 md:p-5 flex flex-col items-start gap-3 group transition-all hover:border-border-strong cursor-pointer"
+      className="card group flex cursor-pointer flex-col items-start gap-3 p-4 transition-all hover:border-border-strong md:p-5"
     >
       <div
         className={cn(
-          'w-10 h-10 rounded-xl bg-bg3 flex items-center justify-center ring-1 ring-border transition-all',
+          'flex h-10 w-10 items-center justify-center rounded-xl bg-bg3 ring-1 ring-border transition-all',
           iconTone,
           ring,
         )}
       >
         {icon}
       </div>
-      <div className="text-label md:text-body font-semibold tracking-tight">{label}</div>
+      <div className="text-label font-semibold tracking-tight md:text-body">{label}</div>
     </Link>
   );
 }

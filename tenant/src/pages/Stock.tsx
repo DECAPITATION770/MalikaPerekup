@@ -7,8 +7,8 @@
  * + EmptyStockIllustration. Mobile filter drawer is now `vaul` instead
  * of the old Modal hack.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
@@ -51,8 +51,10 @@ import { EmptyStockIllustration } from '@/components/illustrations';
 
 import {
   listDevices,
+  getDeviceSuggestions,
   type DeviceCategory,
   type DeviceCondition,
+  type DeviceSort,
   type DeviceStatus,
   type DeviceWithPurchaseOut,
 } from '@/api/devices';
@@ -61,6 +63,8 @@ import { fmtUzs } from '@/lib/fmt';
 import { specsSummary } from '@/lib/specsFmt';
 import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
+import BrandBadge from '@/components/BrandBadge';
+import { brandColor, brandTint } from '@/lib/brand';
 
 const STATUSES: DeviceStatus[] = ['in_stock', 'reserved', 'sold', 'returned', 'written_off'];
 const CATEGORIES: DeviceCategory[] = [
@@ -72,6 +76,17 @@ const CATEGORIES: DeviceCategory[] = [
   'other',
 ];
 
+const CONDITIONS: DeviceCondition[] = ['new', 'good', 'normal', 'broken'];
+const SORTS: DeviceSort[] = ['recent', 'price_desc', 'price_asc', 'days'];
+
+/** Fixed UZS price buckets — one tap beats typing min/max on a phone. */
+const PRICE_RANGES: { key: string; min: string; max: string }[] = [
+  { key: 'lt', min: '', max: '2000000' },
+  { key: 'mid1', min: '2000000', max: '5000000' },
+  { key: 'mid2', min: '5000000', max: '10000000' },
+  { key: 'gt', min: '10000000', max: '' },
+];
+
 const CATEGORY_ICON: Record<DeviceCategory, LucideIcon> = {
   phone: Smartphone,
   tablet: Tablet,
@@ -81,21 +96,16 @@ const CATEGORY_ICON: Record<DeviceCategory, LucideIcon> = {
   other: PackageIcon,
 };
 
-const STATUS_VARIANT: Record<
-  DeviceStatus,
-  'success' | 'warning' | 'muted' | 'danger' | 'neutral'
-> = {
-  in_stock: 'success',
-  reserved: 'warning',
-  sold: 'muted',
-  returned: 'danger',
-  written_off: 'neutral',
-};
+const STATUS_VARIANT: Record<DeviceStatus, 'success' | 'warning' | 'muted' | 'danger' | 'neutral'> =
+  {
+    in_stock: 'success',
+    reserved: 'warning',
+    sold: 'muted',
+    returned: 'danger',
+    written_off: 'neutral',
+  };
 
-const CONDITION_VARIANT: Record<
-  DeviceCondition,
-  'success' | 'accent' | 'warning' | 'danger'
-> = {
+const CONDITION_VARIANT: Record<DeviceCondition, 'success' | 'accent' | 'warning' | 'danger'> = {
   new: 'success',
   good: 'accent',
   normal: 'warning',
@@ -183,13 +193,73 @@ export default function Stock() {
     );
   };
 
+  // ── Extended filters: sort / condition / brand / price ──
+  const patch = (mut: (n: URLSearchParams) => void) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        mut(next);
+        next.delete('offset');
+        return next;
+      },
+      { replace: true },
+    );
+
+  const sort = (searchParams.get('sort') as DeviceSort) || 'recent';
+  const condition = (searchParams.get('condition') as DeviceCondition) || undefined;
+  const brand = searchParams.get('brand') || undefined;
+  const priceMin = searchParams.get('pmin') ?? '';
+  const priceMax = searchParams.get('pmax') ?? '';
+
+  const setSort = (v: DeviceSort) =>
+    patch((n) => {
+      if (v === 'recent') n.delete('sort');
+      else n.set('sort', v);
+    });
+  const setCondition = (v: DeviceCondition | undefined) =>
+    patch((n) => {
+      if (v) n.set('condition', v);
+      else n.delete('condition');
+    });
+  const setBrand = (v: string | undefined) =>
+    patch((n) => {
+      if (v) n.set('brand', v);
+      else n.delete('brand');
+    });
+  const setPrice = (min: string, max: string) =>
+    patch((n) => {
+      if (min) n.set('pmin', min);
+      else n.delete('pmin');
+      if (max) n.set('pmax', max);
+      else n.delete('pmax');
+    });
+
+  const brandQuery = useQuery({
+    queryKey: ['brand-suggestions'],
+    queryFn: () => getDeviceSuggestions({ field: 'brand', limit: 12 }),
+    staleTime: 5 * 60_000,
+  });
+  const brandOptions = brandQuery.data ?? [];
+
+  // Highlight a freshly-created device passed via navigation state.
+  const location = useLocation();
+  const highlightId = (location.state as { highlightId?: number } | null)?.highlightId ?? null;
+
   const query = useQuery({
-    queryKey: ['devices', { q: debouncedQ, status, category, offset }],
+    queryKey: [
+      'devices',
+      { q: debouncedQ, status, category, condition, brand, priceMin, priceMax, sort, offset },
+    ],
     queryFn: () =>
       listDevices({
         q: debouncedQ || undefined,
         status,
         category,
+        condition,
+        brand,
+        price_min: priceMin || undefined,
+        price_max: priceMax || undefined,
+        sort,
         limit: PAGE_SIZE,
         offset,
       }),
@@ -198,8 +268,16 @@ export default function Stock() {
 
   const data = query.data;
   const isFiltered = useMemo(
-    () => Boolean(debouncedQ) || status !== 'in_stock' || category !== undefined,
-    [debouncedQ, status, category],
+    () =>
+      Boolean(debouncedQ) ||
+      status !== 'in_stock' ||
+      category !== undefined ||
+      condition !== undefined ||
+      brand !== undefined ||
+      Boolean(priceMin) ||
+      Boolean(priceMax) ||
+      sort !== 'recent',
+    [debouncedQ, status, category, condition, brand, priceMin, priceMax, sort],
   );
 
   const reset = () => {
@@ -208,20 +286,25 @@ export default function Stock() {
   };
 
   const activeFilterCount =
-    (status !== undefined && status !== 'in_stock' ? 1 : 0) + (category !== undefined ? 1 : 0);
+    (status !== undefined && status !== 'in_stock' ? 1 : 0) +
+    (category !== undefined ? 1 : 0) +
+    (condition !== undefined ? 1 : 0) +
+    (brand !== undefined ? 1 : 0) +
+    (priceMin || priceMax ? 1 : 0) +
+    (sort !== 'recent' ? 1 : 0);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-up">
+    <div className="flex animate-fade-up flex-col gap-6">
       {/* Header */}
-      <header className="flex items-end justify-between gap-3 flex-wrap">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-title-lg md:text-display font-bold tracking-tight">
+          <h1 className="text-title-lg font-bold tracking-tight md:text-display">
             {t('stock.title')}
           </h1>
           {data && (
-            <div className="text-sm text-text-dim mt-1 tabular-nums">
+            <div className="mt-1 text-sm tabular-nums text-text-dim">
               {isFiltered
                 ? t('stock.found', { n: data.total, total: data.total })
                 : t('stock.total', { n: data.total })}
@@ -237,18 +320,18 @@ export default function Stock() {
       </header>
 
       {/* Mobile: search + filter button */}
-      <div className="md:hidden flex items-center gap-2">
+      <div className="flex items-center gap-2 md:hidden">
         <div className="relative flex-1">
           <SearchIcon
             size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
           />
           <Input
             value={inputQ}
             onChange={(e) => setInputQ(e.target.value)}
             placeholder={t('stock.search_placeholder')}
             spellCheck={false}
-            className="pl-10 pr-10 h-11"
+            className="h-11 pl-10 pr-10"
           />
           {inputQ && (
             <button
@@ -267,11 +350,11 @@ export default function Stock() {
             setFiltersOpen(true);
           }}
           aria-label={t('stock.open_filters')}
-          className="relative h-11 w-11 shrink-0 rounded-xl bg-bg2 border border-border hover:border-border-strong flex items-center justify-center transition-colors"
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg2 transition-colors hover:border-border-strong"
         >
           <SlidersHorizontal size={18} className="text-text-dim" />
           {activeFilterCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-accent text-[rgb(var(--c-on-accent))] text-[10px] font-bold leading-[16px] text-center tabular-nums">
+            <span className="absolute -right-1 -top-1 h-[16px] min-w-[16px] rounded-full bg-accent px-1 text-center text-[10px] font-bold tabular-nums leading-[16px] text-[rgb(var(--c-on-accent))]">
               {activeFilterCount}
             </span>
           )}
@@ -279,8 +362,11 @@ export default function Stock() {
       </div>
 
       {/* Mobile: active filter chips */}
-      {(status !== 'in_stock' || category) && (
-        <div className="md:hidden flex flex-wrap items-center gap-1.5">
+      {isFiltered && (
+        <div className="flex flex-wrap items-center gap-1.5 md:hidden">
+          {sort !== 'recent' && (
+            <ActiveFilterChip label={t(`stock.sort_${sort}`)} onClear={() => setSort('recent')} />
+          )}
           {status !== 'in_stock' && (
             <ActiveFilterChip
               label={status === undefined ? t('stock.filter_all_status') : t(`status.${status}`)}
@@ -293,33 +379,44 @@ export default function Stock() {
               onClear={() => setCategory(undefined)}
             />
           )}
-          {isFiltered && (
-            <button
-              onClick={reset}
-              className="text-xs text-text-muted hover:text-text transition-colors flex items-center gap-1 cursor-pointer ml-auto"
-            >
-              <X size={12} /> {t('stock.filter_reset')}
-            </button>
+          {condition && (
+            <ActiveFilterChip
+              label={t(`condition.${condition}`)}
+              onClear={() => setCondition(undefined)}
+            />
           )}
+          {brand && <ActiveFilterChip label={brand} onClear={() => setBrand(undefined)} />}
+          {(priceMin || priceMax) && (
+            <ActiveFilterChip
+              label={priceRangeLabel(t, priceMin, priceMax)}
+              onClear={() => setPrice('', '')}
+            />
+          )}
+          <button
+            onClick={reset}
+            className="ml-auto flex cursor-pointer items-center gap-1 text-xs text-text-muted transition-colors hover:text-text"
+          >
+            <X size={12} /> {t('stock.filter_reset')}
+          </button>
         </div>
       )}
 
       {/* Desktop: inline filter chips */}
       <section
-        className="hidden md:flex card p-4 flex-col gap-3 animate-fade-up"
+        className="card hidden animate-fade-up flex-col gap-3 p-4 md:flex"
         style={{ animationDelay: '60ms' }}
       >
         <div className="relative">
           <SearchIcon
             size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
           />
           <Input
             value={inputQ}
             onChange={(e) => setInputQ(e.target.value)}
             placeholder={t('stock.search_placeholder')}
             spellCheck={false}
-            className="pl-10 pr-10 h-11"
+            className="h-11 pl-10 pr-10"
           />
           {inputQ && (
             <button
@@ -332,39 +429,30 @@ export default function Stock() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Chip active={status === undefined} onClick={() => setStatus(undefined)}>
-            {t('stock.filter_all_status')}
-          </Chip>
-          {STATUSES.map((s) => (
-            <Chip key={s} active={status === s} onClick={() => setStatus(s)}>
-              {t(`status.${s}`)}
-            </Chip>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Chip active={category === undefined} onClick={() => setCategory(undefined)}>
-            {t('stock.filter_all_category')}
-          </Chip>
-          {CATEGORIES.map((c) => {
-            const Icon = CATEGORY_ICON[c];
-            return (
-              <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
-                <Icon size={12} strokeWidth={2} />
-                {t(`category.${c}`)}
-              </Chip>
-            );
-          })}
-          {isFiltered && (
-            <button
-              onClick={reset}
-              className="ml-auto text-xs text-text-muted hover:text-text transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <X size={12} /> {t('stock.filter_reset')}
-            </button>
-          )}
-        </div>
+        <FilterControls
+          sort={sort}
+          setSort={setSort}
+          status={status}
+          setStatus={setStatus}
+          category={category}
+          setCategory={setCategory}
+          condition={condition}
+          setCondition={setCondition}
+          brand={brand}
+          setBrand={setBrand}
+          brandOptions={brandOptions}
+          priceMin={priceMin}
+          priceMax={priceMax}
+          setPrice={setPrice}
+        />
+        {isFiltered && (
+          <button
+            onClick={reset}
+            className="flex cursor-pointer items-center gap-1 self-start text-xs text-text-muted transition-colors hover:text-text"
+          >
+            <X size={12} /> {t('stock.filter_reset')}
+          </button>
+        )}
       </section>
 
       {/* Mobile filter drawer (vaul) */}
@@ -373,41 +461,23 @@ export default function Stock() {
           <DrawerHeader>
             <DrawerTitle>{t('stock.filters_title')}</DrawerTitle>
           </DrawerHeader>
-          <div className="px-5 pb-2 flex flex-col gap-5">
-            <div>
-              <div className="text-label text-text-dim font-medium tracking-tight mb-2">
-                {t('stock.filter_status')}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Chip active={status === undefined} onClick={() => setStatus(undefined)}>
-                  {t('stock.filter_all_status')}
-                </Chip>
-                {STATUSES.map((s) => (
-                  <Chip key={s} active={status === s} onClick={() => setStatus(s)}>
-                    {t(`status.${s}`)}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-label text-text-dim font-medium tracking-tight mb-2">
-                {t('stock.filter_category')}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Chip active={category === undefined} onClick={() => setCategory(undefined)}>
-                  {t('stock.filter_all_category')}
-                </Chip>
-                {CATEGORIES.map((c) => {
-                  const Icon = CATEGORY_ICON[c];
-                  return (
-                    <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
-                      <Icon size={12} strokeWidth={2} />
-                      {t(`category.${c}`)}
-                    </Chip>
-                  );
-                })}
-              </div>
-            </div>
+          <div className="max-h-[58vh] overflow-y-auto px-5 pb-2">
+            <FilterControls
+              sort={sort}
+              setSort={setSort}
+              status={status}
+              setStatus={setStatus}
+              category={category}
+              setCategory={setCategory}
+              condition={condition}
+              setCondition={setCondition}
+              brand={brand}
+              setBrand={setBrand}
+              brandOptions={brandOptions}
+              priceMin={priceMin}
+              priceMax={priceMax}
+              setPrice={setPrice}
+            />
           </div>
           <DrawerFooter>
             <div className="flex gap-2">
@@ -465,13 +535,8 @@ export default function Stock() {
       )}
       {data && data.items.length > 0 && (
         <>
-          <DeviceList items={data.items} />
-          <Pagination
-            total={data.total}
-            limit={PAGE_SIZE}
-            offset={offset}
-            onChange={setOffset}
-          />
+          <DeviceList items={data.items} highlightId={highlightId} />
+          <Pagination total={data.total} limit={PAGE_SIZE} offset={offset} onChange={setOffset} />
         </>
       )}
     </div>
@@ -480,69 +545,90 @@ export default function Stock() {
 
 // ── List: shadcn Table on desktop, stacked list on mobile ─────────────
 
-function DeviceList({ items }: { items: DeviceWithPurchaseOut[] }) {
+function DeviceList({
+  items,
+  highlightId,
+}: {
+  items: DeviceWithPurchaseOut[];
+  highlightId: number | null;
+}) {
   const { t } = useTranslation();
+  // Pulse the freshly-created device for a few seconds, then settle.
+  const [hl, setHl] = useState<number | null>(highlightId);
+  useEffect(() => {
+    if (highlightId == null) return;
+    setHl(highlightId);
+    const timer = setTimeout(() => setHl(null), 4000);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
 
   return (
     <div className="card overflow-hidden">
       {/* Desktop: real <table> with sticky header */}
       <div className="hidden md:block">
         <Table>
-          <TableHeader className="bg-bg2/60 sticky top-0">
+          <TableHeader className="sticky top-0 bg-bg2/60">
             <TableRow>
               <TableHead className="w-2/5">{t('stock.col_device')}</TableHead>
               <TableHead>{t('stock.col_specs')}</TableHead>
               <TableHead>{t('stock.col_condition')}</TableHead>
-              <TableHead className="text-right whitespace-nowrap">
-                {t('stock.col_price')}
-              </TableHead>
-              <TableHead className="text-right whitespace-nowrap">
-                {t('stock.col_days')}
-              </TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t('stock.col_price')}</TableHead>
+              <TableHead className="whitespace-nowrap text-right">{t('stock.col_days')}</TableHead>
               <TableHead>{t('stock.col_status')}</TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((d) => (
-              <DeviceRowDesktop key={d.id} d={d} />
+              <DeviceRowDesktop key={d.id} d={d} highlight={d.id === hl} />
             ))}
           </TableBody>
         </Table>
       </div>
 
       {/* Mobile: list */}
-      <ul className="md:hidden divide-y divide-border">
+      <ul className="divide-y divide-border md:hidden">
         {items.map((d, i) => (
-          <DeviceRowMobile key={d.id} d={d} delay={i * 20} />
+          <DeviceRowMobile key={d.id} d={d} delay={i * 20} highlight={d.id === hl} />
         ))}
       </ul>
     </div>
   );
 }
 
-function DeviceRowDesktop({ d }: { d: DeviceWithPurchaseOut }) {
+function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highlight: boolean }) {
   const { t } = useTranslation();
   const Icon = CATEGORY_ICON[d.category];
-  const photo = d.photos[0];
   const specs = specsSummary(d.category, d.specs);
+  const ref = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (highlight) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlight]);
 
   return (
-    <TableRow>
+    <TableRow ref={ref} className={cn('transition-colors', highlight && 'bg-accent-faded')}>
       <TableCell>
-        <Link to={`/stock/${d.id}`} className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 shrink-0 rounded-xl bg-bg3 ring-1 ring-border flex items-center justify-center text-text-muted overflow-hidden">
-            {photo ? (
-              <img src={photo} alt="" className="w-full h-full object-cover" loading="lazy" />
+        <Link to={`/stock/${d.id}`} className="flex min-w-0 items-center gap-3">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+            style={
+              d.photo_url
+                ? undefined
+                : { backgroundColor: brandTint(d.brand, 0.14), color: brandColor(d.brand) }
+            }
+          >
+            {d.photo_url ? (
+              <img src={d.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" />
             ) : (
-              <Icon size={20} strokeWidth={1.6} />
+              <Icon size={20} strokeWidth={1.8} />
             )}
           </div>
           <div className="min-w-0">
-            <div className="text-body font-bold tracking-tight truncate">
-              {d.brand} {d.model}
+            <div className="flex min-w-0 items-center gap-2">
+              <BrandBadge brand={d.brand} size="sm" />
+              <span className="truncate text-body font-bold tracking-tight">{d.model}</span>
             </div>
-            <div className="text-caption text-text-muted font-mono truncate">
+            <div className="mt-0.5 truncate font-mono text-caption text-text-muted">
               {d.imei ?? d.serial ?? '—'}
             </div>
           </div>
@@ -556,14 +642,14 @@ function DeviceRowDesktop({ d }: { d: DeviceWithPurchaseOut }) {
           {t(`condition.${d.condition}`)}
         </Badge>
       </TableCell>
-      <TableCell className="text-right tabular-nums font-bold text-text whitespace-nowrap">
+      <TableCell className="whitespace-nowrap text-right font-bold tabular-nums text-text">
         {d.purchase_price_uzs ? (
           fmtUzs(d.purchase_price_uzs)
         ) : (
-          <span className="text-text-muted font-normal">—</span>
+          <span className="font-normal text-text-muted">—</span>
         )}
       </TableCell>
-      <TableCell className="text-right tabular-nums text-text-dim whitespace-nowrap">
+      <TableCell className="whitespace-nowrap text-right tabular-nums text-text-dim">
         {d.days_in_stock != null ? t('stock.days_n', { n: d.days_in_stock }) : '—'}
       </TableCell>
       <TableCell>
@@ -575,7 +661,7 @@ function DeviceRowDesktop({ d }: { d: DeviceWithPurchaseOut }) {
         <Link
           to={`/stock/${d.id}`}
           aria-label={t('stock.open')}
-          className="text-text-muted hover:text-text transition-colors inline-flex"
+          className="inline-flex text-text-muted transition-colors hover:text-text"
         >
           <ChevronRight size={16} />
         </Link>
@@ -584,52 +670,78 @@ function DeviceRowDesktop({ d }: { d: DeviceWithPurchaseOut }) {
   );
 }
 
-function DeviceRowMobile({ d, delay }: { d: DeviceWithPurchaseOut; delay: number }) {
+function DeviceRowMobile({
+  d,
+  delay,
+  highlight,
+}: {
+  d: DeviceWithPurchaseOut;
+  delay: number;
+  highlight: boolean;
+}) {
   const { t } = useTranslation();
   const Icon = CATEGORY_ICON[d.category];
-  const photo = d.photos[0];
   const specs = specsSummary(d.category, d.specs);
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (highlight) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlight]);
 
   return (
-    <li className="animate-fade-up" style={{ animationDelay: `${delay}ms` }}>
-      <Link to={`/stock/${d.id}`} className="p-3 flex items-center gap-3">
-        <div className="w-12 h-12 shrink-0 rounded-xl bg-bg3 ring-1 ring-border flex items-center justify-center text-text-muted overflow-hidden">
-          {photo ? (
-            <img src={photo} alt="" className="w-full h-full object-cover" loading="lazy" />
+    <li
+      ref={ref}
+      className={cn('animate-fade-up transition-colors', highlight && 'bg-accent-faded')}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <Link to={`/stock/${d.id}`} className="flex items-center gap-3 p-3">
+        <div
+          className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+          style={
+            d.photo_url
+              ? undefined
+              : { backgroundColor: brandTint(d.brand, 0.14), color: brandColor(d.brand) }
+          }
+        >
+          {d.photo_url ? (
+            <img src={d.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" />
           ) : (
-            <Icon size={20} strokeWidth={1.6} />
+            <Icon size={20} strokeWidth={1.8} />
           )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-body font-bold tracking-tight truncate">
-              {d.brand} {d.model}
-            </h3>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <BrandBadge brand={d.brand} size="sm" />
+              <h3 className="truncate text-body font-bold tracking-tight">{d.model}</h3>
+            </div>
             <Badge variant={STATUS_VARIANT[d.status]} size="sm">
               {t(`status.${d.status}`)}
             </Badge>
           </div>
-          <div className="text-caption text-text-muted font-mono truncate mt-0.5">
-            {d.imei ?? d.serial ?? '—'}
-          </div>
-          <div className="flex items-center gap-2 mt-1.5 text-caption flex-wrap">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-caption">
             {specs && <span className="text-text-dim">{specs}</span>}
-            {d.purchase_price_uzs && (
-              <span className="text-text font-bold tabular-nums">
-                {fmtUzs(d.purchase_price_uzs)}
-              </span>
-            )}
-            {d.days_in_stock != null && (
-              <span className="text-text-muted tabular-nums">
-                · {t('stock.days_n', { n: d.days_in_stock })}
-              </span>
-            )}
             <Badge variant={CONDITION_VARIANT[d.condition]} size="sm">
               {t(`condition.${d.condition}`)}
             </Badge>
+            {d.days_in_stock != null && (
+              <span className="tabular-nums text-text-muted">
+                {t('stock.days_n', { n: d.days_in_stock })}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="truncate font-mono text-caption text-text-muted">
+              {d.imei ?? d.serial ?? '—'}
+            </span>
+            {d.purchase_price_uzs && (
+              <span className="shrink-0 text-body font-bold tabular-nums text-text">
+                {fmtUzs(d.purchase_price_uzs)}{' '}
+                <span className="text-caption font-normal text-text-muted">UZS</span>
+              </span>
+            )}
           </div>
         </div>
-        <ChevronRight size={16} className="text-text-muted shrink-0" />
+        <ChevronRight size={16} className="shrink-0 text-text-muted" />
       </Link>
     </li>
   );
@@ -639,12 +751,12 @@ function DeviceRowMobile({ d, delay }: { d: DeviceWithPurchaseOut; delay: number
 
 function ActiveFilterChip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full border border-accent/40 bg-accent-faded text-accent text-caption font-semibold tracking-tight">
+    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/40 bg-accent-faded pl-2.5 pr-1 text-caption font-semibold tracking-tight text-accent">
       {label}
       <button
         onClick={onClear}
         aria-label="Remove filter"
-        className="text-accent/70 hover:text-accent p-0.5 cursor-pointer"
+        className="cursor-pointer p-0.5 text-accent/70 hover:text-accent"
       >
         <X size={12} />
       </button>
@@ -665,10 +777,10 @@ function Chip({
     <button
       onClick={onClick}
       className={cn(
-        'h-8 px-3 rounded-full border text-hint font-semibold tracking-tight transition-all flex items-center gap-1.5 cursor-pointer',
+        'flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-hint font-semibold tracking-tight transition-all',
         active
-          ? 'bg-accent-faded border-accent/40 text-accent'
-          : 'bg-bg2 border-border text-text-dim hover:border-border-strong hover:text-text',
+          ? 'border-accent/40 bg-accent-faded text-accent'
+          : 'border-border bg-bg2 text-text-dim hover:border-border-strong hover:text-text',
       )}
     >
       {children}
@@ -676,17 +788,146 @@ function Chip({
   );
 }
 
+// ── Filter controls (shared by desktop panel + mobile drawer) ─────────
+
+function priceRangeLabel(t: (k: string) => string, min: string, max: string): string {
+  const r = PRICE_RANGES.find((x) => x.min === min && x.max === max);
+  if (r) return t(`stock.price_${r.key}`);
+  if (min && max) return `${fmtUzs(min)}–${fmtUzs(max)}`;
+  if (min) return `${fmtUzs(min)}+`;
+  return `< ${fmtUzs(max)}`;
+}
+
+function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-2 text-label font-medium tracking-tight text-text-dim">{label}</div>
+      <div className="flex flex-wrap items-center gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+function FilterControls({
+  sort,
+  setSort,
+  status,
+  setStatus,
+  category,
+  setCategory,
+  condition,
+  setCondition,
+  brand,
+  setBrand,
+  brandOptions,
+  priceMin,
+  priceMax,
+  setPrice,
+}: {
+  sort: DeviceSort;
+  setSort: (v: DeviceSort) => void;
+  status: DeviceStatus | undefined;
+  setStatus: (v: DeviceStatus | undefined) => void;
+  category: DeviceCategory | undefined;
+  setCategory: (v: DeviceCategory | undefined) => void;
+  condition: DeviceCondition | undefined;
+  setCondition: (v: DeviceCondition | undefined) => void;
+  brand: string | undefined;
+  setBrand: (v: string | undefined) => void;
+  brandOptions: string[];
+  priceMin: string;
+  priceMax: string;
+  setPrice: (min: string, max: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-4">
+      <FilterSection label={t('stock.filter_sort')}>
+        {SORTS.map((s) => (
+          <Chip key={s} active={sort === s} onClick={() => setSort(s)}>
+            {t(`stock.sort_${s}`)}
+          </Chip>
+        ))}
+      </FilterSection>
+
+      <FilterSection label={t('stock.filter_status')}>
+        <Chip active={status === undefined} onClick={() => setStatus(undefined)}>
+          {t('stock.filter_all_status')}
+        </Chip>
+        {STATUSES.map((s) => (
+          <Chip key={s} active={status === s} onClick={() => setStatus(s)}>
+            {t(`status.${s}`)}
+          </Chip>
+        ))}
+      </FilterSection>
+
+      <FilterSection label={t('stock.filter_category')}>
+        <Chip active={category === undefined} onClick={() => setCategory(undefined)}>
+          {t('stock.filter_all_category')}
+        </Chip>
+        {CATEGORIES.map((c) => {
+          const Icon = CATEGORY_ICON[c];
+          return (
+            <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
+              <Icon size={12} strokeWidth={2} />
+              {t(`category.${c}`)}
+            </Chip>
+          );
+        })}
+      </FilterSection>
+
+      <FilterSection label={t('stock.filter_condition')}>
+        <Chip active={condition === undefined} onClick={() => setCondition(undefined)}>
+          {t('stock.filter_all_condition')}
+        </Chip>
+        {CONDITIONS.map((c) => (
+          <Chip key={c} active={condition === c} onClick={() => setCondition(c)}>
+            {t(`condition.${c}`)}
+          </Chip>
+        ))}
+      </FilterSection>
+
+      <FilterSection label={t('stock.filter_price')}>
+        {PRICE_RANGES.map((r) => {
+          const active = priceMin === r.min && priceMax === r.max;
+          return (
+            <Chip
+              key={r.key}
+              active={active}
+              onClick={() => (active ? setPrice('', '') : setPrice(r.min, r.max))}
+            >
+              {t(`stock.price_${r.key}`)}
+            </Chip>
+          );
+        })}
+      </FilterSection>
+
+      {brandOptions.length > 0 && (
+        <FilterSection label={t('stock.filter_brand')}>
+          <Chip active={brand === undefined} onClick={() => setBrand(undefined)}>
+            {t('stock.filter_all_brand')}
+          </Chip>
+          {brandOptions.map((b) => (
+            <Chip key={b} active={brand === b} onClick={() => setBrand(b)}>
+              {b}
+            </Chip>
+          ))}
+        </FilterSection>
+      )}
+    </div>
+  );
+}
+
 function DeviceTableSkeleton() {
   return (
     <div className="card overflow-hidden">
       <div className="hidden md:block">
-        <div className="px-4 py-3 border-b border-border bg-bg2/60">
+        <div className="border-b border-border bg-bg2/60 px-4 py-3">
           <Skeleton className="h-3 w-3/5" />
         </div>
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="px-4 py-3 border-b border-border last:border-b-0 flex items-center gap-3"
+            className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
           >
             <Skeleton className="size-11 rounded-xl" />
             <Skeleton className="h-3.5 w-1/5" />
@@ -700,11 +941,11 @@ function DeviceTableSkeleton() {
           </div>
         ))}
       </div>
-      <ul className="md:hidden divide-y divide-border">
+      <ul className="divide-y divide-border md:hidden">
         {Array.from({ length: 6 }).map((_, i) => (
-          <li key={i} className="p-3 flex items-center gap-3">
+          <li key={i} className="flex items-center gap-3 p-3">
             <Skeleton className="size-12 rounded-xl" />
-            <div className="flex-1 flex flex-col gap-2">
+            <div className="flex flex-1 flex-col gap-2">
               <Skeleton className="h-3.5 w-3/5" />
               <Skeleton className="h-3 w-2/5" />
               <div className="flex gap-1.5">

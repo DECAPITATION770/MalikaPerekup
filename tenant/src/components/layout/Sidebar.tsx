@@ -11,6 +11,7 @@ import {
   BarChart3,
   Users as UsersIcon,
   Settings as SettingsIcon,
+  Search,
   LogOut,
   Globe,
 } from 'lucide-react';
@@ -40,6 +41,8 @@ interface NavSpec {
 const NAV_PRIMARY: readonly NavSpec[] = [
   { to: '/', icon: LayoutDashboard, key: 'nav.today', end: true },
   { to: '/stock', icon: Package, key: 'nav.stock' },
+  { to: '/search', icon: Search, key: 'nav.search' },
+  { to: '/counterparties', icon: UsersIcon, key: 'nav.counterparties' },
   { to: '/installments', icon: CalendarClock, key: 'nav.installments' },
   { to: '/reports', icon: BarChart3, key: 'nav.reports' },
   { to: '/settings', icon: SettingsIcon, key: 'nav.settings' },
@@ -48,7 +51,6 @@ const NAV_PRIMARY: readonly NavSpec[] = [
 const NAV_ARCHIVE: readonly NavSpec[] = [
   { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
   { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
-  { to: '/counterparties', icon: UsersIcon, key: 'nav.counterparties' },
 ];
 
 export function Sidebar() {
@@ -71,14 +73,32 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden md:flex w-[244px] shrink-0 h-dvh sticky top-0 flex-col bg-bg2 border-r border-border">
+    <aside className="sticky top-0 hidden h-dvh w-[244px] shrink-0 flex-col border-r border-border bg-bg2 md:flex">
       {/* Brand */}
-      <div className="px-5 pt-6 pb-5 border-b border-border">
+      <div className="border-b border-border px-5 pb-5 pt-6">
         <MalikaWordmark size="md" className="text-text" />
       </div>
 
+      {/* Money actions — the two verbs the shop runs all day */}
+      <div className="flex flex-col gap-2 px-3 pt-4">
+        <NavLink
+          to="/purchase/new"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-label font-bold text-[rgb(var(--c-on-accent))] transition-colors hover:bg-accent-hover"
+        >
+          <ShoppingCart size={17} strokeWidth={2.2} />
+          {t('nav.buy')}
+        </NavLink>
+        <NavLink
+          to="/sale/new"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-success text-label font-bold text-bg transition-opacity hover:opacity-90"
+        >
+          <BadgeDollarSign size={17} strokeWidth={2.2} />
+          {t('nav.sell')}
+        </NavLink>
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto scrollbar-thin">
+      <nav className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
         {NAV_PRIMARY.map(({ to, icon: Icon, key, end }) => (
           <NavLink
             key={to}
@@ -86,10 +106,10 @@ export function Sidebar() {
             end={end}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-body font-semibold tracking-tight transition-all',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-body font-semibold tracking-tight transition-all',
                 isActive
                   ? 'bg-accent-faded text-accent'
-                  : 'text-text-dim hover:text-text hover:bg-bg3',
+                  : 'text-text-dim hover:bg-bg3 hover:text-text',
               )
             }
           >
@@ -98,14 +118,14 @@ export function Sidebar() {
                 <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
                 <span>{t(key)}</span>
                 {isActive && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
                 )}
               </>
             )}
           </NavLink>
         ))}
 
-        <div className="text-micro text-text-muted uppercase tracking-wider font-semibold px-3 pt-5 pb-1">
+        <div className="px-3 pb-1 pt-5 text-micro font-semibold uppercase tracking-wider text-text-muted">
           {t('nav.archive')}
         </div>
         {NAV_ARCHIVE.map(({ to, icon: Icon, key }) => (
@@ -114,10 +134,10 @@ export function Sidebar() {
             to={to}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2 rounded-xl text-label font-medium tracking-tight transition-all',
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-label font-medium tracking-tight transition-all',
                 isActive
                   ? 'bg-accent-faded text-accent'
-                  : 'text-text-muted hover:text-text hover:bg-bg3',
+                  : 'text-text-muted hover:bg-bg3 hover:text-text',
               )
             }
           >
@@ -128,26 +148,26 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-3 pb-4 pt-3 border-t border-border flex flex-col gap-1">
+      <div className="flex flex-col gap-1 border-t border-border px-3 pb-4 pt-3">
         <button
           onClick={toggleLang}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-label font-semibold text-text-dim hover:text-text hover:bg-bg3 transition-all w-full cursor-pointer"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-label font-semibold text-text-dim transition-all hover:bg-bg3 hover:text-text"
         >
           <Globe size={16} strokeWidth={1.8} />
-          {i18n.language === 'ru' ? 'RU → UZ' : 'UZ → RU'}
+          {i18n.language === 'ru' ? t('settings.lang_uz') : t('settings.lang_ru')}
         </button>
 
-        <div className="flex items-center gap-3 px-3 py-2.5 mt-1">
+        <div className="mt-1 flex items-center gap-3 px-3 py-2.5">
           <Avatar className="size-9">
-            <AvatarFallback className="bg-accent text-[rgb(var(--c-on-accent))] text-xs">
+            <AvatarFallback className="bg-accent text-xs text-[rgb(var(--c-on-accent))]">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="text-label font-semibold text-text truncate">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-label font-semibold text-text">
               {user?.full_name ?? '—'}
             </div>
-            <div className="text-caption text-text-muted truncate">
+            <div className="truncate text-caption text-text-muted">
               {user?.tg_username ? `@${user.tg_username}` : (user?.phone ?? '—')}
             </div>
           </div>
@@ -155,7 +175,7 @@ export function Sidebar() {
 
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogTrigger asChild>
-            <button className="flex items-center gap-3 px-3 py-2.5 mt-1 rounded-xl text-label font-semibold text-text-muted hover:text-danger hover:bg-danger-faded/40 transition-all w-full cursor-pointer">
+            <button className="mt-1 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-label font-semibold text-text-muted transition-all hover:bg-danger-faded/40 hover:text-danger">
               <LogOut size={15} strokeWidth={1.8} />
               {t('common.logout')}
             </button>
@@ -169,7 +189,7 @@ export function Sidebar() {
               <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => logout()}
-                className="bg-danger hover:bg-danger/90 text-white"
+                className="bg-danger text-white hover:bg-danger/90"
               >
                 <LogOut className="size-4" /> {t('common.logout')}
               </AlertDialogAction>

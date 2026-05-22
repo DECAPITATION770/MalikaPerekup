@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Paperclip, X, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, X, Loader2, AlertCircle, FileText } from 'lucide-react';
 import axios from 'axios';
 
 interface Props {
@@ -10,19 +10,45 @@ interface Props {
   requestUploadUrl: (filename: string) => Promise<{ url: string; key: string }>;
   label?: string;
   max?: number;
+  /** ``accept`` for the file input. ``undefined`` (default) → any file type. */
   accept?: string;
+}
+
+/** Local metadata for a freshly-uploaded file, keyed by its S3 key. Lets us
+ *  render a real thumbnail / filename without a signed-GET round-trip — we
+ *  still have the original ``File`` in this session. */
+interface FileMeta {
+  name: string;
+  isImage: boolean;
+  url?: string;            // objectURL for image previews (revoked on remove)
 }
 
 /** PII upload pattern from CLAUDE.md §10: the Mini App signs a short-lived
  *  presigned PUT URL on the server, then uploads bytes straight to MinIO/R2.
- *  The API never touches the file — only stores the resulting key. */
+ *  The API never touches the file — only stores the resulting key.
+ *
+ *  Shows a thumbnail for images and an icon + filename for anything else,
+ *  each with a delete button. Accepts any file type by default. */
 export default function DocumentUploader({
-  value, onChange, requestUploadUrl, label, max = 6, accept = 'image/*,application/pdf',
+  value, onChange, requestUploadUrl, label, max = 6, accept,
 }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  const [meta, setMeta] = useState<Record<string, FileMeta>>({});
+
+  // Revoke any outstanding objectURLs when the component unmounts.
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
+  useEffect(
+    () => () => {
+      for (const m of Object.values(metaRef.current)) {
+        if (m.url) URL.revokeObjectURL(m.url);
+      }
+    },
+    [],
+  );
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -37,6 +63,15 @@ export default function DocumentUploader({
         await axios.put(url, file, {
           headers: { 'Content-Type': file.type || 'application/octet-stream' },
         });
+        const isImage = file.type.startsWith('image/');
+        setMeta((prev) => ({
+          ...prev,
+          [key]: {
+            name: file.name,
+            isImage,
+            url: isImage ? URL.createObjectURL(file) : undefined,
+          },
+        }));
         onChange([...value, key]);
       } catch {
         setErr(t('common.upload_failed'));
@@ -47,7 +82,20 @@ export default function DocumentUploader({
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const remove = (i: number) => {
+    const key = value[i];
+    const m = meta[key];
+    if (m?.url) URL.revokeObjectURL(m.url);
+    if (key) {
+      setMeta((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+    onChange(value.filter((_, idx) => idx !== i));
+  };
+
   const canAdd = value.length + busy < max;
 
   return (
@@ -55,42 +103,54 @@ export default function DocumentUploader({
       {label && (
         <label className="text-label text-text-dim font-medium tracking-tight">{label}</label>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        {value.map((_, i) => (
-          <span
-            key={i}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-bg3 text-label font-semibold text-text"
-          >
-            <Paperclip size={13} className="text-success" />
-            {t('common.photo_n', { n: i + 1 })}
-            <button
-              type="button"
-              onClick={() => remove(i)}
-              aria-label="Remove"
-              className="text-text-muted hover:text-danger ml-0.5 -mr-1 p-0.5 cursor-pointer"
+      <div className="flex flex-wrap items-start gap-2">
+        {value.map((key, i) => {
+          const m = meta[key];
+          return (
+            <div
+              key={key}
+              className="relative w-20 h-20 rounded-xl overflow-hidden border border-border bg-bg3 shrink-0"
             >
-              <X size={12} />
-            </button>
-          </span>
-        ))}
+              {m?.isImage && m.url ? (
+                <img src={m.url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-1.5 text-text-dim">
+                  <FileText size={20} />
+                  <span className="text-micro text-text-muted truncate w-full text-center leading-tight">
+                    {m?.name ?? t('common.file_n', { n: i + 1 })}
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label={t('common.delete')}
+                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-bg/80 backdrop-blur flex items-center justify-center text-text hover:bg-danger hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          );
+        })}
+
         {Array.from({ length: busy }).map((_, i) => (
-          <span
+          <div
             key={`busy-${i}`}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-bg2 text-label text-text-muted"
+            className="w-20 h-20 rounded-xl border border-border bg-bg2 flex items-center justify-center text-text-muted shrink-0"
           >
-            <Loader2 size={13} className="animate-spin" />
-            {t('common.uploading')}
-          </span>
+            <Loader2 size={18} className="animate-spin" />
+          </div>
         ))}
+
         {canAdd && (
           <>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-dashed border-border text-label font-semibold text-text-dim hover:text-text hover:border-border-strong active:scale-[0.98] transition-all cursor-pointer"
+              className="w-20 h-20 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-1 text-text-dim hover:text-text hover:border-border-strong active:scale-[0.98] transition-all cursor-pointer shrink-0"
             >
-              <Paperclip size={14} />
-              {t('common.add_photo')}
+              <Upload size={18} />
+              <span className="text-micro font-semibold">{t('common.add_file')}</span>
             </button>
             <input
               ref={inputRef}

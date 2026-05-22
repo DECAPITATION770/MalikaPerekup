@@ -4,6 +4,7 @@ Devices are NOT created via this router — that happens inside
 ``POST /purchases``. Here we only list, search, view, edit, and serve QR PNG.
 """
 
+from decimal import Decimal, InvalidOperation
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -11,12 +12,13 @@ from pydantic import BaseModel, Field
 
 from app.common.pagination import Page, PageParams
 from app.common.qr import render_qr_png
-from app.common.storage import build_upload_key, presigned_put_url
+from app.common.storage import build_upload_key, presigned_put_url, presigned_url
 from app.core.deps import CurrentShop, DbSession
 from app.features.devices import repository as repo
 from app.features.devices import service
 from app.features.devices.schemas import (
     DeviceCategoryLiteral,
+    DeviceConditionLiteral,
     DeviceOut,
     DeviceStatusLiteral,
     DeviceUpdate,
@@ -27,6 +29,16 @@ from app.features.devices.schemas import (
     RecentModelsOut,
     SuggestOut,
 )
+
+
+def _parse_money(raw: str | None) -> Decimal | None:
+    """Parse a money query-param to Decimal; ignore blanks / garbage."""
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        return Decimal(raw.replace(" ", ""))
+    except InvalidOperation:
+        return None
 from app.features.purchases import repository as purchases_repo
 
 class _UploadUrlRequest(BaseModel):
@@ -36,6 +48,12 @@ class _UploadUrlRequest(BaseModel):
 class _UploadUrlResponse(BaseModel):
     url: str
     key: str
+
+
+class _PhotoUrlsResponse(BaseModel):
+    """Short-lived signed GET URLs for a device's photos, in stored order."""
+
+    urls: list[str]
 
 
 router = APIRouter(prefix="/devices", tags=["devices"])
@@ -65,8 +83,15 @@ async def list_devices(
     q: Annotated[str | None, Query(description="search IMEI / serial / brand / model")] = None,
     status_: Annotated[DeviceStatusLiteral | None, Query(alias="status")] = None,
     category: Annotated[DeviceCategoryLiteral | None, Query()] = None,
+    condition: Annotated[DeviceConditionLiteral | None, Query()] = None,
+    brand: Annotated[str | None, Query(max_length=64)] = None,
+    price_min: Annotated[str | None, Query()] = None,
+    price_max: Annotated[str | None, Query()] = None,
+    sort: Annotated[
+        Literal["recent", "days", "price_asc", "price_desc"], Query()
+    ] = "recent",
 ) -> Page[DeviceWithPurchaseOut]:
-    """Витрина: filter by status / category / free-text query.
+    """Витрина: filter by status / category / condition / brand / price + sort.
 
     Returns purchase price + days-in-stock joined per row so the Stock table
     renders one row per device with all the columns the user expects to see.
@@ -81,6 +106,11 @@ async def list_devices(
         query=q,
         status=status_,
         category=category,
+        condition=condition,
+        brand=brand,
+        price_min=_parse_money(price_min),
+        price_max=_parse_money(price_max),
+        sort=sort,
         limit=params.limit,
         offset=params.offset,
     )
@@ -93,6 +123,8 @@ async def list_devices(
                 purchase_price_uzs=str(price_uzs) if price_uzs is not None else None,
                 purchase_date=purchase_date,
                 days_in_stock=(today_utc - device.created_at.astimezone(timezone.utc).date()).days,
+                # Sign only the first photo — list rows show one thumbnail.
+                photo_url=presigned_url(device.photos[0]) if device.photos else None,
             )
         )
     return Page.of(items=items, total=total, params=params)
@@ -199,6 +231,24 @@ async def get_device(device_id: int, shop: CurrentShop, db: DbSession) -> Device
     except service.DeviceNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     return DeviceOut.model_validate(device)
+
+
+@router.get("/{device_id}/photo-urls", response_model=_PhotoUrlsResponse)
+async def get_device_photo_urls(
+    device_id: int, shop: CurrentShop, db: DbSession
+) -> _PhotoUrlsResponse:
+    """Sign short-lived GET URLs for this device's photos.
+
+    Photos are stored with a private ACL (CLAUDE.md §10), so the keys on
+    ``DeviceOut.photos`` can't be rendered directly — the Mini App calls
+    this to get TTL-limited URLs. Shop-scoped via ``get_or_404`` so a
+    foreign ``device_id`` returns 404, never another shop's photos.
+    """
+    try:
+        device = await service.get_or_404(db, device_id, shop_id=shop.id)
+    except service.DeviceNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return _PhotoUrlsResponse(urls=[presigned_url(key) for key in device.photos])
 
 
 @router.get("/by-token/{qr_token}", response_model=DeviceOut)
