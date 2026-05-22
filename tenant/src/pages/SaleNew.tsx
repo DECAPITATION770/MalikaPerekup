@@ -323,6 +323,7 @@ export default function SaleNew() {
   const [selectedBuyerId, setSelectedBuyerId] = useState<number | null>(null);
   const [buyerPhotos, setBuyerPhotos] = useState<string[]>([]);
   const [done, setDone] = useState(false);
+  const [shaking, setShaking] = useState(false);
 
   const debouncedSearch = useDebounced(deviceSearch.trim(), 300);
 
@@ -410,13 +411,21 @@ export default function SaleNew() {
     },
   });
 
+  // Tactile "no" on a failed submit — error haptic + a brief shake.
+  const onInvalid = () => {
+    haptic.notify('error');
+    setShaking(true);
+    setTimeout(() => setShaking(false), 400);
+  };
+  const submit = handleSubmit((v) => mutation.mutate(v), onInvalid);
+
   // Tg MainButton mirrors the sticky submit button.
   useTgMainButton(
     !done
       ? {
           text: saleType === 'nasiya' ? t('sale.submit_nasiya') : t('sale.submit'),
           isLoaderVisible: mutation.isPending,
-          onClick: () => handleSubmit((v) => mutation.mutate(v))(),
+          onClick: () => submit(),
         }
       : null,
   );
@@ -477,8 +486,14 @@ export default function SaleNew() {
 
   return (
     <form
-      onSubmit={handleSubmit((v) => mutation.mutate(v))}
-      className="flex animate-fade-up flex-col gap-4 pb-28 md:pb-6"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+      className={cn(
+        'flex animate-fade-up flex-col gap-4 pb-28 md:pb-6',
+        shaking && 'animate-shake',
+      )}
     >
       <h1 className="text-title font-bold tracking-tight">{t('sale.title')}</h1>
 

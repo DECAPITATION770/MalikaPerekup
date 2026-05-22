@@ -20,7 +20,8 @@ import { toast } from 'sonner';
 import { createPurchase, type LastPurchaseTemplate } from '@/api/purchases';
 import { getExchangeRateHint } from '@/api/reports';
 import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
-import { useTgBackButton, useTgHaptic } from '@/lib/telegram';
+import { useTgBackButton, useTgHaptic, useTgMainButton } from '@/lib/telegram';
+import { cn } from '@/lib/utils';
 import { track } from '@/lib/analytics';
 
 import {
@@ -56,6 +57,7 @@ export default function PurchaseNew() {
   useTgBackButton(() => navigate(-1));
 
   const [step, setStep] = useState<WizardStep>(0);
+  const [shaking, setShaking] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState<Draft | null>(null);
   const [priceResetKey, setPriceResetKey] = useState(0);
   const [devicePhotos, setDevicePhotos] = useState<string[]>([]);
@@ -239,7 +241,12 @@ export default function PurchaseNew() {
   const goNext = useCallback(async () => {
     const fields = STEP_FIELDS[step];
     const ok = await trigger(fields, { shouldFocus: true });
-    if (!ok) return;
+    if (!ok) {
+      haptic.notify('error');
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
+      return;
+    }
     haptic.select();
     if (step < TOTAL_STEPS - 1) setStep((s) => (s + 1) as WizardStep);
   }, [step, trigger, haptic]);
@@ -260,6 +267,17 @@ export default function PurchaseNew() {
     return t('purchase.submit_for', { amount: fmtAmount(uzs) });
   })();
 
+  // Native Telegram MainButton mirrors the wizard footer: «Далее» on steps
+  // 1–3, the «Принять закупку …» submit on the last step.
+  useTgMainButton({
+    text: step < TOTAL_STEPS - 1 ? t('purchase.wizard_next') : submitLabel,
+    isLoaderVisible: isSubmitting || mutation.isPending,
+    onClick: () => {
+      if (step < TOTAL_STEPS - 1) void goNext();
+      else void onSubmit();
+    },
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-3xl animate-fade-up flex-col gap-5">
       <header className="flex items-center gap-3">
@@ -279,7 +297,11 @@ export default function PurchaseNew() {
 
       <WizardProgress step={step} completed={stepStatus} onJump={setStep} />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
+      <form
+        onSubmit={onSubmit}
+        className={cn('flex flex-col gap-5', shaking && 'animate-shake')}
+        noValidate
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
