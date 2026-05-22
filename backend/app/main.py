@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.common.storage import ensure_bucket
 from app.core.config import get_settings
 from app.core.database import SessionFactory
 from app.core.logging import configure_logging, logger
@@ -88,6 +89,15 @@ async def lifespan(app: FastAPI):
             name=settings.bootstrap_admin_name,
         )
         await db.commit()
+
+    # 1b. Ensure the object-storage bucket exists — photo/file uploads PUT
+    #     straight into it via presigned URLs, so a missing bucket means every
+    #     upload 404s. Best-effort: R2 buckets are pre-provisioned and MinIO may
+    #     be briefly unreachable; neither should block API boot.
+    try:
+        ensure_bucket()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("storage.ensure_bucket_failed", error=str(exc))
 
     bot = build_bot()
     dispatcher = build_dispatcher()

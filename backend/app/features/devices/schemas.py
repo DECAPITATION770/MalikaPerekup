@@ -112,3 +112,5 @@ class DeviceWithPurchaseOut(DeviceOut):
     purchase_price_uzs: str | None = None
     purchase_date: date | None = None
     days_in_stock: int | None = None
+    photo_url: str | None = None
+    """Signed GET URL for the first photo (≤15 min TTL) — list thumbnails."""

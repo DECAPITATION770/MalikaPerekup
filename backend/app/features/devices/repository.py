@@ -78,6 +78,16 @@ async def search(
     return list(items), total
 
 
+# Whitelisted sort orders (col name never built from user input). Each entry
+# is a tuple so price sorts get a stable secondary key.
+_SORT_MAP = {
+    "recent": (Device.created_at.desc(), Device.id.desc()),
+    "days": (Device.created_at.asc(), Device.id.asc()),
+    "price_asc": (Purchase.price_uzs.asc().nullslast(), Device.id.desc()),
+    "price_desc": (Purchase.price_uzs.desc().nullslast(), Device.id.desc()),
+}
+
+
 async def search_with_purchase(
     db: AsyncSession,
     *,
@@ -87,57 +97,66 @@ async def search_with_purchase(
     category: str | None,
     limit: int,
     offset: int,
+    condition: str | None = None,
+    brand: str | None = None,
+    price_min: Decimal | None = None,
+    price_max: Decimal | None = None,
+    sort: str = "recent",
 ) -> tuple[list[tuple[Device, Decimal | None, date | None]], int]:
-    """Same filters as :func:`search` but LEFT JOINs the purchase row so the
-    Stock table can show ``price_uzs`` and ``purchase_date`` without an N+1.
+    """Same as :func:`search` but LEFT JOINs the purchase row so the Stock
+    table shows ``price_uzs`` / ``purchase_date`` without an N+1, plus extra
+    filters (condition, brand, price range) and sort options.
 
-    LEFT JOIN (not INNER) so a hypothetical orphan device still appears with
-    ``None`` for price/date — defence-in-depth (CLAUDE.md §1).
+    Price filters and price sorts reference ``Purchase.price_uzs``; a device
+    with no purchase row is excluded by a price filter (and sorts NULLS LAST).
+    LEFT JOIN (not INNER) so an orphan device still appears otherwise —
+    defence-in-depth (CLAUDE.md §1).
     """
-    base = (
-        select(Device, Purchase.price_uzs, Purchase.purchase_date)
-        .outerjoin(Purchase, Purchase.device_id == Device.id)
-        .where(Device.shop_id == shop_id)
+
+    def _apply(stmt):
+        stmt = stmt.where(Device.shop_id == shop_id)
+        if status:
+            stmt = stmt.where(Device.status == status)
+        if category:
+            stmt = stmt.where(Device.category == category)
+        if condition:
+            stmt = stmt.where(Device.condition == condition)
+        if brand:
+            stmt = stmt.where(func.lower(Device.brand) == brand.lower())
+        if query:
+            like = f"%{query}%"
+            stmt = stmt.where(
+                or_(
+                    Device.imei.ilike(like),
+                    Device.serial.ilike(like),
+                    Device.brand.ilike(like),
+                    Device.model.ilike(like),
+                )
+            )
+        if price_min is not None:
+            stmt = stmt.where(Purchase.price_uzs >= price_min)
+        if price_max is not None:
+            stmt = stmt.where(Purchase.price_uzs <= price_max)
+        return stmt
+
+    base = _apply(
+        select(Device, Purchase.price_uzs, Purchase.purchase_date).outerjoin(
+            Purchase, Purchase.device_id == Device.id
+        )
     )
 
-    if status:
-        base = base.where(Device.status == status)
-    if category:
-        base = base.where(Device.category == category)
-    if query:
-        like = f"%{query}%"
-        base = base.where(
-            or_(
-                Device.imei.ilike(like),
-                Device.serial.ilike(like),
-                Device.brand.ilike(like),
-                Device.model.ilike(like),
-            )
-        )
-
-    # ``total`` counts devices, not joined rows (one-to-one constraint keeps
-    # these equal today, but the count is conceptually per device).
-    count_stmt = select(func.count(Device.id)).where(Device.shop_id == shop_id)
-    if status:
-        count_stmt = count_stmt.where(Device.status == status)
-    if category:
-        count_stmt = count_stmt.where(Device.category == category)
-    if query:
-        like = f"%{query}%"
-        count_stmt = count_stmt.where(
-            or_(
-                Device.imei.ilike(like),
-                Device.serial.ilike(like),
-                Device.brand.ilike(like),
-                Device.model.ilike(like),
-            )
-        )
+    # Count distinct devices (one-to-one keeps it equal to row count today, but
+    # the join + DISTINCT keeps it correct if a device ever has many purchases).
+    count_stmt = _apply(
+        select(func.count(func.distinct(Device.id)))
+        .select_from(Device)
+        .outerjoin(Purchase, Purchase.device_id == Device.id)
+    )
     total = (await db.execute(count_stmt)).scalar_one()
 
+    order = _SORT_MAP.get(sort, _SORT_MAP["recent"])
     rows = (
-        await db.execute(
-            base.order_by(Device.created_at.desc()).limit(limit).offset(offset)
-        )
+        await db.execute(base.order_by(*order).limit(limit).offset(offset))
     ).all()
     return [(r[0], r[1], r[2]) for r in rows], total
 
