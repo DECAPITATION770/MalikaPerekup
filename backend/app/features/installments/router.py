@@ -60,6 +60,16 @@ async def create_plan_for_sale(
             "schedule can only be attached to a nasiya sale",
         )
 
+    # The plan's total must equal the actual sale price — otherwise the
+    # tracked debt (and the "Долги по Nasiya" KPI) is fabricated. Compare in
+    # the sale's own currency: USD sales send total_amount in USD, UZS in UZS.
+    expected = sale.sale_price_usd if sale.currency == "USD" else sale.sale_price_uzs
+    if expected is not None and payload.total_amount != expected:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"total_amount must equal the sale price ({expected} {sale.currency})",
+        )
+
     try:
         plan, _ = await service.create_plan(
             db,
@@ -73,6 +83,9 @@ async def create_plan_for_sale(
         )
     except service.PlanAlreadyExists as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    except service.InstallmentError as exc:
+        # down_payment > total_amount, non-positive total, etc. — 400 not 500.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
     return await _build_plan_with_payments(db, plan, _shop_id=shop.id)
 
 

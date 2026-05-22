@@ -64,6 +64,13 @@ async def create_plan(
     if (existing := await repo.get_plan_for_sale(db, sale_id, shop_id=shop_id)):
         raise PlanAlreadyExists(f"plan {existing.id} already exists for sale {sale_id}")
 
+    # Validate money invariants here so a bad client gets a clean 400 instead
+    # of an uncaught ValueError from build_schedule() bubbling up as a 500.
+    if total_amount <= 0:
+        raise InstallmentError("total_amount must be positive")
+    if down_payment < 0 or down_payment > total_amount:
+        raise InstallmentError("down_payment must be between 0 and total_amount")
+
     plan = InstallmentPlan(
         shop_id=shop_id,
         sale_id=sale_id,
