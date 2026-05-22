@@ -17,8 +17,8 @@
   --c-border:         40  48  68;
   --c-border-strong:  58  67  92;
   --c-text:          235 238 245;
-  --c-text-dim:      148 155 175;
-  --c-text-muted:    100 108 130;
+  --c-text-dim:      158 166 186;
+  --c-text-muted:    130 138 158;   /* brightened to clear WCAG AA 4.5:1 on dark bg */
   --c-accent:        232 154  46;   /* #E89A2E — warm muted amber */
   --c-accent-hover:  212 134  30;
   --c-accent-faded:   58  35  10;
@@ -41,8 +41,8 @@
   --c-border:        220 225 233;
   --c-border-strong: 200 207 218;
   --c-text:           18  24  38;
-  --c-text-dim:       82  92 112;
-  --c-text-muted:    132 142 162;
+  --c-text-dim:       74  84 104;
+  --c-text-muted:     96 106 126;   /* darkened to clear WCAG AA 4.5:1 on light bg */
   --c-accent:        212 134  30;
   --c-accent-hover:  178 110  20;
   --c-accent-faded:  255 240 215;
