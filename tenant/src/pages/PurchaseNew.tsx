@@ -18,6 +18,7 @@ import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { createPurchase, type LastPurchaseTemplate } from '@/api/purchases';
+import type { CatalogModelOut } from '@/api/catalog';
 import { getExchangeRateHint } from '@/api/reports';
 import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
 import { useTgBackButton, useTgHaptic, useTgMainButton } from '@/lib/telegram';
@@ -181,6 +182,20 @@ export default function PurchaseNew() {
     [setValue],
   );
 
+  // Picked a model from the shop's catalog (номенклатура): pre-fill specs +
+  // photos, then jump to step 2 to capture this unit's IMEI/condition.
+  const onPickCatalog = useCallback(
+    (m: CatalogModelOut) => {
+      setValue('category', m.category, { shouldValidate: true });
+      setValue('brand', m.brand, { shouldValidate: true });
+      setValue('model', m.model, { shouldValidate: true });
+      setValue('specs', m.default_specs ?? {});
+      if (m.photos.length) setDevicePhotos(m.photos);
+      setStep(1);
+    },
+    [setValue],
+  );
+
   const mutation = useMutation({
     mutationFn: createPurchase,
     onSuccess: (data) => {
@@ -316,6 +331,7 @@ export default function PurchaseNew() {
                 values={values}
                 setValue={setValue}
                 onRepeatLast={onRepeatLast}
+                onPickCatalog={onPickCatalog}
                 onPicked={() => setStep(1)}
                 errors={{ brand: errors.brand?.message, model: errors.model?.message }}
               />
