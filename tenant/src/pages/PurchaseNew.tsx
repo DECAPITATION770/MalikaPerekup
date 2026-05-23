@@ -8,7 +8,7 @@
  * re-pathed to the new module aliases.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +18,6 @@ import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { createPurchase, type LastPurchaseTemplate } from '@/api/purchases';
-import type { CatalogModelOut } from '@/api/catalog';
 import { getExchangeRateHint } from '@/api/reports';
 import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
 import { useTgBackButton, useTgHaptic, useTgMainButton } from '@/lib/telegram';
@@ -38,10 +37,8 @@ import {
   conditionFromDefects,
 } from './purchase/types';
 import { WizardProgress, WizardFooter } from './purchase/Wizard';
-import Step1Model from './purchase/steps/Step1Model';
-import Step2Device from './purchase/steps/Step2Device';
-import Step3Seller from './purchase/steps/Step3Seller';
-import Step4Price from './purchase/steps/Step4Price';
+import StepDevice from './purchase/steps/StepDevice';
+import StepDeal from './purchase/steps/StepDeal';
 import { DraftRestoreModal } from './purchase/modals';
 
 interface Draft extends FormValues {
@@ -75,7 +72,7 @@ export default function PurchaseNew() {
     reset,
     getValues,
     trigger,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, touchedFields, submitCount },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
     defaultValues: emptyDefaults(),
@@ -84,6 +81,18 @@ export default function PurchaseNew() {
 
   const values = watch();
   const { currency, price, exchange_rate: rateRaw } = values;
+
+  // The zod resolver validates the whole schema, so stepping forward leaves
+  // errors on the next step's not-yet-touched fields. Only surface a field's
+  // error once it's been touched (blurred) or after a submit attempt.
+  const shownErrors = useMemo<FieldErrors<FormValues>>(() => {
+    if (submitCount > 0) return errors;
+    const masked = { ...errors };
+    (Object.keys(masked) as (keyof FormValues)[]).forEach((k) => {
+      if (!touchedFields[k]) delete masked[k];
+    });
+    return masked;
+  }, [errors, touchedFields, submitCount]);
 
   const { data: rateHints } = useQuery({
     queryKey: ['exchange-rate-hint'],
@@ -162,35 +171,24 @@ export default function PurchaseNew() {
 
   const onRepeatLast = useCallback(
     (tpl: LastPurchaseTemplate) => {
-      setValue('category', tpl.device.category, { shouldValidate: true });
-      setValue('brand', tpl.device.brand, { shouldValidate: true });
-      setValue('model', tpl.device.model, { shouldValidate: true });
+      // shouldValidate:false — programmatic prefill must not light up errors on
+      // the still-empty price before the user reaches «Сделка».
+      setValue('category', tpl.device.category);
+      setValue('brand', tpl.device.brand);
+      setValue('model', tpl.device.model);
       setValue('condition', tpl.device.condition);
       setValue('defects', tpl.device.defects);
       setValue('specs', tpl.device.specs ?? {});
       setValue('counterparty_id', tpl.seller.counterparty_id);
-      setValue('seller_full_name', tpl.seller.full_name, { shouldValidate: true });
-      setValue('seller_phone', tpl.seller.phone ?? '', { shouldValidate: true });
+      setValue('seller_full_name', tpl.seller.full_name);
+      setValue('seller_phone', tpl.seller.phone ?? '');
       setValue('seller_doc_type', tpl.seller.doc_type ?? '');
       setValue('seller_doc_number', tpl.seller.doc_number ?? '');
       setValue(
         'seller_tg',
         tpl.seller.tg_username ? `@${tpl.seller.tg_username.replace(/^@/, '')}` : '',
       );
-      setStep(3);
-    },
-    [setValue],
-  );
-
-  // Picked a model from the shop's catalog (номенклатура): pre-fill specs +
-  // photos, then jump to step 2 to capture this unit's IMEI/condition.
-  const onPickCatalog = useCallback(
-    (m: CatalogModelOut) => {
-      setValue('category', m.category, { shouldValidate: true });
-      setValue('brand', m.brand, { shouldValidate: true });
-      setValue('model', m.model, { shouldValidate: true });
-      setValue('specs', m.default_specs ?? {});
-      if (m.photos.length) setDevicePhotos(m.photos);
+      // Device + seller are filled — jump straight to «Сделка» to confirm price.
       setStep(1);
     },
     [setValue],
@@ -313,7 +311,7 @@ export default function PurchaseNew() {
       <WizardProgress step={step} completed={stepStatus} onJump={setStep} />
 
       <form
-        onSubmit={onSubmit}
+        onSubmit={(e) => e.preventDefault()}
         className={cn('flex flex-col gap-5', shaking && 'animate-shake')}
         noValidate
       >
@@ -326,45 +324,26 @@ export default function PurchaseNew() {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             {step === 0 && (
-              <Step1Model
+              <StepDevice
                 control={control}
+                register={register}
                 values={values}
                 setValue={setValue}
+                errors={shownErrors}
+                devicePhotos={devicePhotos}
+                onDevicePhotosChange={setDevicePhotos}
                 onRepeatLast={onRepeatLast}
-                onPickCatalog={onPickCatalog}
-                onPicked={() => setStep(1)}
-                errors={{ brand: errors.brand?.message, model: errors.model?.message }}
               />
             )}
             {step === 1 && (
-              <Step2Device
-                control={control}
-                register={register}
-                values={values}
-                setValue={(name, v) => setValue(name, v)}
-                errors={errors}
-                devicePhotos={devicePhotos}
-                onDevicePhotosChange={setDevicePhotos}
-              />
-            )}
-            {step === 2 && (
-              <Step3Seller
+              <StepDeal
                 control={control}
                 register={register}
                 setValue={setValue}
                 values={values}
-                errors={errors}
+                errors={shownErrors}
                 sellerPhotos={sellerPhotos}
                 onSellerPhotosChange={setSellerPhotos}
-              />
-            )}
-            {step === 3 && (
-              <Step4Price
-                control={control}
-                register={register}
-                setValue={setValue}
-                values={values}
-                errors={errors}
                 rateHints={rateHints}
                 priceResetKey={priceResetKey}
               />
@@ -377,6 +356,7 @@ export default function PurchaseNew() {
           canGoBack={step > 0}
           onBack={goBack}
           onNext={goNext}
+          onSubmit={onSubmit}
           submitting={isSubmitting || mutation.isPending}
           submitLabel={submitLabel}
         />

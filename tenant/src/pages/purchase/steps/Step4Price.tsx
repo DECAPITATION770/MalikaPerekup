@@ -6,7 +6,6 @@ import { ChevronDown } from 'lucide-react';
 import CurrencyDualInput from '@/components/CurrencyDualInput';
 import { fmtMoneyInput, moneyToNumber } from '@/lib/money';
 
-import { StepShell } from '../Wizard';
 import { TextArea } from '../primitives';
 import PriceHint from '../PriceHint';
 import DateChips from '../DateChips';
@@ -37,13 +36,8 @@ export default function Step4Price({
     : priceNum > 0 && rateNum > 0 ? priceNum * rateNum : 0;
 
   return (
-    <StepShell
-      step={3}
-      title={t('purchase.step4_title')}
-      subtitle={t('purchase.step4_subtitle')}
-    >
-      <div className="card p-5 md:p-6 flex flex-col gap-4">
-        <CurrencyDualInput
+    <div className="card p-5 md:p-6 flex flex-col gap-4">
+      <CurrencyDualInput
           key={priceResetKey}
           label={t('purchase.price_label')}
           required
@@ -96,7 +90,6 @@ export default function Step4Price({
             </div>
           )}
         </div>
-      </div>
-    </StepShell>
+    </div>
   );
 }

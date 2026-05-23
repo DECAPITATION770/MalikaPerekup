@@ -10,7 +10,6 @@ import DocumentUploader from '@/components/DocumentUploader';
 import { requestPurchaseUploadUrl } from '@/api/purchases';
 import { type CounterpartyOut } from '@/api/counterparties';
 
-import { StepShell } from '../Wizard';
 import { Field, SegmentedRow } from '../primitives';
 import { SellerSearch } from '../SellerSearch';
 import { DOC_TYPES, type FormValues } from '../types';
@@ -55,13 +54,8 @@ export default function Step3Seller({
   const isLinked = values.counterparty_id !== null;
 
   return (
-    <StepShell
-      step={2}
-      title={t('purchase.step3_title')}
-      subtitle={t('purchase.step3_subtitle')}
-    >
-      <div className="card p-5 md:p-6 flex flex-col gap-4">
-        <SellerSearch disabled={isLinked} onPick={onPickCounterparty} />
+    <div className="card p-5 md:p-6 flex flex-col gap-4">
+      <SellerSearch disabled={isLinked} onPick={onPickCounterparty} />
 
         {isLinked && (
           <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-success-faded border border-success/30 animate-fade-in">
@@ -153,7 +147,6 @@ export default function Step3Seller({
             </div>
           </>
         )}
-      </div>
-    </StepShell>
+    </div>
   );
 }

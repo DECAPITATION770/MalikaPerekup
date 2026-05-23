@@ -7,7 +7,6 @@ import Input from '@/components/ui/labeled-input';
 import DocumentUploader from '@/components/DocumentUploader';
 import { requestDeviceUploadUrl } from '@/api/devices';
 
-import { StepShell } from '../Wizard';
 import { TextArea } from '../primitives';
 import { ImeiDupWarning } from '../ImeiDupWarning';
 import DefectChecklist from '../DefectChecklist';
@@ -36,13 +35,8 @@ export default function Step2Device({
   const [notesOpen, setNotesOpen] = useState(!!values.device_notes);
 
   return (
-    <StepShell
-      step={1}
-      title={t('purchase.step2_title')}
-      subtitle={t('purchase.step2_subtitle')}
-    >
-      <div className="card p-5 md:p-6 flex flex-col gap-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="card p-5 md:p-6 flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Input
               label={t('purchase.imei_label')}
@@ -140,6 +134,5 @@ export default function Step2Device({
           )}
         </div>
       </div>
-    </StepShell>
   );
 }

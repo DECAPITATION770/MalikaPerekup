@@ -12,20 +12,22 @@ export const DOC_TYPES = ['passport', 'id_card', 'driver_license', 'other'] as c
 export const phoneRegex = /^\+?[0-9 ()-]{6,32}$/;
 export const imeiRegex = /^[0-9]{14,15}$/;
 
-export const DRAFT_KEY = 'tenant_purchase_draft_v2'; // v2 — defects + currentStep
+export const DRAFT_KEY = 'tenant_purchase_draft_v3'; // v3 — 2-step (device + deal)
 export const DRAFT_DEBOUNCE_MS = 500;
 
 // ─── Wizard step model ─────────────────────────────────────────────────
+//
+// Collapsed from 4 steps to 2: «Аппарат» (the physical device you hold —
+// model + IMEI + condition + photos) and «Сделка» (the transaction — price +
+// seller). Brand is no longer a separate pick; it rides along with the model.
 
-export const TOTAL_STEPS = 4;
-export type WizardStep = 0 | 1 | 2 | 3; // 0 = model, 1 = device, 2 = seller, 3 = price
+export const TOTAL_STEPS = 2;
+export type WizardStep = 0 | 1; // 0 = device, 1 = deal
 
 /** Which form fields are validated when leaving a step (Next pressed). */
 export const STEP_FIELDS: Record<WizardStep, (keyof FormValues)[]> = {
-  0: ['category', 'brand', 'model'],
-  1: ['imei', 'serial', 'condition', 'defects'],
-  2: ['seller_full_name', 'seller_phone'],
-  3: ['currency', 'price', 'exchange_rate', 'purchase_date', 'comment'],
+  0: ['category', 'brand', 'model', 'imei', 'serial', 'condition', 'defects'],
+  1: ['seller_full_name', 'seller_phone', 'currency', 'price', 'exchange_rate', 'purchase_date', 'comment'],
 };
 
 // ─── Defect checklist → condition derivation ───────────────────────────
@@ -173,25 +175,30 @@ export function makeSchema(t: TFunction) {
 export function computeStepStatus(
   v: FormValues,
   errors: FieldErrors<FormValues>,
-): [boolean, boolean, boolean, boolean] {
-  // Step 0: model picked (brand+model non-empty, no errors)
-  const s0 = !!v.brand.trim() && !!v.model.trim() && !errors.brand && !errors.model;
+): [boolean, boolean] {
+  // Step 0 «Аппарат»: model picked (brand+model) and no device-field errors.
+  // IMEI/serial/specs stay optional — the step is done once the model is set.
+  const s0 =
+    !!v.brand.trim() &&
+    !!v.model.trim() &&
+    !errors.brand &&
+    !errors.model &&
+    !errors.imei &&
+    !errors.serial;
 
-  // Step 1: device — IMEI/serial/defects/specs all optional, but at least
-  // one must be filled before the step is "done" (otherwise the green tick
-  // appears on a completely empty step).
-  const touched = !!v.imei.trim() || !!v.serial.trim() || v.defects.length > 0 || Object.keys(v.specs).length > 0;
-  const s1 = touched && !errors.imei && !errors.serial;
-
-  // Step 2: seller — name (and optional phone) valid
-  const s2 = !!v.seller_full_name.trim() && !errors.seller_full_name && !errors.seller_phone;
-
-  // Step 3: price + (rate if USD) + date
+  // Step 1 «Сделка»: seller name + price (+ rate if USD) + date.
   const priceOk = moneyToNumber(v.price) > 0 && !errors.price;
-  const rateOk = v.currency === 'USD'
-    ? moneyToNumber(v.exchange_rate) > 0 && !errors.exchange_rate
-    : true;
-  const s3 = priceOk && rateOk && !!v.purchase_date;
+  const rateOk =
+    v.currency === 'USD'
+      ? moneyToNumber(v.exchange_rate) > 0 && !errors.exchange_rate
+      : true;
+  const s1 =
+    !!v.seller_full_name.trim() &&
+    !errors.seller_full_name &&
+    !errors.seller_phone &&
+    priceOk &&
+    rateOk &&
+    !!v.purchase_date;
 
-  return [s0, s1, s2, s3];
+  return [s0, s1];
 }

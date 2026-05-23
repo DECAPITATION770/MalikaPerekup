@@ -10,15 +10,13 @@ export function WizardProgress({
   step, completed, onJump,
 }: {
   step: WizardStep;
-  completed: [boolean, boolean, boolean, boolean];
+  completed: [boolean, boolean];
   onJump: (s: WizardStep) => void;
 }) {
   const { t } = useTranslation();
   const labels: string[] = [
-    t('purchase.step1_short'),
-    t('purchase.step2_short'),
-    t('purchase.step3_short'),
-    t('purchase.step4_short'),
+    t('purchase.step_device'),
+    t('purchase.step_deal'),
   ];
 
   return (
@@ -50,7 +48,7 @@ export function WizardProgress({
               >
                 {isDone && !isCurrent ? <Check size={11} strokeWidth={3} /> : s + 1}
               </span>
-              <span className="truncate hidden sm:inline">{label}</span>
+              <span className="truncate">{label}</span>
             </button>
           </li>
         );
@@ -62,12 +60,13 @@ export function WizardProgress({
 // ─── Sticky footer (Back / Next or Submit) ─────────────────────────────
 
 export function WizardFooter({
-  step, canGoBack, onBack, onNext, submitting, submitLabel,
+  step, canGoBack, onBack, onNext, onSubmit, submitting, submitLabel,
 }: {
   step: WizardStep;
   canGoBack: boolean;
   onBack: () => void;
   onNext: () => void;
+  onSubmit: () => void;
   submitting: boolean;
   submitLabel: string;
 }) {
@@ -88,11 +87,13 @@ export function WizardFooter({
       >
         <span className="hidden md:inline">{t('purchase.wizard_back')}</span>
       </Button>
+      {/* Always type="button" — a button whose type flips to "submit" across
+          steps triggers an accidental form submit on the step transition. */}
       <Button
-        type={isLast ? 'submit' : 'button'}
+        type="button"
         size="lg"
         full
-        onClick={isLast ? undefined : onNext}
+        onClick={isLast ? onSubmit : onNext}
         loading={isLast && submitting}
         icon={isLast ? <ShoppingCart size={16} /> : <ChevronRight size={16} />}
       >
