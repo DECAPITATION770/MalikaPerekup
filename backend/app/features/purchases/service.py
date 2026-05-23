@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.dates import now_utc
 from app.common.money import Currency, quantize, to_uzs
+from app.features.catalog import service as catalog_service
 from app.features.counterparties import service as counterparty_service
 from app.features.devices import service as device_service
 from app.features.devices.models import Device
@@ -97,6 +98,18 @@ async def create_purchase(
         photos=device_in.photos,
         defects=device_in.defects,
         notes=device_in.notes,
+    )
+
+    # 2b. Refresh the shop's catalog template for this model so the next
+    # purchase of the same model pre-fills specs + photo (CLAUDE.md §15).
+    await catalog_service.upsert_for_purchase(
+        db,
+        shop_id=shop_id,
+        category=device_in.category,
+        brand=device_in.brand,
+        model=device_in.model,
+        specs=clean_specs,
+        photos=device_in.photos,
     )
 
     # 2. Resolve the seller via the directory (find by phone or create new).

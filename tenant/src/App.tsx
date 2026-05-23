@@ -55,6 +55,7 @@ const PurchaseNew = lazy(() => import('@/pages/PurchaseNew'));
 const SaleNew = lazy(() => import('@/pages/SaleNew'));
 const Installments = lazy(() => import('@/pages/Installments'));
 const Reports = lazy(() => import('@/pages/Reports'));
+const Catalog = lazy(() => import('@/pages/Catalog'));
 const Counterparties = lazy(() => import('@/pages/Counterparties'));
 const CounterpartyDetail = lazy(() => import('@/pages/CounterpartyDetail'));
 const Settings = lazy(() => import('@/pages/Settings'));
@@ -107,6 +108,7 @@ function ThemedShell() {
               <Route path="/sale/new" element={<SaleNew />} />
               <Route path="/installments" element={<Installments />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/catalog" element={<Catalog />} />
               <Route path="/counterparties" element={<Counterparties />} />
               <Route path="/counterparties/:id" element={<CounterpartyDetail />} />
               <Route path="/settings" element={<Settings />} />

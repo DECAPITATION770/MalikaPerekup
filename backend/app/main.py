@@ -21,6 +21,7 @@ from app.features.admin import service as admin_service
 from app.features.exchange import service as exchange_service
 from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
+from app.features.catalog.router import router as catalog_router
 from app.features.counterparties.router import router as counterparties_router
 from app.features.devices.router import router as devices_router
 from app.features.installments.router import router as installments_router
@@ -157,6 +158,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(shops_router, prefix="/api/v1")
 app.include_router(counterparties_router, prefix="/api/v1")
+app.include_router(catalog_router, prefix="/api/v1")
 app.include_router(devices_router, prefix="/api/v1")
 app.include_router(purchases_router, prefix="/api/v1")
 app.include_router(sales_router, prefix="/api/v1")

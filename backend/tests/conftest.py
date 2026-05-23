@@ -51,6 +51,7 @@ from app.core.database import Base  # noqa: E402
 
 # Import every model so ``Base.metadata`` knows about all tables.
 from app.features.auth.models import User  # noqa: F401, E402
+from app.features.catalog.models import CatalogModel  # noqa: F401, E402
 from app.features.counterparties.models import Counterparty  # noqa: F401, E402
 from app.features.devices.models import Device  # noqa: F401, E402
 from app.features.installments.models import (  # noqa: F401, E402
@@ -78,6 +79,7 @@ _TABLES_TO_TRUNCATE = (
     "sales",
     "purchases",
     "devices",
+    "catalog_models",
     "counterparties",
     "users",
     "shops",

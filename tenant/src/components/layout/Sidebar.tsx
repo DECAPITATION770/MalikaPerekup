@@ -9,6 +9,7 @@ import {
   BadgeDollarSign,
   CalendarClock,
   BarChart3,
+  BookMarked,
   Users as UsersIcon,
   Settings as SettingsIcon,
   Search,
@@ -41,6 +42,7 @@ interface NavSpec {
 const NAV_PRIMARY: readonly NavSpec[] = [
   { to: '/', icon: LayoutDashboard, key: 'nav.today', end: true },
   { to: '/stock', icon: Package, key: 'nav.stock' },
+  { to: '/catalog', icon: BookMarked, key: 'nav.catalog' },
   { to: '/search', icon: Search, key: 'nav.search' },
   { to: '/counterparties', icon: UsersIcon, key: 'nav.counterparties' },
   { to: '/installments', icon: CalendarClock, key: 'nav.installments' },

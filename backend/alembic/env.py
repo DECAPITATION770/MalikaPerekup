@@ -22,6 +22,7 @@ from app.core.database import Base
 from app.features.auth.models import User  # noqa: F401  (stage 3)
 from app.features.shops.models import Shop  # noqa: F401  (stage 4)
 from app.features.counterparties.models import Counterparty  # noqa: F401  (stage 5)
+from app.features.catalog.models import CatalogModel  # noqa: F401  (catalog)
 from app.features.devices.models import Device  # noqa: F401  (stage 6)
 from app.features.purchases.models import Purchase  # noqa: F401  (stage 7)
 from app.features.sales.models import Sale  # noqa: F401  (stage 8)
