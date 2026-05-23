@@ -20,6 +20,7 @@ export function DraftRestoreModal({
       open={open}
       onClose={onDiscard}
       size="sm"
+      srTitle={t('purchase.draft_restore_title')}
       footer={
         <div className="flex gap-2">
           <Button onClick={onDiscard} variant="secondary" full size="md">

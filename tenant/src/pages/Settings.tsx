@@ -174,6 +174,8 @@ function ShopSection() {
     onSuccess: () => {
       haptic.notify('success');
       toast.success(t('settings.save_ok'));
+      // Persist so the choice survives a reload (matches header/sidebar togglers).
+      localStorage.setItem('tenant_lang', lang);
       void i18n.changeLanguage(lang);
       qc.invalidateQueries({ queryKey: ['shop-me'] });
       qc.invalidateQueries({ queryKey: ['shops', 'me'] });

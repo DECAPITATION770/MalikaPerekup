@@ -13,6 +13,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import i18n from '@/i18n';
 import { UNAUTHORIZED_EVENT } from '@/api/client';
 import type { UserOut } from '@/api/auth';
 
@@ -57,6 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearExpired = useCallback(() => setExpired(false), []);
+
+  // Apply the account's preferred language on login / boot. An explicit device
+  // override (set by the header/sidebar/settings togglers) always wins.
+  useEffect(() => {
+    if (!user) return;
+    const lang = localStorage.getItem('tenant_lang') ?? user.language;
+    if (i18n.language !== lang) void i18n.changeLanguage(lang);
+  }, [user]);
 
   useEffect(() => {
     const onUnauth = () => {
