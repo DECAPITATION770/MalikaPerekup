@@ -3,8 +3,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from app.common.pagination import Page, PageParams
+from app.common.storage import build_upload_key, presigned_put_url, presigned_url
 from app.core.deps import CurrentShop, DbSession
 from app.features.counterparties import repository as repo
 from app.features.counterparties import service
@@ -21,6 +23,33 @@ from app.features.sales import repository as sale_repo
 from app.features.sales.schemas import SaleOut
 
 router = APIRouter(prefix="/counterparties", tags=["counterparties"])
+
+
+class _DocUploadUrlRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=120)
+
+
+class _DocUploadUrlResponse(BaseModel):
+    url: str
+    key: str
+
+
+class _DocFile(BaseModel):
+    url: str
+    name: str
+
+
+class _DocFilesResponse(BaseModel):
+    """Short-lived signed GET URLs for a counterparty's documents."""
+
+    files: list[_DocFile]
+
+
+def _doc_name(key: str) -> str:
+    """Human filename from a storage key ``shops/.../{uuid}-{safe}``."""
+    seg = key.rsplit("/", 1)[-1]
+    head, _, tail = seg.partition("-")
+    return tail if len(head) == 32 and tail else seg
 
 
 @router.get("", response_model=Page[CounterpartyOut])
@@ -61,6 +90,19 @@ async def create_counterparty(
         db, shop_id=shop.id, **payload.model_dump()
     )
     return CounterpartyOut.model_validate(counterparty)
+
+
+# Literal path — declared before ``/{counterparty_id}`` so the int converter
+# doesn't try to parse "upload-url" as an id.
+@router.post("/upload-url", response_model=_DocUploadUrlResponse)
+async def request_doc_upload_url(
+    payload: _DocUploadUrlRequest, shop: CurrentShop
+) -> _DocUploadUrlResponse:
+    """Sign a short-lived PUT URL for a counterparty document (any file type:
+    passport scan, photo, PDF…). The Mini App uploads straight to MinIO/R2;
+    the returned ``key`` is attached via ``PATCH /{id}`` (``doc_photos``)."""
+    key = build_upload_key(shop.id, "counterparties", payload.filename)
+    return _DocUploadUrlResponse(url=presigned_put_url(key), key=key)
 
 
 @router.get("/{counterparty_id}", response_model=CounterpartyOut)
@@ -124,6 +166,29 @@ async def get_counterparty_deals(
         counterparty=CounterpartyOut.model_validate(counterparty),
         purchases=purchases,
         sales=sales,
+    )
+
+
+@router.get("/{counterparty_id}/doc-urls", response_model=_DocFilesResponse)
+async def get_counterparty_doc_urls(
+    counterparty_id: int, shop: CurrentShop, db: DbSession
+) -> _DocFilesResponse:
+    """Sign short-lived GET URLs for a counterparty's documents (PII, §10).
+
+    ``doc_photos`` are private S3 keys, so the Mini App calls this for
+    TTL-limited URLs. Shop-scoped via ``get_or_404`` — a foreign id 404s,
+    never another shop's documents."""
+    try:
+        counterparty = await service.get_or_404(
+            db, counterparty_id, shop_id=shop.id
+        )
+    except service.CounterpartyNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return _DocFilesResponse(
+        files=[
+            _DocFile(url=presigned_url(key), name=_doc_name(key))
+            for key in counterparty.doc_photos
+        ]
     )
 
 

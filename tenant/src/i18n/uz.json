@@ -416,7 +416,17 @@
     "type_both": "Ikkalasi",
     "back": "Ro'yxatga",
     "no_deals": "Bitimlar yo'q",
-    "deals_history": "Bitimlar tarixi"
+    "deals_history": "Bitimlar tarixi",
+    "documents": "Hujjatlar",
+    "edit": "Tahrirlash",
+    "edit_title": "Kontragentni tahrirlash",
+    "saved": "Saqlandi",
+    "name_label": "F.I.Sh.",
+    "phone_label": "Telefon",
+    "tg_label": "Telegram",
+    "doc_type_label": "Hujjat turi",
+    "doc_number_label": "Hujjat raqami",
+    "comment_label": "Izoh"
   },
   "reports": {
     "title": "Hisobotlar",

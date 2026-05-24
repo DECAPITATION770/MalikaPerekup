@@ -420,7 +420,17 @@
     "type_both": "Оба",
     "back": "К списку",
     "no_deals": "Пока нет сделок",
-    "deals_history": "История сделок"
+    "deals_history": "История сделок",
+    "documents": "Документы",
+    "edit": "Редактировать",
+    "edit_title": "Редактировать контрагента",
+    "saved": "Сохранено",
+    "name_label": "ФИО",
+    "phone_label": "Телефон",
+    "tg_label": "Telegram",
+    "doc_type_label": "Тип документа",
+    "doc_number_label": "Номер документа",
+    "comment_label": "Комментарий"
   },
   "reports": {
     "title": "Отчёты",

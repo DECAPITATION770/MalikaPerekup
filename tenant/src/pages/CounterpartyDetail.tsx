@@ -3,14 +3,18 @@
  * deal timeline. Phase 3 port: shadcn Badge + Avatar + Skeleton, haptic
  * on contact taps.
  */
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   BadgeDollarSign,
   Calendar,
   ChevronRight,
+  FileText,
+  Pencil,
   Phone,
   Send,
   ShoppingCart,
@@ -20,13 +24,33 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getCounterpartyDeals } from '@/api/counterparties';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import DocumentUploader from '@/components/DocumentUploader';
+import { Field, SegmentedRow } from '@/pages/purchase/primitives';
+import { DOC_TYPES } from '@/pages/purchase/types';
+import {
+  getCounterpartyDeals,
+  getCounterpartyDocFiles,
+  requestCounterpartyUploadUrl,
+  updateCounterparty,
+  type CounterpartyOut,
+} from '@/api/counterparties';
 import type { PurchaseOut } from '@/api/purchases';
 import type { SaleOut } from '@/api/sales';
 import { fmtDate, fmtUzs } from '@/lib/fmt';
 import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
+
+const IMAGE_RE = /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp|svg)$/i;
 
 type DealEvent =
   | { kind: 'purchase'; date: string; ref: PurchaseOut }
@@ -42,6 +66,7 @@ export default function CounterpartyDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const [editing, setEditing] = useState(false);
 
   const q = useQuery({
     queryKey: ['counterparty-deals', Number(id)],
@@ -132,6 +157,14 @@ export default function CounterpartyDetail() {
               <p className="mt-2 text-caption leading-relaxed text-text-dim">{cp.comment}</p>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label={t('counterparties.edit')}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-bg3 text-text-dim transition-colors hover:border-border-strong hover:text-text"
+          >
+            <Pencil size={15} />
+          </button>
         </div>
 
         {(cp.phone || cp.tg_username) && (
@@ -161,6 +194,9 @@ export default function CounterpartyDetail() {
           </div>
         )}
       </div>
+
+      {/* Documents */}
+      {cp.doc_photos.length > 0 && <DocumentsSection id={cp.id} />}
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-3">
@@ -193,7 +229,205 @@ export default function CounterpartyDetail() {
           </ul>
         </div>
       )}
+
+      <EditCounterpartySheet cp={cp} open={editing} onClose={() => setEditing(false)} />
     </div>
+  );
+}
+
+/** Document gallery — images render as thumbnails (tap to open full size),
+ *  any other file type as a tappable file chip. URLs are signed on demand. */
+function DocumentsSection({ id }: { id: number }) {
+  const { t } = useTranslation();
+  const filesQ = useQuery({
+    queryKey: ['counterparty-docs', id],
+    queryFn: () => getCounterpartyDocFiles(id),
+  });
+  const files = filesQ.data ?? [];
+
+  return (
+    <div className="card flex flex-col gap-3 p-5">
+      <h2 className="text-body-lg font-bold tracking-tight">{t('counterparties.documents')}</h2>
+      {filesQ.isLoading ? (
+        <div className="flex gap-2">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-20 w-20 rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {files.map((f, i) => {
+            const isImage = IMAGE_RE.test(f.name);
+            return (
+              <a
+                key={i}
+                href={f.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border bg-bg3 transition-colors hover:border-border-strong"
+                title={f.name}
+              >
+                {isImage ? (
+                  <img src={f.url} alt={f.name} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-1.5 text-text-dim">
+                    <FileText size={20} />
+                    <span className="w-full truncate text-center text-micro leading-tight text-text-muted">
+                      {f.name}
+                    </span>
+                  </div>
+                )}
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface EditDraft {
+  full_name: string;
+  phone: string;
+  doc_type: string;
+  doc_number: string;
+  tg_username: string;
+  comment: string;
+  doc_photos: string[];
+}
+
+function seedDraft(c: CounterpartyOut): EditDraft {
+  return {
+    full_name: c.full_name,
+    phone: c.phone ?? '',
+    doc_type: c.doc_type ?? '',
+    doc_number: c.doc_number ?? '',
+    tg_username: c.tg_username ? `@${c.tg_username.replace(/^@/, '')}` : '',
+    comment: c.comment ?? '',
+    doc_photos: [...c.doc_photos],
+  };
+}
+
+function EditCounterpartySheet({
+  cp,
+  open,
+  onClose,
+}: {
+  cp: CounterpartyOut;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const haptic = useTgHaptic();
+
+  const [draft, setDraft] = useState<EditDraft>(() => seedDraft(cp));
+  // Re-seed from the latest counterparty each time the sheet opens.
+  useEffect(() => {
+    if (open) setDraft(seedDraft(cp));
+  }, [open, cp]);
+
+  const mut = useMutation({
+    mutationFn: () =>
+      updateCounterparty(cp.id, {
+        full_name: draft.full_name.trim(),
+        phone: draft.phone.trim() || null,
+        doc_type: draft.doc_type || null,
+        doc_number: draft.doc_number.trim() || null,
+        tg_username: draft.tg_username.trim().replace(/^@/, '') || null,
+        comment: draft.comment.trim() || null,
+        doc_photos: draft.doc_photos,
+      }),
+    onSuccess: () => {
+      haptic.notify('success');
+      toast.success(t('counterparties.saved'));
+      qc.invalidateQueries({ queryKey: ['counterparty-deals', cp.id] });
+      qc.invalidateQueries({ queryKey: ['counterparty-docs', cp.id] });
+      qc.invalidateQueries({ queryKey: ['counterparties'] });
+      onClose();
+    },
+    onError: () => {
+      haptic.notify('error');
+      toast.error(t('common.error_load'));
+    },
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{t('counterparties.edit_title')}</SheetTitle>
+          <SheetDescription>{cp.full_name}</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex flex-col gap-4 px-4 py-4">
+          <Field label={t('counterparties.name_label')} required>
+            <Input
+              value={draft.full_name}
+              onChange={(e) => setDraft((d) => ({ ...d, full_name: e.target.value }))}
+            />
+          </Field>
+          <Field label={t('counterparties.phone_label')}>
+            <Input
+              type="tel"
+              inputMode="tel"
+              value={draft.phone}
+              onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
+            />
+          </Field>
+          <Field label={t('counterparties.tg_label')}>
+            <Input
+              value={draft.tg_username}
+              placeholder="@username"
+              onChange={(e) => setDraft((d) => ({ ...d, tg_username: e.target.value }))}
+            />
+          </Field>
+          <Field label={t('counterparties.doc_type_label')}>
+            <SegmentedRow
+              value={draft.doc_type as (typeof DOC_TYPES)[number] | ''}
+              onChange={(v) => setDraft((d) => ({ ...d, doc_type: v }))}
+              allowEmpty
+              options={DOC_TYPES.map((dt) => ({
+                value: dt,
+                label: t(`purchase.doc_type.${dt}`),
+              }))}
+            />
+          </Field>
+          <Field label={t('counterparties.doc_number_label')}>
+            <Input
+              value={draft.doc_number}
+              onChange={(e) => setDraft((d) => ({ ...d, doc_number: e.target.value }))}
+            />
+          </Field>
+          <Field label={t('counterparties.documents')}>
+            <DocumentUploader
+              value={draft.doc_photos}
+              onChange={(doc_photos) => setDraft((d) => ({ ...d, doc_photos }))}
+              requestUploadUrl={requestCounterpartyUploadUrl}
+            />
+          </Field>
+          <Field label={t('counterparties.comment_label')}>
+            <Input
+              value={draft.comment}
+              onChange={(e) => setDraft((d) => ({ ...d, comment: e.target.value }))}
+            />
+          </Field>
+        </div>
+
+        <SheetFooter>
+          <Button variant="secondary" onClick={onClose} className="flex-1">
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={!draft.full_name.trim() || mut.isPending}
+            className="flex-1"
+          >
+            {t('common.save')}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
