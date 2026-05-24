@@ -64,9 +64,12 @@ test('sale wizard: device → deal → nasiya', async ({ page }) => {
   await page.screenshot({ path: 'test-results/sale-2-deal.png' });
 
   // ── Nasiya: docs auto-expand + schedule appears ────────────────────
-  await page.getByRole('button', { name: /^Nasiya$/ }).click();
-  await expect(page.getByText(/ГРАФИК NASIYA|NASIYA JADVALI/i)).toBeVisible();
-  // Submit label switches to the nasiya variant
-  await expect(page.getByRole('button', { name: /Оформить Nasiya|Nasiya rasmiylashtirish/ })).toBeVisible();
+  // RU label is «Рассрочка» (CLAUDE.md §15 — «Nasiya» only in UZ).
+  await page.getByRole('button', { name: /^Рассрочка$|^Nasiya$/ }).click();
+  await expect(page.getByText(/График рассрочки|Nasiya jadvali/i)).toBeVisible();
+  // Submit label switches to the installment variant
+  await expect(
+    page.getByRole('button', { name: /Оформить рассрочку|Nasiya rasmiylashtirish/ }),
+  ).toBeVisible();
   await page.screenshot({ path: 'test-results/sale-3-nasiya.png' });
 });
