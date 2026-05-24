@@ -98,9 +98,11 @@ function TabItem({
             className={cn(
               'relative flex items-center justify-center',
               tone && 'h-9 w-9 rounded-xl transition-colors',
-              tone === 'accent' &&
-                (isActive ? 'bg-accent text-[rgb(var(--c-on-accent))]' : 'bg-accent-faded'),
-              tone === 'success' && (isActive ? 'bg-success text-bg' : 'bg-success-faded'),
+              // Inactive money tabs keep a coloured icon (identity) but no chip
+              // fill — only the active tab gets a solid chip, so the bar isn't
+              // permanently "lit" in two places.
+              tone === 'accent' && isActive && 'bg-accent text-[rgb(var(--c-on-accent))]',
+              tone === 'success' && isActive && 'bg-success text-bg',
             )}
           >
             <Icon size={tone ? 18 : 20} strokeWidth={isActive ? 2.2 : 1.9} />

@@ -1,12 +1,10 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Controller, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors } from 'react-hook-form';
-import { ChevronDown } from 'lucide-react';
 
 import CurrencyDualInput from '@/components/CurrencyDualInput';
 import { fmtMoneyInput, moneyToNumber } from '@/lib/money';
 
-import { TextArea } from '../primitives';
+import { OptionalGroup, TextArea } from '../primitives';
 import PriceHint from '../PriceHint';
 import DateChips from '../DateChips';
 import { type FormValues } from '../types';
@@ -23,11 +21,10 @@ interface Props {
   priceResetKey: number;
 }
 
-export default function Step4Price({
+export default function PriceFields({
   control, register, setValue, values, errors, rateHints, priceResetKey,
 }: Props) {
   const { t } = useTranslation();
-  const [commentOpen, setCommentOpen] = useState(!!values.comment);
 
   const priceNum = moneyToNumber(values.price);
   const rateNum = moneyToNumber(values.exchange_rate);
@@ -68,28 +65,13 @@ export default function Step4Price({
           )}
         />
 
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setCommentOpen((o) => !o)}
-            className="flex items-center justify-between w-full text-label font-semibold text-text-dim hover:text-text transition-colors cursor-pointer"
-          >
-            <span>{t('purchase.comment_label')}</span>
-            <ChevronDown
-              size={16}
-              className={`transition-transform ${commentOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-          {commentOpen && (
-            <div className="mt-3 animate-fade-in">
-              <TextArea
-                placeholder={t('purchase.comment_placeholder')}
-                rows={2}
-                {...register('comment')}
-              />
-            </div>
-          )}
-        </div>
+        <OptionalGroup title={t('purchase.comment_label')} defaultOpen={!!values.comment}>
+          <TextArea
+            placeholder={t('purchase.comment_placeholder')}
+            rows={2}
+            {...register('comment')}
+          />
+        </OptionalGroup>
     </div>
   );
 }

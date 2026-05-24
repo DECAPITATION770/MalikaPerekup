@@ -2,27 +2,26 @@ import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 import Button from '@/components/ui/button-default';
-import { TOTAL_STEPS, type WizardStep } from './types';
+import { TOTAL_STEPS } from './types';
 
-// ─── Step header (single bar with 4 dots) ──────────────────────────────
+// Generic wizard chrome — shared by the purchase and sale wizards. Callers
+// pass their own step labels / total, so nothing here is purchase-specific.
+
+// ─── Step header (single bar, one segment per step) ────────────────────
 
 export function WizardProgress({
-  step, completed, onJump,
+  step, completed, labels, ariaLabel, onJump,
 }: {
-  step: WizardStep;
-  completed: [boolean, boolean];
-  onJump: (s: WizardStep) => void;
+  step: number;
+  completed: boolean[];
+  labels: string[];
+  ariaLabel?: string;
+  onJump: (s: number) => void;
 }) {
-  const { t } = useTranslation();
-  const labels: string[] = [
-    t('purchase.step_device'),
-    t('purchase.step_deal'),
-  ];
-
   return (
-    <ol className="flex items-stretch gap-1.5 select-none" aria-label={t('purchase.wizard_progress_aria')}>
+    <ol className="flex items-stretch gap-1.5 select-none" aria-label={ariaLabel}>
       {labels.map((label, i) => {
-        const s = i as WizardStep;
+        const s = i;
         const isCurrent = s === step;
         const isDone = completed[s];
         const isPast = s < step;
@@ -60,9 +59,10 @@ export function WizardProgress({
 // ─── Sticky footer (Back / Next or Submit) ─────────────────────────────
 
 export function WizardFooter({
-  step, canGoBack, onBack, onNext, onSubmit, submitting, submitLabel,
+  step, totalSteps, canGoBack, onBack, onNext, onSubmit, submitting, submitLabel,
 }: {
-  step: WizardStep;
+  step: number;
+  totalSteps: number;
   canGoBack: boolean;
   onBack: () => void;
   onNext: () => void;
@@ -71,7 +71,7 @@ export function WizardFooter({
   submitLabel: string;
 }) {
   const { t } = useTranslation();
-  const isLast = step === (TOTAL_STEPS - 1);
+  const isLast = step === totalSteps - 1;
 
   return (
     <div className="sticky bottom-16 md:bottom-4 z-30 card-elev shadow-2xl flex items-center gap-2 p-2.5 md:p-3">
@@ -106,9 +106,10 @@ export function WizardFooter({
 // ─── Step shell (consistent spacing across steps) ──────────────────────
 
 export function StepShell({
-  step, title, subtitle, children,
+  step, total = TOTAL_STEPS, title, subtitle, children,
 }: {
-  step: WizardStep;
+  step: number;
+  total?: number;
   title: string;
   subtitle?: string;
   children: ReactNode;
@@ -121,7 +122,7 @@ export function StepShell({
     >
       <header className="flex flex-col gap-1">
         <span className="text-caption text-text-muted font-semibold tracking-wider uppercase">
-          {step + 1} / {TOTAL_STEPS}
+          {step + 1} / {total}
         </span>
         <h2 id={`step-${step}-title`} className="text-title font-bold tracking-tight">
           {title}

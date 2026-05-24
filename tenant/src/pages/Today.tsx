@@ -12,10 +12,9 @@ import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import {
   AlertTriangle,
   ArrowUpRight,
-  BadgeDollarSign,
+  BookMarked,
   CalendarClock,
   Package,
-  Search,
   ShoppingCart,
   TrendingUp,
   Users,
@@ -216,30 +215,15 @@ export default function Today() {
         </section>
       )}
 
-      {/* Quick actions */}
+      {/* Quick actions — only destinations without a persistent slot. Buy/Sell
+          live in the bottom nav (mobile) / sidebar (desktop), Search is the
+          header icon, Nasiya is a bottom-nav tab — so they'd just duplicate
+          chrome that's always on screen. */}
       <section className="animate-fade-up" style={{ animationDelay: '240ms' }}>
         <h2 className="mb-3 text-label font-bold uppercase tracking-wider text-text-dim">
           {t('today.quick_actions')}
         </h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <QuickAction
-            to="/purchase/new"
-            icon={<ShoppingCart size={20} />}
-            label={t('today.action_purchase')}
-            tone="accent"
-          />
-          <QuickAction
-            to="/sale/new"
-            icon={<BadgeDollarSign size={20} />}
-            label={t('today.action_sale')}
-            tone="success"
-          />
-          <QuickAction
-            to="/search"
-            icon={<Search size={20} />}
-            label={t('today.action_search')}
-            tone="neutral"
-          />
+        <div className="grid grid-cols-2 gap-3">
           <QuickAction
             to="/counterparties"
             icon={<Users size={20} />}
@@ -247,9 +231,9 @@ export default function Today() {
             tone="neutral"
           />
           <QuickAction
-            to="/installments"
-            icon={<CalendarClock size={20} />}
-            label={t('nav.installments')}
+            to="/catalog"
+            icon={<BookMarked size={20} />}
+            label={t('nav.catalog')}
             tone="neutral"
           />
         </div>

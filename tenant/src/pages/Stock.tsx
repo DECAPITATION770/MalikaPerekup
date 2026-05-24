@@ -7,7 +7,7 @@
  * + EmptyStockIllustration. Mobile filter drawer is now `vaul` instead
  * of the old Modal hack.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -146,54 +146,9 @@ export default function Stock() {
     : undefined;
   const offset = Number(searchParams.get('offset') ?? '0');
 
-  const setStatus = (val: DeviceStatus | undefined) =>
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('status', val === undefined ? 'all' : val);
-        next.delete('offset');
-        return next;
-      },
-      { replace: true },
-    );
-
-  const setCategory = (val: DeviceCategory | undefined) =>
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (val) next.set('category', val);
-        else next.delete('category');
-        next.delete('offset');
-        return next;
-      },
-      { replace: true },
-    );
-
-  const setOffset = (val: number) =>
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (val) next.set('offset', String(val));
-        else next.delete('offset');
-        return next;
-      },
-      { replace: true },
-    );
-
-  const clearQ = () => {
-    setInputQ('');
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('q');
-        next.delete('offset');
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
-  // ── Extended filters: sort / condition / brand / price ──
+  // ── Filter mutations ──
+  // Every filter change also resets pagination — `patch` centralises that; the
+  // 8 near-identical setters collapse into one generic `setParam`.
   const patch = (mut: (n: URLSearchParams) => void) =>
     setSearchParams(
       (prev) => {
@@ -205,27 +160,43 @@ export default function Stock() {
       { replace: true },
     );
 
+  // Set one filter param; an empty/undefined value removes it.
+  const setParam = (key: string, val: string | undefined) =>
+    patch((n) => {
+      if (val) n.set(key, val);
+      else n.delete(key);
+    });
+
+  // Pagination is the one mutation that must NOT reset the offset.
+  const setOffset = (val: number) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (val) next.set('offset', String(val));
+        else next.delete('offset');
+        return next;
+      },
+      { replace: true },
+    );
+
   const sort = (searchParams.get('sort') as DeviceSort) || 'recent';
   const condition = (searchParams.get('condition') as DeviceCondition) || undefined;
   const brand = searchParams.get('brand') || undefined;
   const priceMin = searchParams.get('pmin') ?? '';
   const priceMax = searchParams.get('pmax') ?? '';
 
-  const setSort = (v: DeviceSort) =>
-    patch((n) => {
-      if (v === 'recent') n.delete('sort');
-      else n.set('sort', v);
-    });
-  const setCondition = (v: DeviceCondition | undefined) =>
-    patch((n) => {
-      if (v) n.set('condition', v);
-      else n.delete('condition');
-    });
-  const setBrand = (v: string | undefined) =>
-    patch((n) => {
-      if (v) n.set('brand', v);
-      else n.delete('brand');
-    });
+  const clearQ = () => {
+    setInputQ('');
+    setParam('q', undefined);
+  };
+  // 'in_stock' is the implicit default, so we persist an 'all' sentinel to mean
+  // "any status"; every other filter simply drops its param when cleared.
+  const setStatus = (val: DeviceStatus | undefined) =>
+    patch((n) => n.set('status', val ?? 'all'));
+  const setCategory = (val: DeviceCategory | undefined) => setParam('category', val);
+  const setSort = (v: DeviceSort) => setParam('sort', v === 'recent' ? undefined : v);
+  const setCondition = (v: DeviceCondition | undefined) => setParam('condition', v);
+  const setBrand = (v: string | undefined) => setParam('brand', v);
   const setPrice = (min: string, max: string) =>
     patch((n) => {
       if (min) n.set('pmin', min);
@@ -267,31 +238,24 @@ export default function Stock() {
   });
 
   const data = query.data;
-  const isFiltered = useMemo(
-    () =>
-      Boolean(debouncedQ) ||
-      status !== 'in_stock' ||
-      category !== undefined ||
-      condition !== undefined ||
-      brand !== undefined ||
-      Boolean(priceMin) ||
-      Boolean(priceMax) ||
-      sort !== 'recent',
-    [debouncedQ, status, category, condition, brand, priceMin, priceMax, sort],
-  );
+
+  // One source of truth for "is the list filtered". The chip filters feed both
+  // the drawer badge and `isFiltered`; the search query only feeds `isFiltered`
+  // (it has its own input + clear, so it stays out of the badge count).
+  const activeFilterCount = [
+    sort !== 'recent',
+    status !== 'in_stock',
+    category !== undefined,
+    condition !== undefined,
+    brand !== undefined,
+    Boolean(priceMin || priceMax),
+  ].filter(Boolean).length;
+  const isFiltered = activeFilterCount > 0 || Boolean(debouncedQ);
 
   const reset = () => {
     setInputQ('');
     setSearchParams(new URLSearchParams(), { replace: true });
   };
-
-  const activeFilterCount =
-    (status !== undefined && status !== 'in_stock' ? 1 : 0) +
-    (category !== undefined ? 1 : 0) +
-    (condition !== undefined ? 1 : 0) +
-    (brand !== undefined ? 1 : 0) +
-    (priceMin || priceMax ? 1 : 0) +
-    (sort !== 'recent' ? 1 : 0);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
 

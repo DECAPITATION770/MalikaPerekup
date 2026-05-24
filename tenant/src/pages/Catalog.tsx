@@ -35,7 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import BrandBadge from '@/components/BrandBadge';
 import DocumentUploader from '@/components/DocumentUploader';
 import SpecsForm from '@/pages/purchase/SpecsForm';
-import { CATEGORY_ICON, CategoryPicker, Field } from '@/pages/purchase/primitives';
+import { CATEGORY_ICON, CategoryPicker, Field, OptionalGroup } from '@/pages/purchase/primitives';
 import {
   createCatalogModel,
   deleteCatalogModel,
@@ -137,13 +137,13 @@ export default function Catalog() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-title font-bold tracking-tight">{t('catalog.title')}</h1>
-          {(data?.total ?? 0) > 0 && (
-            <p className="text-sm text-text-dim mt-0.5">
-              {t('catalog.total', { count: data!.total })}
-            </p>
-          )}
+          <p className="text-sm text-text-dim mt-0.5">
+            {(data?.total ?? 0) > 0
+              ? t('catalog.total', { count: data!.total })
+              : t('catalog.subtitle')}
+          </p>
         </div>
-        <Button onClick={() => setEditing({ ...EMPTY_FORM })}>
+        <Button variant="secondary" onClick={() => setEditing({ ...EMPTY_FORM })}>
           <Plus className="size-4" />
           {t('catalog.add')}
         </Button>
@@ -181,7 +181,7 @@ export default function Catalog() {
           description={t('catalog.empty_body')}
           action={
             !debouncedQ && (
-              <Button onClick={() => setEditing({ ...EMPTY_FORM })}>
+              <Button variant="secondary" onClick={() => setEditing({ ...EMPTY_FORM })}>
                 <Plus className="size-4" />
                 {t('catalog.add')}
               </Button>
@@ -305,6 +305,8 @@ function CatalogFormSheet({
   }, [form]);
 
   const valid = draft.brand.trim().length > 0 && draft.model.trim().length > 0;
+  const hasExtra =
+    Object.keys(draft.default_specs).length > 0 || draft.photos.length > 0;
 
   return (
     <Sheet open={!!form} onOpenChange={(v) => !v && onClose()}>
@@ -339,21 +341,26 @@ function CatalogFormSheet({
             </Field>
           </div>
 
-          <SpecsForm
-            category={draft.category}
-            value={draft.default_specs}
-            onChange={(default_specs) => setDraft((d) => ({ ...d, default_specs }))}
-          />
-
-          <Field label={t('catalog.photos')}>
-            <DocumentUploader
-              value={draft.photos}
-              onChange={(photos) => setDraft((d) => ({ ...d, photos }))}
-              requestUploadUrl={requestCatalogUploadUrl}
-              accept="image/*"
-              max={3}
+          <OptionalGroup
+            key={draft.id ?? 'new'}
+            defaultOpen={hasExtra}
+            bodyClassName="mt-4 flex flex-col gap-4 animate-fade-in"
+          >
+            <SpecsForm
+              category={draft.category}
+              value={draft.default_specs}
+              onChange={(default_specs) => setDraft((d) => ({ ...d, default_specs }))}
             />
-          </Field>
+            <Field label={t('catalog.photos')}>
+              <DocumentUploader
+                value={draft.photos}
+                onChange={(photos) => setDraft((d) => ({ ...d, photos }))}
+                requestUploadUrl={requestCatalogUploadUrl}
+                accept="image/*"
+                max={3}
+              />
+            </Field>
+          </OptionalGroup>
         </div>
 
         <SheetFooter>

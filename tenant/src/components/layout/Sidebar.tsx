@@ -120,7 +120,7 @@ export function Sidebar() {
                 <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
                 <span>{t(key)}</span>
                 {isActive && (
-                  <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />
                 )}
               </>
             )}

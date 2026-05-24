@@ -28,7 +28,7 @@ import { StepShell } from '../Wizard';
 import { CATEGORY_ICON, CategoryPicker, Field } from '../primitives';
 import { SuggestField } from '../SuggestField';
 import { type FormValues } from '../types';
-import Step2Device from './Step2Device';
+import DeviceFields from './DeviceFields';
 
 interface Props {
   control: Control<FormValues>;
@@ -64,17 +64,17 @@ export default function StepDevice({
   const [creating, setCreating] = useState(false);
   const [editingModel, setEditingModel] = useState(false);
 
-  const { data: lastTpl } = useQuery({
+  const { data: lastTpl, isSuccess: lastDone } = useQuery({
     queryKey: ['purchases', 'last'],
     queryFn: getLastPurchase,
     staleTime: 60_000,
   });
-  const { data: recent = [] } = useQuery({
+  const { data: recent = [], isSuccess: recentDone } = useQuery({
     queryKey: ['devices', 'recent-models'],
     queryFn: () => getRecentModels(10),
     staleTime: 60_000,
   });
-  const { data: catalogPage } = useQuery({
+  const { data: catalogPage, isSuccess: catalogDone } = useQuery({
     queryKey: ['catalog', 'wizard'],
     queryFn: () => listCatalog({ limit: 100 }),
     staleTime: 60_000,
@@ -112,6 +112,25 @@ export default function StepDevice({
   }, [myModels, debouncedQuery]);
 
   const hasModel = !!values.brand.trim() && !!values.model.trim();
+
+  // Новый магазин: каталог, история и «последняя закупка» пусты — не утыкаемся
+  // в пустой поиск, а сразу открываем форму ввода модели (бренд + модель с
+  // автоподсказками). Считаем только после того как все 3 запроса завершились,
+  // иначе действующий магазин на миг мигнёт createForm → browsePicker.
+  const isEmptyShop =
+    lastDone && recentDone && catalogDone && myModels.length === 0 && !lastTpl;
+
+  // The model picker is a 3-mode machine. Naming the mode here keeps the JSX a
+  // single lookup instead of a nested ternary:
+  //   • create — typing a brand-new model, or a brand-new shop with nothing yet
+  //   • chosen — a model is set; show the compact bar (tap «Изменить» to revisit)
+  //   • browse — search results / frequent / repeat-last / «ввести вручную»
+  const pickerMode: 'create' | 'chosen' | 'browse' =
+    creating || isEmptyShop
+      ? 'create'
+      : hasModel && !editingModel
+        ? 'chosen'
+        : 'browse';
 
   // Programmatic fills use shouldValidate:false on purpose — the zod resolver
   // validates the whole schema, so validating here would light up errors on
@@ -250,13 +269,18 @@ export default function StepDevice({
 
   const createForm = (
     <div className="card flex flex-col gap-4 p-5 md:p-6">
-      <button
-        type="button"
-        onClick={() => setCreating(false)}
-        className="flex w-fit cursor-pointer items-center gap-1.5 text-caption font-semibold text-text-dim hover:text-text"
-      >
-        <ArrowLeft size={14} /> {t('purchase.back_to_search')}
-      </button>
+      {!isEmptyShop && (
+        <button
+          type="button"
+          onClick={() => setCreating(false)}
+          className="flex w-fit cursor-pointer items-center gap-1.5 text-caption font-semibold text-text-dim hover:text-text"
+        >
+          <ArrowLeft size={14} /> {t('purchase.back_to_search')}
+        </button>
+      )}
+      {isEmptyShop && (
+        <p className="text-caption text-text-muted">{t('purchase.manual_first_hint')}</p>
+      )}
       <Field label={t('purchase.category_label')} required>
         <Controller
           control={control}
@@ -312,14 +336,14 @@ export default function StepDevice({
       title={t('purchase.step_device_title')}
       subtitle={t('purchase.step_device_subtitle')}
     >
-      {creating ? createForm : hasModel && !editingModel ? chosenBar : browsePicker}
+      {pickerMode === 'create' ? createForm : pickerMode === 'chosen' ? chosenBar : browsePicker}
 
       {hasModel && (
         <div className="flex flex-col gap-2">
           <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
             {t('purchase.device_section')}
           </div>
-          <Step2Device
+          <DeviceFields
             control={control}
             register={register}
             values={values}

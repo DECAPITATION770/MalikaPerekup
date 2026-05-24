@@ -1,13 +1,11 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Controller, type Control, type UseFormRegister, type FieldErrors } from 'react-hook-form';
-import { ChevronDown } from 'lucide-react';
 
 import Input from '@/components/ui/labeled-input';
 import DocumentUploader from '@/components/DocumentUploader';
 import { requestDeviceUploadUrl } from '@/api/devices';
 
-import { TextArea } from '../primitives';
+import { OptionalGroup, TextArea } from '../primitives';
 import { ImeiDupWarning } from '../ImeiDupWarning';
 import DefectChecklist from '../DefectChecklist';
 import SpecsForm from '../SpecsForm';
@@ -23,16 +21,14 @@ interface Props {
   onDevicePhotosChange: (next: string[]) => void;
 }
 
-export default function Step2Device({
+export default function DeviceFields({
   control, register, values, setValue, errors,
   devicePhotos, onDevicePhotosChange,
 }: Props) {
   const { t } = useTranslation();
-  // Specs — collapse by default (опциональны). Раскрыт только если уже есть данные
-  // (например пришло из «Повторить последнюю»).
+  // Specs/заметки — опциональны, под общим сворачиваемым блоком. Раскрыты, если
+  // уже есть данные (например пришло из «Повторить последнюю»).
   const hasSpecs = Object.keys(values.specs ?? {}).length > 0;
-  const [specsOpen, setSpecsOpen] = useState(hasSpecs);
-  const [notesOpen, setNotesOpen] = useState(!!values.device_notes);
 
   return (
     <div className="card p-5 md:p-6 flex flex-col gap-4">
@@ -73,34 +69,19 @@ export default function Step2Device({
           )}
         />
 
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setSpecsOpen((o) => !o)}
-            className="flex items-center justify-between w-full text-label font-semibold text-text-dim hover:text-text transition-colors cursor-pointer"
-          >
-            <span>{t('purchase.specs_section')}</span>
-            <ChevronDown
-              size={16}
-              className={`transition-transform ${specsOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-          {specsOpen && (
-            <div className="mt-4 animate-fade-in">
-              <Controller
-                control={control}
-                name="specs"
-                render={({ field }) => (
-                  <SpecsForm
-                    category={values.category}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
+        <OptionalGroup title={t('purchase.specs_section')} defaultOpen={hasSpecs}>
+          <Controller
+            control={control}
+            name="specs"
+            render={({ field }) => (
+              <SpecsForm
+                category={values.category}
+                value={field.value}
+                onChange={field.onChange}
               />
-            </div>
-          )}
-        </div>
+            )}
+          />
+        </OptionalGroup>
 
         <DocumentUploader
           label={t('purchase.device_photos_label')}
@@ -111,28 +92,16 @@ export default function Step2Device({
           accept="image/*"
         />
 
-        <div className="border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setNotesOpen((o) => !o)}
-            className="flex items-center justify-between w-full text-label font-semibold text-text-dim hover:text-text transition-colors cursor-pointer"
-          >
-            <span>{t('purchase.device_notes_label')}</span>
-            <ChevronDown
-              size={16}
-              className={`transition-transform ${notesOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-          {notesOpen && (
-            <div className="mt-3 animate-fade-in">
-              <TextArea
-                placeholder={t('purchase.device_notes_placeholder')}
-                rows={2}
-                {...register('device_notes')}
-              />
-            </div>
-          )}
-        </div>
+        <OptionalGroup
+          title={t('purchase.device_notes_label')}
+          defaultOpen={!!values.device_notes}
+        >
+          <TextArea
+            placeholder={t('purchase.device_notes_placeholder')}
+            rows={2}
+            {...register('device_notes')}
+          />
+        </OptionalGroup>
       </div>
   );
 }

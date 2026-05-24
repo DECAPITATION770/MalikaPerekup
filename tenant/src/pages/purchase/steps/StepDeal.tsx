@@ -13,8 +13,8 @@ import {
 import { StepShell } from '../Wizard';
 import { type FormValues } from '../types';
 import type { ExchangeRateHint } from '@/api/reports';
-import Step3Seller from './Step3Seller';
-import Step4Price from './Step4Price';
+import SellerFields from './SellerFields';
+import PriceFields from './PriceFields';
 
 interface Props {
   control: Control<FormValues>;
@@ -56,7 +56,7 @@ export default function StepDeal({
     >
       <div className="flex flex-col gap-2">
         <SectionLabel>{t('purchase.price_section')}</SectionLabel>
-        <Step4Price
+        <PriceFields
           control={control}
           register={register}
           setValue={setValue}
@@ -69,7 +69,7 @@ export default function StepDeal({
 
       <div className="flex flex-col gap-2">
         <SectionLabel>{t('purchase.seller_section')}</SectionLabel>
-        <Step3Seller
+        <SellerFields
           control={control}
           register={register}
           setValue={setValue}

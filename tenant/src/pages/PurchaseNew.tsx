@@ -1,6 +1,6 @@
 /**
- * PurchaseNew — 4-step purchase wizard with localStorage draft autosave,
- * "repeat last" prefill, and per-step validation.
+ * PurchaseNew — 2-step purchase wizard (Устройство → Сделка) with localStorage
+ * draft autosave, "repeat last" prefill, and per-step validation.
  *
  * Phase 3 port: legacy toast → sonner, legacy useTgBack → useTgBackButton,
  * framer-motion AnimatePresence between steps + Tg haptic on step change.
@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { createPurchase, type LastPurchaseTemplate } from '@/api/purchases';
 import { getExchangeRateHint } from '@/api/reports';
 import { fmtAmount, fmtMoneyInput, moneyToNumber, parseMoneyInput } from '@/lib/money';
-import { useTgBackButton, useTgHaptic, useTgMainButton } from '@/lib/telegram';
+import { useTelegram, useTgBackButton, useTgHaptic, useTgMainButton } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import { track } from '@/lib/analytics';
 
@@ -51,8 +51,7 @@ export default function PurchaseNew() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const haptic = useTgHaptic();
-
-  useTgBackButton(() => navigate(-1));
+  const { mainButtonMounted } = useTelegram();
 
   const [step, setStep] = useState<WizardStep>(0);
   const [shaking, setShaking] = useState(false);
@@ -271,6 +270,16 @@ export default function PurchaseNew() {
     }
   }, [step, haptic]);
 
+  // Native Telegram BackButton: step back inside the wizard first, only leave
+  // the page from step 0. Without this, hiding the footer in TG would strand
+  // the user with no way back to «Устройство».
+  useTgBackButton(
+    useCallback(() => {
+      if (step > 0) goBack();
+      else navigate(-1);
+    }, [step, goBack, navigate]),
+  );
+
   const submitLabel = (() => {
     const priceNum = moneyToNumber(price);
     if (priceNum <= 0) return t('purchase.submit');
@@ -308,7 +317,13 @@ export default function PurchaseNew() {
         </div>
       </header>
 
-      <WizardProgress step={step} completed={stepStatus} onJump={setStep} />
+      <WizardProgress
+        step={step}
+        completed={stepStatus}
+        labels={[t('purchase.step_device'), t('purchase.step_deal')]}
+        ariaLabel={t('purchase.wizard_progress_aria')}
+        onJump={(s) => setStep(s as WizardStep)}
+      />
 
       <form
         onSubmit={(e) => e.preventDefault()}
@@ -351,15 +366,21 @@ export default function PurchaseNew() {
           </motion.div>
         </AnimatePresence>
 
-        <WizardFooter
-          step={step}
-          canGoBack={step > 0}
-          onBack={goBack}
-          onNext={goNext}
-          onSubmit={onSubmit}
-          submitting={isSubmitting || mutation.isPending}
-          submitLabel={submitLabel}
-        />
+        {/* In-page footer is the fallback for web / non-Telegram. Inside TG the
+            native MainButton (next/submit) + BackButton (step back) cover it, so
+            we hide it to avoid a duplicate action bar stacked on the native one. */}
+        {!mainButtonMounted && (
+          <WizardFooter
+            step={step}
+            totalSteps={TOTAL_STEPS}
+            canGoBack={step > 0}
+            onBack={goBack}
+            onNext={goNext}
+            onSubmit={onSubmit}
+            submitting={isSubmitting || mutation.isPending}
+            submitLabel={submitLabel}
+          />
+        )}
       </form>
 
       <DraftRestoreModal

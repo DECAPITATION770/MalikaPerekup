@@ -1,16 +1,15 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Controller, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors,
 } from 'react-hook-form';
-import { Check, X, ChevronDown } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 import Input from '@/components/ui/labeled-input';
 import DocumentUploader from '@/components/DocumentUploader';
 import { requestPurchaseUploadUrl } from '@/api/purchases';
 import { type CounterpartyOut } from '@/api/counterparties';
 
-import { Field, SegmentedRow } from '../primitives';
+import { Field, OptionalGroup, SegmentedRow } from '../primitives';
 import { SellerSearch } from '../SellerSearch';
 import { DOC_TYPES, type FormValues } from '../types';
 
@@ -24,14 +23,11 @@ interface Props {
   onSellerPhotosChange: (next: string[]) => void;
 }
 
-export default function Step3Seller({
+export default function SellerFields({
   control, register, setValue, values, errors,
   sellerPhotos, onSellerPhotosChange,
 }: Props) {
   const { t } = useTranslation();
-  const [docsOpen, setDocsOpen] = useState(
-    !!(values.seller_doc_number || values.seller_tg || sellerPhotos.length > 0),
-  );
 
   const onPickCounterparty = (cp: CounterpartyOut) => {
     setValue('counterparty_id', cp.id, { shouldValidate: true });
@@ -91,60 +87,49 @@ export default function Step3Seller({
               {...register('seller_phone')}
             />
 
-            <div className="border-t border-border pt-3">
-              <button
-                type="button"
-                onClick={() => setDocsOpen((o) => !o)}
-                className="flex items-center justify-between w-full text-label font-semibold text-text-dim hover:text-text transition-colors cursor-pointer"
-              >
-                <span>{t('purchase.seller_details_optional')}</span>
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform ${docsOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-              {docsOpen && (
-                <div className="mt-4 flex flex-col gap-4 animate-fade-in">
-                  <Input
-                    label={t('purchase.seller_tg_label')}
-                    placeholder={t('purchase.seller_tg_placeholder')}
-                    autoComplete="off"
-                    {...register('seller_tg')}
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label={t('purchase.seller_doc_type_label')}>
-                      <Controller
-                        control={control}
-                        name="seller_doc_type"
-                        render={({ field }) => (
-                          <SegmentedRow
-                            value={field.value || ''}
-                            onChange={field.onChange}
-                            allowEmpty
-                            options={DOC_TYPES.map((d) => ({
-                              value: d, label: t(`purchase.doc_type.${d}`),
-                            }))}
-                          />
-                        )}
+            <OptionalGroup
+              title={t('purchase.seller_details_optional')}
+              defaultOpen={!!(values.seller_doc_number || values.seller_tg || sellerPhotos.length > 0)}
+              bodyClassName="mt-4 flex flex-col gap-4 animate-fade-in"
+            >
+              <Input
+                label={t('purchase.seller_tg_label')}
+                placeholder={t('purchase.seller_tg_placeholder')}
+                autoComplete="off"
+                {...register('seller_tg')}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label={t('purchase.seller_doc_type_label')}>
+                  <Controller
+                    control={control}
+                    name="seller_doc_type"
+                    render={({ field }) => (
+                      <SegmentedRow
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        allowEmpty
+                        options={DOC_TYPES.map((d) => ({
+                          value: d, label: t(`purchase.doc_type.${d}`),
+                        }))}
                       />
-                    </Field>
-                    <Input
-                      label={t('purchase.seller_doc_number_label')}
-                      placeholder={t('purchase.seller_doc_number_placeholder')}
-                      error={errors.seller_doc_number?.message}
-                      autoComplete="off"
-                      {...register('seller_doc_number')}
-                    />
-                  </div>
-                  <DocumentUploader
-                    label={t('purchase.seller_photos_label')}
-                    value={sellerPhotos}
-                    onChange={onSellerPhotosChange}
-                    requestUploadUrl={requestPurchaseUploadUrl}
+                    )}
                   />
-                </div>
-              )}
-            </div>
+                </Field>
+                <Input
+                  label={t('purchase.seller_doc_number_label')}
+                  placeholder={t('purchase.seller_doc_number_placeholder')}
+                  error={errors.seller_doc_number?.message}
+                  autoComplete="off"
+                  {...register('seller_doc_number')}
+                />
+              </div>
+              <DocumentUploader
+                label={t('purchase.seller_photos_label')}
+                value={sellerPhotos}
+                onChange={onSellerPhotosChange}
+                requestUploadUrl={requestPurchaseUploadUrl}
+              />
+            </OptionalGroup>
           </>
         )}
     </div>

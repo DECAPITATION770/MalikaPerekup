@@ -1,8 +1,8 @@
-import { forwardRef, type TextareaHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useState, type TextareaHTMLAttributes, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Smartphone, Tablet, Laptop, Watch, Headphones, Package as PackageIcon,
-  Check, type LucideIcon,
+  Check, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import type { DeviceCategory } from '@/api/devices';
 import { CATEGORIES } from './types';
@@ -71,6 +71,37 @@ export function Field({ label, required, children }: { label: string; required?:
         {required && <span className="text-danger" aria-hidden="true">*</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+// ─── Optional collapse («Можно заполнить позже») ─────────────────────────
+//
+// Shared collapsible block for non-required fields — one consistent «надо /
+// можно потом» pattern across закупка/продажа/номенклатура. ``defaultOpen``
+// keeps the «раскрыто, если уже есть данные» behaviour each site relied on.
+
+export function OptionalGroup({
+  title, defaultOpen = false, bodyClassName = 'mt-4 animate-fade-in', children,
+}: {
+  title?: string;
+  defaultOpen?: boolean;
+  bodyClassName?: string;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-border pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center justify-between w-full text-label font-semibold text-text-dim hover:text-text transition-colors cursor-pointer"
+      >
+        <span>{title ?? t('common.optional_later')}</span>
+        <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className={bodyClassName}>{children}</div>}
     </div>
   );
 }

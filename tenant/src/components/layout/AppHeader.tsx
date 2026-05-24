@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import {
   BadgeDollarSign,
   BarChart3,
+  BookMarked,
   Globe,
   MoreHorizontal,
   Search,
@@ -17,13 +18,18 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { MalikaWordmark } from '@/components/brand/MalikaWordmark';
 import { useTgHaptic } from '@/lib/telegram';
 
-/** Items that don't earn a bottom-nav slot but must stay reachable. */
-const MENU = [
+/** Items that don't earn a bottom-nav slot but must stay reachable. Grouped
+ *  the same way as the desktop sidebar: live destinations, then «Архив». */
+const MENU_PRIMARY = [
+  { to: '/catalog', icon: BookMarked, key: 'nav.catalog' },
   { to: '/counterparties', icon: Users, key: 'nav.counterparties' },
   { to: '/reports', icon: BarChart3, key: 'nav.reports' },
+  { to: '/settings', icon: SettingsIcon, key: 'nav.settings' },
+] as const;
+
+const MENU_ARCHIVE = [
   { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
   { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
-  { to: '/settings', icon: SettingsIcon, key: 'nav.settings' },
 ] as const;
 
 /** Slim mobile top bar: brand + global search + overflow menu. Frees the
@@ -93,7 +99,7 @@ export function AppHeader() {
             <DrawerTitle>{t('common.menu')}</DrawerTitle>
           </DrawerHeader>
           <div className="flex flex-col gap-0.5 px-3 pb-6">
-            {MENU.map(({ to, icon: Icon, key }) => (
+            {MENU_PRIMARY.map(({ to, icon: Icon, key }) => (
               <button
                 key={to}
                 type="button"
@@ -104,6 +110,22 @@ export function AppHeader() {
                 {t(key)}
               </button>
             ))}
+
+            <div className="px-3 pb-1 pt-4 text-micro font-semibold uppercase tracking-wider text-text-muted">
+              {t('nav.archive')}
+            </div>
+            {MENU_ARCHIVE.map(({ to, icon: Icon, key }) => (
+              <button
+                key={to}
+                type="button"
+                onClick={() => go(to)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-body font-semibold text-text-dim transition-colors hover:bg-bg3 hover:text-text active:bg-bg3"
+              >
+                <Icon size={18} strokeWidth={1.8} />
+                {t(key)}
+              </button>
+            ))}
+
             <div className="mx-3 my-1.5 h-px bg-border" />
             <button
               type="button"

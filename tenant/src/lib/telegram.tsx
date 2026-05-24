@@ -46,22 +46,31 @@ export function isTelegramEnvironment(): boolean {
 interface TgState {
   ready: boolean;
   inTelegram: boolean;
+  /** True only once the native MainButton actually mounted — gate for hiding
+   *  in-page submit buttons so a flaky webview never strands the user. */
+  mainButtonMounted: boolean;
   error: string | null;
 }
 
-const TgContext = createContext<TgState>({ ready: false, inTelegram: false, error: null });
+const TgContext = createContext<TgState>({
+  ready: false,
+  inTelegram: false,
+  mainButtonMounted: false,
+  error: null,
+});
 
 export function TelegramProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<TgState>({
     ready: false,
     inTelegram: false,
+    mainButtonMounted: false,
     error: null,
   });
 
   useEffect(() => {
     const inTg = isTelegramEnvironment();
     if (!inTg) {
-      setState({ ready: true, inTelegram: false, error: null });
+      setState({ ready: true, inTelegram: false, mainButtonMounted: false, error: null });
       return;
     }
     try {
@@ -82,11 +91,17 @@ export function TelegramProvider({ children }: PropsWithChildren) {
       // Expand to full height by default — perekupshchik needs the screen.
       if (viewport.expand.isAvailable()) viewport.expand();
 
-      setState({ ready: true, inTelegram: true, error: null });
+      setState({
+        ready: true,
+        inTelegram: true,
+        mainButtonMounted: mainButton.isMounted?.() ?? false,
+        error: null,
+      });
     } catch (err) {
       setState({
         ready: true,
         inTelegram: false,
+        mainButtonMounted: false,
         error: err instanceof Error ? err.message : String(err),
       });
     }
