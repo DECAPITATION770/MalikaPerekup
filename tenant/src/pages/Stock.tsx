@@ -12,6 +12,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
+  ChevronDown,
   ChevronRight,
   Headphones,
   Laptop,
@@ -258,6 +259,9 @@ export default function Stock() {
   };
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Desktop filter panel is collapsed by default — search stays, the chip grid
+  // hides behind a «Фильтры» toggle so the Stock view isn't cluttered on load.
+  const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(false);
 
   return (
     <div className="flex animate-fade-up flex-col gap-6">
@@ -365,57 +369,115 @@ export default function Stock() {
         </div>
       )}
 
-      {/* Desktop: inline filter chips */}
+      {/* Desktop: search + collapsible filter panel */}
       <section
         className="card hidden animate-fade-up flex-col gap-3 p-4 md:flex"
         style={{ animationDelay: '60ms' }}
       >
-        <div className="relative">
-          <SearchIcon
-            size={16}
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
-          />
-          <Input
-            value={inputQ}
-            onChange={(e) => setInputQ(e.target.value)}
-            placeholder={t('stock.search_placeholder')}
-            spellCheck={false}
-            className="h-11 pl-10 pr-10"
-          />
-          {inputQ && (
-            <button
-              onClick={clearQ}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text"
-            >
-              <X size={14} />
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <SearchIcon
+              size={16}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
+            />
+            <Input
+              value={inputQ}
+              onChange={(e) => setInputQ(e.target.value)}
+              placeholder={t('stock.search_placeholder')}
+              spellCheck={false}
+              className="h-11 pl-10 pr-10"
+            />
+            {inputQ && (
+              <button
+                onClick={clearQ}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setDesktopFiltersOpen((o) => !o)}
+            aria-expanded={desktopFiltersOpen}
+            className="relative flex h-11 shrink-0 items-center gap-2 rounded-xl border border-border bg-bg2 px-4 text-label font-semibold text-text-dim transition-colors hover:border-border-strong hover:text-text"
+          >
+            <SlidersHorizontal size={16} />
+            {t('stock.filters_title')}
+            {activeFilterCount > 0 && (
+              <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold tabular-nums text-[rgb(var(--c-on-accent))]">
+                {activeFilterCount}
+              </span>
+            )}
+            <ChevronDown
+              size={16}
+              className={cn('transition-transform', desktopFiltersOpen && 'rotate-180')}
+            />
+          </button>
         </div>
 
-        <FilterControls
-          sort={sort}
-          setSort={setSort}
-          status={status}
-          setStatus={setStatus}
-          category={category}
-          setCategory={setCategory}
-          condition={condition}
-          setCondition={setCondition}
-          brand={brand}
-          setBrand={setBrand}
-          brandOptions={brandOptions}
-          priceMin={priceMin}
-          priceMax={priceMax}
-          setPrice={setPrice}
-        />
-        {isFiltered && (
-          <button
-            onClick={reset}
-            className="flex cursor-pointer items-center gap-1 self-start text-xs text-text-muted transition-colors hover:text-text"
-          >
-            <X size={12} /> {t('stock.filter_reset')}
-          </button>
+        {/* Active filters stay visible when the panel is collapsed. */}
+        {!desktopFiltersOpen && isFiltered && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {sort !== 'recent' && (
+              <ActiveFilterChip label={t(`stock.sort_${sort}`)} onClear={() => setSort('recent')} />
+            )}
+            {status !== 'in_stock' && (
+              <ActiveFilterChip
+                label={status === undefined ? t('stock.filter_all_status') : t(`status.${status}`)}
+                onClear={() => setStatus('in_stock')}
+              />
+            )}
+            {category && (
+              <ActiveFilterChip
+                label={t(`category.${category}`)}
+                onClear={() => setCategory(undefined)}
+              />
+            )}
+            {condition && (
+              <ActiveFilterChip
+                label={t(`condition.${condition}`)}
+                onClear={() => setCondition(undefined)}
+              />
+            )}
+            {brand && <ActiveFilterChip label={brand} onClear={() => setBrand(undefined)} />}
+            {(priceMin || priceMax) && (
+              <ActiveFilterChip
+                label={priceRangeLabel(t, priceMin, priceMax)}
+                onClear={() => setPrice('', '')}
+              />
+            )}
+          </div>
+        )}
+
+        {desktopFiltersOpen && (
+          <>
+            <FilterControls
+              sort={sort}
+              setSort={setSort}
+              status={status}
+              setStatus={setStatus}
+              category={category}
+              setCategory={setCategory}
+              condition={condition}
+              setCondition={setCondition}
+              brand={brand}
+              setBrand={setBrand}
+              brandOptions={brandOptions}
+              priceMin={priceMin}
+              priceMax={priceMax}
+              setPrice={setPrice}
+            />
+            {isFiltered && (
+              <button
+                onClick={reset}
+                className="flex cursor-pointer items-center gap-1 self-start text-xs text-text-muted transition-colors hover:text-text"
+              >
+                <X size={12} /> {t('stock.filter_reset')}
+              </button>
+            )}
+          </>
         )}
       </section>
 
