@@ -91,15 +91,24 @@ async def create_plan(
         period_count=plan.period_count,
     )
 
+    # The down payment (row 0) is collected upfront at the deal, so it is
+    # recorded as paid immediately — it must never sit in the buyer's remaining
+    # debt or show up as a pending/overdue payment.
+    now = now_utc()
     payments = [
         InstallmentPayment(
             plan_id=plan.id,
             sequence=entry.sequence,
             due_date=entry.due_date,
             amount_due=entry.amount,
-            amount_paid=Decimal("0"),
-            status=PaymentStatus.PENDING.value,
+            amount_paid=entry.amount if entry.sequence == 0 else Decimal("0"),
+            status=(
+                PaymentStatus.PAID.value
+                if entry.sequence == 0
+                else PaymentStatus.PENDING.value
+            ),
             kind=PaymentKind.REGULAR.value,
+            paid_at=now if entry.sequence == 0 else None,
         )
         for entry in entries
     ]

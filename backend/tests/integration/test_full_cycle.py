@@ -180,12 +180,16 @@ async def test_nasiya_partial_then_early_payoff(db, shop_with_owner):
     assert len(payments) == 5
     assert sum(p.amount_due for p in payments) == Decimal("1500000")
 
-    # Partial payment: 200 000 against the down (500 000).
+    # The down payment (500 000) is collected at the deal → already counted as
+    # paid, so the buyer's remaining debt is only the financed part.
+    assert sum(p.amount_due - p.amount_paid for p in payments) == Decimal("1000000")
+
+    # A 200 000 payment lands on the first monthly row.
     await plan_service.record_payment(
         db, plan, amount=Decimal("200000"), paid_at=now_utc()
     )
     remaining_after_partial = sum(p.amount_due - p.amount_paid for p in payments)
-    assert remaining_after_partial == Decimal("1300000")
+    assert remaining_after_partial == Decimal("800000")
 
     # Early payoff closes everything.
     await plan_service.early_payoff(db, plan, paid_at=now_utc())
