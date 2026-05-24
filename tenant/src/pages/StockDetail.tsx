@@ -666,7 +666,17 @@ function TimelineRow({ e }: { e: TimelineEvent }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-label font-semibold tracking-tight">
-          {cfg.label} · <span className="font-normal text-text-dim">{e.party}</span>
+          {cfg.label} ·{' '}
+          {e.ref.counterparty_id ? (
+            <Link
+              to={`/counterparties/${e.ref.counterparty_id}`}
+              className="font-normal text-accent hover:underline"
+            >
+              {e.party}
+            </Link>
+          ) : (
+            <span className="font-normal text-text-dim">{e.party}</span>
+          )}
         </div>
         <div className="text-caption text-text-muted">{fmtDate(e.date)}</div>
       </div>
