@@ -272,12 +272,30 @@ function PlanCard({ plan }: { plan: PlanOut }) {
     <div className={cn('card flex flex-col gap-3 p-4', isOverdue && 'border-danger/30')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-body-lg font-bold tracking-tight">
-            {plan.buyer_name || t('installments.debtor')}
-          </div>
-          <div className="mt-0.5 text-hint text-text-muted">
-            {t('installments.sale_id', { id: plan.sale_id })}
-          </div>
+          {plan.counterparty_id ? (
+            <Link
+              to={`/counterparties/${plan.counterparty_id}`}
+              className="block truncate text-body-lg font-bold tracking-tight transition-colors hover:text-accent"
+            >
+              {plan.buyer_name || t('installments.debtor')}
+            </Link>
+          ) : (
+            <div className="truncate text-body-lg font-bold tracking-tight">
+              {plan.buyer_name || t('installments.debtor')}
+            </div>
+          )}
+          {plan.device_brand || plan.device_model ? (
+            <Link
+              to={plan.device_id ? `/stock/${plan.device_id}` : '#'}
+              className="mt-0.5 block truncate text-hint text-text-muted transition-colors hover:text-text"
+            >
+              {[plan.device_brand, plan.device_model].filter(Boolean).join(' ')}
+            </Link>
+          ) : (
+            <div className="mt-0.5 text-hint text-text-muted">
+              {t('installments.sale_id', { id: plan.sale_id })}
+            </div>
+          )}
         </div>
         <Badge variant={STATUS_VARIANT[plan.status]}>
           {t(`installments.status_${plan.status}`)}

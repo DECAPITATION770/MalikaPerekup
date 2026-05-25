@@ -91,6 +91,13 @@ class PlanOut(BaseModel):
     buyer_phone: str | None = None
     buyer_tg_username: str | None = None
 
+    # Device being paid off + the debtor's directory id — joined from the sale
+    # so the plan card can show «iPhone 14» and link to the buyer's profile.
+    device_id: int | None = None
+    device_brand: str | None = None
+    device_model: str | None = None
+    counterparty_id: int | None = None
+
     # Aggregate payment progress, joined on the list endpoint so the Mini
     # App can render "осталось X из Y · K из N платежей" without an N+1.
     # Optional for the same reason as buyer_* — bare model_validate stays cheap.

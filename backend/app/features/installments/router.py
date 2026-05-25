@@ -113,10 +113,15 @@ async def list_plans(
                     "paid_amount": paid_amount,
                     "paid_count": paid_count,
                     "payments_count": payments_count,
+                    "device_id": device_id,
+                    "device_brand": device_brand,
+                    "device_model": device_model,
+                    "counterparty_id": counterparty_id,
                 }
             )
             for (plan, buyer_name, buyer_phone, buyer_tg_username,
-                 paid_amount, paid_count, payments_count) in rows
+                 paid_amount, paid_count, payments_count,
+                 device_id, device_brand, device_model, counterparty_id) in rows
         ],
         total=total,
         params=params,

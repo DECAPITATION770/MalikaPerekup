@@ -113,7 +113,7 @@ async def test_search_plans_carries_buyer_contact(db):
 
     assert total == 1
     assert len(rows) == 1
-    got_plan, buyer_name, buyer_phone, buyer_tg, _paid, _paid_n, _total_n = rows[0]
+    got_plan, buyer_name, buyer_phone, buyer_tg, _paid, _paid_n, _total_n, *_ = rows[0]
     assert got_plan.id == plan.id
     assert buyer_name == "Алишер Усманов"
     assert buyer_phone == "+998901112233"
@@ -135,7 +135,7 @@ async def test_walkin_buyer_has_no_tg_handle(db):
         db, shop_id=shop.id, status=None, limit=50, offset=0
     )
 
-    _, buyer_name, buyer_phone, buyer_tg, _paid, _paid_n, _total_n = rows[0]
+    _, buyer_name, buyer_phone, buyer_tg, _paid, _paid_n, _total_n, *_ = rows[0]
     assert buyer_name == "Прохожий"
     assert buyer_phone == "+998900000000"
     assert buyer_tg is None

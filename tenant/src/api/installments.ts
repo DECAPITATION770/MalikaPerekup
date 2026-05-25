@@ -23,6 +23,12 @@ export interface PlanOut {
   buyer_phone: string | null;
   buyer_tg_username: string | null;
 
+  // Device being paid off + debtor directory id (list endpoint only)
+  device_id: number | null;
+  device_brand: string | null;
+  device_model: string | null;
+  counterparty_id: number | null;
+
   // Aggregate payment progress (list endpoint only — null on single-plan)
   paid_amount: string | null;
   paid_count: number | null;

@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.counterparties.models import Counterparty
+from app.features.devices.models import Device
 from app.features.installments.models import (
     InstallmentPayment,
     InstallmentPlan,
@@ -65,14 +66,15 @@ async def search_plans(
     offset: int,
 ) -> tuple[
     list[tuple[InstallmentPlan, str | None, str | None, str | None,
-               Decimal, int, int]],
+               Decimal, int, int, int | None, str | None, str | None, int | None]],
     int,
 ]:
     """List a shop's plans, paired with debtor contact + payment progress.
 
     Returns rows of ``(plan, buyer_name, buyer_phone, buyer_tg_username,
-    paid_amount, paid_count, payments_count)``. The progress aggregate is
-    a per-plan correlated subquery so the result is a single round-trip.
+    paid_amount, paid_count, payments_count, device_id, device_brand,
+    device_model, counterparty_id)``. The progress aggregate is a per-plan
+    correlated subquery so the result is a single round-trip.
     """
     # Per-plan aggregates over InstallmentPayment — correlated subqueries
     # keep the row shape one-per-plan even when payments are many.
@@ -109,9 +111,14 @@ async def search_plans(
             paid_amount_sq.label("paid_amount"),
             paid_count_sq.label("paid_count"),
             payments_count_sq.label("payments_count"),
+            Sale.device_id,
+            Device.brand,
+            Device.model,
+            Sale.counterparty_id,
         )
         .join(Sale, Sale.id == InstallmentPlan.sale_id)
         .outerjoin(Counterparty, Counterparty.id == Sale.counterparty_id)
+        .outerjoin(Device, Device.id == Sale.device_id)
         .where(InstallmentPlan.shop_id == shop_id)
     )
     if status:
@@ -131,7 +138,7 @@ async def search_plans(
             .offset(offset)
         )
     ).all()
-    return [(r[0], r[1], r[2], r[3], r[4], r[5], r[6]) for r in rows], total
+    return [tuple(r) for r in rows], total
 
 
 async def list_due_today_or_overdue(
