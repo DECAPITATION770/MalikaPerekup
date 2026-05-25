@@ -2,21 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  Send,
-  User as UserIcon,
-} from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, Send, User as UserIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MalikaWordmark } from '@/components/brand/MalikaWordmark';
@@ -24,7 +16,6 @@ import { MalikaLogo } from '@/components/icons/MalikaLogo';
 import { useAuth } from '@/store/auth';
 import { useTgHaptic } from '@/lib/telegram';
 import { getMe, loginPassword, loginTelegram } from '@/api/auth';
-import { cn } from '@/lib/utils';
 
 declare global {
   interface Window {
@@ -183,7 +174,6 @@ export default function Login() {
   const hasTg = Boolean(window.Telegram?.WebApp?.initData);
   const manualLogout = localStorage.getItem('tenant_manual_logout') === '1';
 
-  const [passOpen, setPassOpen] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
   const [tgError, setTgError] = useState('');
   const [tgTimedOut, setTgTimedOut] = useState(false);
@@ -196,15 +186,19 @@ export default function Login() {
     setAuth(accessToken, me);
   };
 
-  const doTgLogin = async () => {
+  const doTgLogin = async (explicit = false) => {
     const initData = window.Telegram?.WebApp?.initData;
     if (!initData) return;
+    // An explicit «Войти через Telegram» tap overrides a prior manual logout;
+    // the silent auto-login (explicit=false) still honours it.
+    if (explicit) localStorage.removeItem('tenant_manual_logout');
     abortedRef.current = false;
     setTgError('');
     setTgLoading(true);
     try {
       const { access_token } = await loginTelegram(initData);
-      if (abortedRef.current || localStorage.getItem('tenant_manual_logout') === '1') return;
+      if (!explicit && (abortedRef.current || localStorage.getItem('tenant_manual_logout') === '1'))
+        return;
       haptic.notify('success');
       await handleSuccess(access_token);
     } catch (e) {
@@ -246,71 +240,9 @@ export default function Login() {
     );
   }
 
-  // ── State B: in TG but user logged out — show TG btn + collapsible password
-  if (hasTg && manualLogout) {
-    return (
-      <div className="min-h-dvh bg-bg flex items-center justify-center p-4 hero-mesh">
-        <div className="w-full max-w-sm">
-          <Brand />
-          <Card className="card-elev overflow-hidden animate-fade-up" style={{ animationDelay: '60ms' }}>
-            <div className="p-5 flex flex-col gap-3">
-              <Button onClick={doTgLogin} full size="lg" loading={tgLoading}>
-                <Send className="size-4" /> {t('login.tab_telegram')}
-              </Button>
-              <AnimatePresence>
-                {tgError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    role="alert"
-                    className="text-sm text-danger bg-danger-faded border border-danger/40 rounded-xl px-4 py-3"
-                  >
-                    {tgError}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="border-t border-border">
-              <button
-                type="button"
-                onClick={() => setPassOpen((o) => !o)}
-                aria-expanded={passOpen}
-                className="w-full flex items-center justify-between px-5 py-3.5 text-sm font-semibold text-text-dim hover:text-text transition-colors cursor-pointer"
-              >
-                {t('login.tab_password')}
-                <ChevronDown
-                  size={16}
-                  className={cn(
-                    'transition-transform duration-200 shrink-0',
-                    passOpen && 'rotate-180',
-                  )}
-                />
-              </button>
-              <AnimatePresence initial={false}>
-                {passOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-                    className="overflow-hidden"
-                  >
-                    <CardContent className="px-5 pb-5 pt-0">
-                      <PasswordForm onSuccess={handleSuccess} />
-                    </CardContent>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // ── State C: plain web (or TG auto-login timed out) — password only
+  // ── Login card: familiar login/password form + «Войти через Telegram» ──
+  // Shown after a manual logout, on TG auto-login timeout, or in a plain
+  // browser. The Telegram button only appears when initData is available.
   return (
     <div className="min-h-dvh bg-bg flex items-center justify-center p-4 hero-mesh">
       <div className="w-full max-w-sm">
@@ -325,6 +257,25 @@ export default function Login() {
             </div>
           )}
           <PasswordForm onSuccess={handleSuccess} />
+          {hasTg && (
+            <>
+              <div className="my-4 flex items-center gap-3 text-caption text-text-muted">
+                <span className="h-px flex-1 bg-border" />
+                {t('login.or')}
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                full
+                size="lg"
+                onClick={() => doTgLogin(true)}
+                loading={tgLoading}
+              >
+                <Send className="size-4" /> {t('login.tab_telegram')}
+              </Button>
+            </>
+          )}
         </Card>
       </div>
     </div>

@@ -87,6 +87,7 @@
     "tab_password": "Войти по логину и паролю",
     "tg_loading": "Авторизация через Telegram…",
     "fallback_to_password": "Войти по паролю",
+    "or": "или",
     "show_password": "Показать пароль",
     "hide_password": "Скрыть пароль",
     "min_login": "Минимум 3 символа",

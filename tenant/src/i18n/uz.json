@@ -87,6 +87,7 @@
     "tab_password": "Login va parol orqali kirish",
     "tg_loading": "Telegram orqali tekshirilmoqda…",
     "fallback_to_password": "Parol bilan kirish",
+    "or": "yoki",
     "show_password": "Parolni ko'rsatish",
     "hide_password": "Parolni yashirish",
     "min_login": "Kamida 3 ta belgi",
