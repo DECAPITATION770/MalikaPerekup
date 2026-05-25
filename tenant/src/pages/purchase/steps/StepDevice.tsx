@@ -46,7 +46,6 @@ type UnifiedModel =
   | { kind: 'catalog'; item: CatalogModelOut }
   | { kind: 'recent'; item: RecentModelOut };
 
-const FREQUENT_COUNT = 4;
 
 export default function StepDevice({
   control,
@@ -187,8 +186,6 @@ export default function StepDevice({
     );
   };
 
-  const frequent = myModels.slice(0, FREQUENT_COUNT);
-
   const browsePicker = (
     <div className="flex flex-col gap-4">
       <div className="relative">
@@ -244,15 +241,6 @@ export default function StepDevice({
               </div>
               <ChevronRight size={16} className="shrink-0 text-text-muted" />
             </button>
-          )}
-
-          {frequent.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
-                {t('purchase.frequent')}
-              </div>
-              <div className="grid grid-cols-2 gap-2">{frequent.map(renderModelCard)}</div>
-            </div>
           )}
 
           <button
