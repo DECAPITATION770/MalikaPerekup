@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, BadgeDollarSign, Check } from 'lucide-react';
@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import Button from '@/components/ui/button-default';
 import { createSale, createInstallmentPlan } from '@/api/sales';
 import { getExchangeRateHint } from '@/api/reports';
-import type { DeviceWithPurchaseOut } from '@/api/devices';
+import { getDevice, type DeviceWithPurchaseOut } from '@/api/devices';
 import type { CounterpartyOut } from '@/api/counterparties';
 import { parseMoneyInput } from '@/lib/money';
 import { useTelegram, useTgBackButton, useTgHaptic, useTgMainButton } from '@/lib/telegram';
@@ -97,6 +97,30 @@ export default function SaleNew() {
     queryFn: getExchangeRateHint,
     staleTime: 5 * 60_000,
   });
+
+  // Pre-select a device when arriving from its card («Продать этот аппарат»):
+  // fetch it, jump straight to «Сделка». An explicit choice wins over a draft.
+  const location = useLocation();
+  const preselectId = (location.state as { deviceId?: number } | null)?.deviceId ?? null;
+  const { data: preDevice } = useQuery({
+    queryKey: ['device', preselectId],
+    queryFn: () => getDevice(preselectId!),
+    enabled: !!preselectId,
+  });
+  useEffect(() => {
+    if (!preDevice) return;
+    setSelectedDevice({
+      ...preDevice,
+      purchase_price_uzs: null,
+      purchase_date: null,
+      days_in_stock: null,
+      photo_url: null,
+    });
+    setValue('device_id', preDevice.id, { shouldValidate: true });
+    setStep(1);
+    setDraftPrompt(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preDevice]);
 
   // Draft restore (mount once).
   useEffect(() => {

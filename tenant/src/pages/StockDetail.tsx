@@ -5,7 +5,7 @@
  * QR-стикера», copy-token fallback.
  */
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -121,6 +121,7 @@ export default function StockDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
 
@@ -148,16 +149,25 @@ export default function StockDetail() {
     retry: false,
   });
 
-  // Tg MainButton → open QR sticker print dialog.
+  // Tg MainButton → sell this device (the frequent action); QR print is the
+  // primary only for devices that aren't in stock anymore.
   useTgMainButton(
     query.data
-      ? {
-          text: t('stock.detail_qr_print'),
-          onClick: () => {
-            haptic.tap('medium');
-            setQrOpen(true);
-          },
-        }
+      ? query.data.status === 'in_stock'
+        ? {
+            text: t('stock.sell_this'),
+            onClick: () => {
+              haptic.select();
+              navigate('/sale/new', { state: { deviceId: query.data!.id } });
+            },
+          }
+        : {
+            text: t('stock.detail_qr_print'),
+            onClick: () => {
+              haptic.tap('medium');
+              setQrOpen(true);
+            },
+          }
       : null,
   );
 
@@ -258,6 +268,21 @@ export default function StockDetail() {
           </div>
         </div>
       </div>
+
+      {/* Primary action — sell this device (web / non-TG fallback) */}
+      {d.status === 'in_stock' && (
+        <Link
+          to="/sale/new"
+          state={{ deviceId: d.id }}
+          onClick={() => haptic.select()}
+          className="md:self-start"
+        >
+          <Button size="lg" className="w-full md:w-auto">
+            <BadgeDollarSign className="size-4" />
+            {t('stock.sell_this')}
+          </Button>
+        </Link>
+      )}
 
       {/* Key facts */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
