@@ -15,6 +15,8 @@ import {
   Search,
   LogOut,
   Globe,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -31,7 +33,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MalikaWordmark } from '@/components/brand/MalikaWordmark';
 import { useAuth } from '@/store/auth';
 import { cn } from '@/lib/utils';
-import { useTheme, THEME_ICON } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 
 interface NavSpec {
   to: string;
@@ -59,8 +61,11 @@ const NAV_ARCHIVE: readonly NavSpec[] = [
 export function Sidebar() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
-  const { pref: themePref, cycle: cycleTheme } = useTheme();
-  const ThemeIcon = THEME_ICON[themePref];
+  const { pref: themePref, resolved: themeResolved, cycle: cycleTheme } = useTheme();
+  // The sidebar cycler mirrors the header button: the icon reflects the
+  // *applied* colour (Sun for light, Moon for dark). The Monitor preset
+  // still lives in the Settings 3-state picker via THEME_ICON.
+  const ThemeIcon = themeResolved === 'dark' ? Moon : Sun;
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const initials =
