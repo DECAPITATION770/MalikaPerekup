@@ -23,7 +23,8 @@ PRESIGNED_URL_TTL = timedelta(minutes=15)
 
 @lru_cache
 def _client() -> Minio:
-    """Return a singleton MinIO client."""
+    """Singleton MinIO client used for server-side ops (upload/delete) —
+    talks to the storage over the *internal* endpoint."""
     settings = get_settings()
     return Minio(
         endpoint=settings.s3_endpoint,
@@ -31,6 +32,27 @@ def _client() -> Minio:
         secret_key=settings.s3_secret_key,
         region=settings.s3_region,
         secure=settings.s3_secure,
+    )
+
+
+@lru_cache
+def _public_client() -> Minio:
+    """MinIO client whose signatures are bound to the *public* endpoint —
+    the host the browser can actually reach. Falls back to the internal
+    endpoint when no public override is configured (single-host prod)."""
+    settings = get_settings()
+    if not settings.s3_public_endpoint:
+        return _client()
+    return Minio(
+        endpoint=settings.s3_public_endpoint,
+        access_key=settings.s3_access_key,
+        secret_key=settings.s3_secret_key,
+        region=settings.s3_region,
+        secure=(
+            settings.s3_public_secure
+            if settings.s3_public_secure is not None
+            else settings.s3_secure
+        ),
     )
 
 
@@ -63,7 +85,7 @@ def upload(key: str, data: bytes, content_type: str) -> str:
 
 def presigned_url(key: str, ttl: timedelta = PRESIGNED_URL_TTL) -> str:
     """Return a temporary HTTPS URL that expires after ``ttl``."""
-    return _client().presigned_get_object(
+    return _public_client().presigned_get_object(
         bucket_name=get_settings().s3_bucket,
         object_name=key,
         expires=ttl,
@@ -80,7 +102,7 @@ def build_upload_key(shop_id: int, scope: str, filename: str) -> str:
 def presigned_put_url(key: str, ttl: timedelta = PRESIGNED_URL_TTL) -> str:
     """Return a temporary HTTPS URL that the Mini App PUTs the file to —
     the file never traverses the API server (offload to MinIO/R2)."""
-    return _client().presigned_put_object(
+    return _public_client().presigned_put_object(
         bucket_name=get_settings().s3_bucket,
         object_name=key,
         expires=ttl,

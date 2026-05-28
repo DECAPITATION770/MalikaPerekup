@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     s3_bucket: str = "malika-perekup"
     s3_region: str = "us-east-1"
     s3_secure: bool = False  # True in prod when endpoint is HTTPS.
+    # Hostname the browser uses to reach object storage. When the API talks
+    # to MinIO over the docker network (``minio:9000``), pre-signed URLs
+    # would otherwise hand the browser an unreachable host. Leave ``None``
+    # in prod when the API and the browser share one public hostname.
+    s3_public_endpoint: str | None = None
+    s3_public_secure: bool | None = None  # falls through to s3_secure
 
     # ─── JWT for API authentication ───────────────────────────
     jwt_secret: str
