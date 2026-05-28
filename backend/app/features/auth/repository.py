@@ -1,4 +1,5 @@
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.auth.models import ROLE_SUPER_ADMIN, User
@@ -34,17 +35,28 @@ def _refresh_profile(user: User, tg_user: TelegramUser) -> None:
 
 
 async def get_or_create_super_admin(session: AsyncSession, tg_user: TelegramUser) -> User:
-    user = await find_by_tg_id(session, tg_user.id)
-    if user is None:
-        user = User(
-            tenant_id=None,
-            role=ROLE_SUPER_ADMIN,
-            tg_id=tg_user.id,
+    """Race-safe upsert via Postgres INSERT ... ON CONFLICT DO UPDATE.
+
+    Two concurrent /api/auth/telegram requests (e.g. React StrictMode) used to lose
+    the SELECT-then-INSERT race and the second call hit a unique-constraint violation.
+    Using the unique index on tg_id as the conflict target makes this atomic.
+    """
+    profile = {
+        "tg_username": tg_user.username,
+        "tg_first_name": tg_user.first_name,
+        "tg_last_name": tg_user.last_name,
+    }
+    stmt = (
+        pg_insert(User)
+        .values(tenant_id=None, role=ROLE_SUPER_ADMIN, tg_id=tg_user.id, **profile)
+        .on_conflict_do_update(
+            index_elements=["tg_id"],
+            set_={**profile, "role": ROLE_SUPER_ADMIN, "updated_at": func.now()},
         )
-        session.add(user)
-    user.role = ROLE_SUPER_ADMIN  # force-promote even if existed with another role
-    _refresh_profile(user, tg_user)
-    await session.flush()
+    )
+    await session.execute(stmt)
+    user = await find_by_tg_id(session, tg_user.id)
+    assert user is not None, "upsert must have produced a row"
     return user
 
 

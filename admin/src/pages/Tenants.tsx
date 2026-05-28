@@ -132,7 +132,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   )
 }
 
-export default function AdminTenants() {
+export default function Tenants() {
   const qc = useQueryClient()
   const { data, isLoading, error } = useQuery({
     queryKey: ['tenants'],
@@ -142,8 +142,8 @@ export default function AdminTenants() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold">Super-admin · Tenants</h1>
-        <p className="text-sm text-neutral-400">Создавай и просматривай магазины-подписчиков.</p>
+        <h1 className="text-2xl font-semibold">Malika · Admin</h1>
+        <p className="text-sm text-neutral-400">Tenants — создание и обзор магазинов-подписчиков.</p>
       </header>
 
       <CreateForm onSuccess={() => void qc.invalidateQueries({ queryKey: ['tenants'] })} />
@@ -151,9 +151,7 @@ export default function AdminTenants() {
       <section>
         <h2 className="mb-3 text-lg font-semibold">Список ({data?.length ?? 0})</h2>
         {isLoading ? <p className="text-neutral-400">Загрузка…</p> : null}
-        {error ? (
-          <p className="text-red-400">Ошибка: {(error as Error).message}</p>
-        ) : null}
+        {error ? <p className="text-red-400">Ошибка: {(error as Error).message}</p> : null}
         {data && data.length === 0 ? (
           <p className="text-neutral-500 text-sm">Пока пусто. Создай первый tenant выше.</p>
         ) : null}

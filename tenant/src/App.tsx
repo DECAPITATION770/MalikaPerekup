@@ -1,5 +1,4 @@
 import { AuthProvider, useAuth } from './lib/auth'
-import AdminTenants from './pages/AdminTenants'
 import OwnerHome from './pages/OwnerHome'
 
 function Routed() {
@@ -17,7 +16,21 @@ function Routed() {
     )
   }
 
-  if (auth.user.role === 'super_admin') return <AdminTenants />
+  // Super-admins use the separate admin app (different URL/origin).
+  if (auth.user.role === 'super_admin') {
+    return (
+      <div className="mx-auto max-w-md space-y-3 p-8 text-center">
+        <h1 className="text-xl font-semibold">Это страница владельцев магазинов</h1>
+        <p className="text-sm text-neutral-400">
+          Ты вошёл как super-admin. Управление tenant'ами — в отдельной админ-панели.
+        </p>
+        <p className="text-xs text-neutral-600">
+          Локально: <code className="text-neutral-300">http://localhost:5180</code>
+        </p>
+      </div>
+    )
+  }
+
   return <OwnerHome user={auth.user} />
 }
 
