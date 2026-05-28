@@ -136,6 +136,10 @@ app = FastAPI(
     docs_url="/docs" if not settings.is_prod else None,
     redoc_url=None,
     lifespan=lifespan,
+    # Routes are declared without a trailing slash; a stray "/" from an
+    # integration would otherwise 307-redirect and trigger a second CORS
+    # preflight in the browser. 404 is the more predictable contract.
+    redirect_slashes=False,
 )
 
 # Prometheus /internal/metrics — must be attached BEFORE the routers below

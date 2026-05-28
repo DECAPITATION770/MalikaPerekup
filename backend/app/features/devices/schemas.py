@@ -8,7 +8,7 @@ small ``DeviceUpdate`` for fixing typos in characteristics.
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DeviceCategoryLiteral = Literal[
     "phone", "tablet", "laptop", "smartwatch", "accessory", "other"
@@ -99,6 +99,20 @@ class DeviceOut(BaseModel):
     notes: str | None
     created_at: datetime
     updated_at: datetime
+
+    # Defense-in-depth: collections that the ORM treats as nullable JSON
+    # columns can come back as ``None`` if an old row pre-dates a migration
+    # (e.g. ``devices.defects`` added in 0011). The frontend assumes arrays
+    # — give it arrays even when the database hasn't been back-filled.
+    @field_validator("photos", "defects", mode="before")
+    @classmethod
+    def _none_to_empty_list(cls, v: object) -> object:
+        return [] if v is None else v
+
+    @field_validator("specs", mode="before")
+    @classmethod
+    def _none_to_empty_dict(cls, v: object) -> object:
+        return {} if v is None else v
 
 
 class DeviceWithPurchaseOut(DeviceOut):
