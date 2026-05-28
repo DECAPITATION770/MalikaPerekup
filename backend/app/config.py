@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Set to ngrok URL when testing locally with Telegram.
     webapp_url: str = ""
 
+    # Comma-separated Telegram user IDs that get super-admin role on login.
+    # Super-admins provision tenants via /api/admin/tenants.
+    super_admin_tg_ids_raw: str = ""
+
     s3_endpoint: str = "http://localhost:9000"
     s3_bucket: str = "malika"
     s3_access_key: str = "minioadmin"
@@ -41,6 +45,12 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.env == "prod"
+
+    @property
+    def super_admin_tg_ids(self) -> set[int]:
+        if not self.super_admin_tg_ids_raw.strip():
+            return set()
+        return {int(x.strip()) for x in self.super_admin_tg_ids_raw.split(",") if x.strip()}
 
 
 settings = Settings()

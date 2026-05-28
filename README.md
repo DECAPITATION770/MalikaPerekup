@@ -23,8 +23,19 @@ cd tenant && pnpm install && pnpm dev
 
 Backend на `:8000`, tenant на `:5173`, /health возвращает `{"status": "ok"}`.
 
-С `DEV_AUTH_BYPASS=true` в `.env` (по умолчанию для dev) tenant в браузере залогинится автоматически
-как `tg_id=1` (`@devuser`) и покажет «Привет, Dev!».
+С `DEV_AUTH_BYPASS=true` (по умолчанию в dev) tenant в браузере залогинится как `@devadmin`
+с ролью `super_admin` и покажет страницу провижининга tenant'ов («Super-admin · Tenants»).
+Это позволяет тестировать админ-флоу без Telegram.
+
+## Тест owner-флоу
+
+Чтобы залогиниться как реальный владелец магазина (а не super-admin):
+
+1. В админ-странице (DEV_AUTH_BYPASS=true в браузере) создай tenant через форму:
+   - укажи свой Telegram username или tg_id.
+2. Выключи bypass: `DEV_AUTH_BYPASS=false` в `.env`, рестарт backend.
+3. Задай `SUPER_ADMIN_TG_IDS_RAW=твой_tg_id` если хочешь админ-доступ в проде через TG.
+4. Открой Mini App в Telegram (нужен ngrok — см. ниже) — увидишь owner-страницу.
 
 ## Тест с настоящим Telegram (через ngrok)
 

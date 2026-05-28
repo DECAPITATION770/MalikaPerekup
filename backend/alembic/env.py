@@ -12,6 +12,7 @@ from app.db import Base
 # Import every feature's models module so its tables get registered on Base.metadata.
 # Add new imports here whenever a feature introduces a model.
 from app.features.auth import models as _auth_models  # noqa: F401
+from app.features.tenants import models as _tenant_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

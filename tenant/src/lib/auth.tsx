@@ -4,8 +4,12 @@ import type { ReactNode } from 'react'
 import { api, clearToken, setToken } from './api'
 import { getInitData } from './telegram'
 
+export type Role = 'super_admin' | 'owner'
+
 export type User = {
   id: number
+  tenant_id: number | null
+  role: Role
   tg_id: number | null
   tg_username: string | null
   tg_first_name: string | null

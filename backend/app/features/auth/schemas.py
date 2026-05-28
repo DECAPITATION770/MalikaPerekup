@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 class TelegramLoginRequest(BaseModel):
     init_data: str = Field(
         default="",
-        description="Raw initData string from Telegram WebApp. Empty when DEV_AUTH_BYPASS=true.",
+        description="Raw initData from Telegram WebApp. Empty when DEV_AUTH_BYPASS=true.",
     )
 
 
@@ -16,6 +16,8 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
+    tenant_id: int | None
+    role: str
     tg_id: int | None
     tg_username: str | None
     tg_first_name: str | None

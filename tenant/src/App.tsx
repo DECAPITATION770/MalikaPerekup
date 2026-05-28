@@ -1,45 +1,31 @@
 import { AuthProvider, useAuth } from './lib/auth'
-import { isInTelegram } from './lib/telegram'
+import AdminTenants from './pages/AdminTenants'
+import OwnerHome from './pages/OwnerHome'
 
-function Content() {
+function Routed() {
   const auth = useAuth()
 
   if (auth.status === 'loading') {
-    return <p className="text-neutral-400">Загрузка…</p>
+    return <p className="text-neutral-400 p-8">Загрузка…</p>
   }
   if (auth.status === 'error') {
     return (
-      <div className="space-y-2 text-center">
+      <div className="p-8 space-y-2 max-w-md mx-auto">
         <p className="text-red-400">Ошибка авторизации</p>
-        <p className="text-xs text-neutral-500 break-all max-w-md">{auth.message}</p>
+        <p className="text-xs text-neutral-500 break-all">{auth.message}</p>
       </div>
     )
   }
 
-  const { user } = auth
-  const displayName =
-    user.tg_username && user.tg_username !== 'devuser'
-      ? `@${user.tg_username}`
-      : user.tg_first_name || `user#${user.id}`
-
-  return (
-    <div className="text-center space-y-3">
-      <h1 className="text-3xl font-semibold">Malika v2</h1>
-      <p className="text-base text-neutral-200">Привет, {displayName}!</p>
-      <p className="text-xs text-neutral-500">
-        {isInTelegram() ? 'Открыто в Telegram' : 'Открыто в браузере (DEV_AUTH_BYPASS)'}
-        {' · user_id='}
-        {user.id}
-      </p>
-    </div>
-  )
+  if (auth.user.role === 'super_admin') return <AdminTenants />
+  return <OwnerHome user={auth.user} />
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <main className="min-h-screen flex items-center justify-center p-8">
-        <Content />
+      <main className="min-h-screen">
+        <Routed />
       </main>
     </AuthProvider>
   )

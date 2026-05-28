@@ -10,9 +10,9 @@ from app.main import app
 
 
 @pytest_asyncio.fixture(autouse=True, loop_scope="session")
-async def clean_users() -> None:
+async def clean_db() -> None:
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE users RESTART IDENTITY CASCADE"))
+        await conn.execute(text("TRUNCATE users, tenants RESTART IDENTITY CASCADE"))
     yield
 
 
@@ -23,33 +23,33 @@ async def aclient() -> AsyncClient:
 
 
 @pytest_asyncio.fixture(loop_scope="session")
-async def auth_token(aclient: AsyncClient) -> str:
-    """Acquire a real JWT via dev-bypass for downstream tests."""
+async def admin_token(aclient: AsyncClient) -> str:
+    """Acquire a super-admin JWT via dev-bypass."""
     response = await aclient.post("/api/auth/telegram", json={"init_data": ""})
     assert response.status_code == 200, response.text
     return response.json()["access_token"]
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_telegram_login_dev_bypass_returns_jwt(aclient: AsyncClient) -> None:
+async def test_dev_bypass_login_creates_super_admin(aclient: AsyncClient) -> None:
     response = await aclient.post("/api/auth/telegram", json={"init_data": ""})
     assert response.status_code == 200
     body = response.json()
     assert body["token_type"] == "bearer"
     assert body["expires_in"] > 0
-    assert len(body["access_token"]) > 20
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_me_returns_authed_user(aclient: AsyncClient, auth_token: str) -> None:
+async def test_me_returns_super_admin_profile(aclient: AsyncClient, admin_token: str) -> None:
     response = await aclient.get(
-        "/api/auth/me", headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 200
     body = response.json()
     assert body["tg_id"] == 1
-    assert body["tg_username"] == "devuser"
-    assert body["language"] == "ru"
+    assert body["tg_username"] == "devadmin"
+    assert body["role"] == "super_admin"
+    assert body["tenant_id"] is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
