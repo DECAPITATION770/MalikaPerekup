@@ -140,7 +140,7 @@ export default function StepDevice({
     setValue('model', u.item.model);
     if (u.kind === 'catalog') {
       setValue('specs', u.item.default_specs ?? {});
-      if (u.item.photos.length) onDevicePhotosChange(u.item.photos);
+      if (u.item.photos?.length) onDevicePhotosChange(u.item.photos);
     }
     setQuery('');
     setCreating(false);

@@ -136,7 +136,7 @@ export default function StockDetail() {
   const photosQuery = useQuery({
     queryKey: ['device-photos', Number(id)],
     queryFn: () => getDevicePhotoUrls(Number(id!)),
-    enabled: Boolean(query.data?.photos.length),
+    enabled: Boolean(query.data?.photos?.length),
   });
   const photoUrls = photosQuery.data ?? [];
 
@@ -205,6 +205,10 @@ export default function StockDetail() {
   }
 
   const d = query.data;
+  // Treat optional JSON arrays as never-null so older rows (or a partial
+  // backend payload) can't crash the page on `.length` / `.map`.
+  const photos = d?.photos ?? [];
+  const defects = d?.defects ?? [];
   if (!d) return null;
 
   const Icon = CATEGORY_ICON[d.category];
@@ -233,7 +237,7 @@ export default function StockDetail() {
         >
           {heroUrl ? (
             <img src={heroUrl} alt="" className="h-full w-full object-cover" />
-          ) : d.photos.length > 0 && photosQuery.isLoading ? (
+          ) : photos.length > 0 && photosQuery.isLoading ? (
             <Skeleton className="h-full w-full" />
           ) : (
             <Icon size={44} strokeWidth={1.4} />
@@ -305,8 +309,8 @@ export default function StockDetail() {
       </div>
 
       {/* Photos */}
-      {d.photos.length > 0 && (
-        <PhotoGallery urls={photoUrls} loading={photosQuery.isLoading} count={d.photos.length} />
+      {photos.length > 0 && (
+        <PhotoGallery urls={photoUrls} loading={photosQuery.isLoading} count={photos.length} />
       )}
 
       {/* Specs */}
@@ -330,11 +334,11 @@ export default function StockDetail() {
       )}
 
       {/* Defects */}
-      {d.defects.length > 0 && (
+      {defects.length > 0 && (
         <div className="card flex flex-col gap-3 p-5">
           <h2 className="text-body-lg font-bold tracking-tight">{t('purchase.defects_label')}</h2>
           <div className="flex flex-wrap gap-1.5">
-            {d.defects.map((k) => (
+            {defects.map((k) => (
               <Badge key={k} variant="warning" size="sm">
                 {t(`purchase.defects.${k}`, { defaultValue: k })}
               </Badge>

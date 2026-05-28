@@ -206,8 +206,8 @@ export default function Catalog() {
                       category: m.category,
                       brand: m.brand,
                       model: m.model,
-                      default_specs: { ...m.default_specs },
-                      photos: [...m.photos],
+                      default_specs: { ...(m.default_specs ?? {}) },
+                      photos: [...(m.photos ?? [])],
                     })
                   }
                   className="flex flex-1 min-w-0 items-center gap-3 text-left cursor-pointer"

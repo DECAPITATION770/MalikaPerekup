@@ -197,10 +197,14 @@ function DeviceDetailDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const { t } = useTranslation();
+  // Normalise optional JSON arrays once; covers null/undefined coming back
+  // from older rows or partial payloads.
+  const photos = device.photos ?? [];
+  const defects = device.defects ?? [];
   const photosQ = useQuery({
     queryKey: ['device-photos', device.id],
     queryFn: () => getDevicePhotoUrls(device.id),
-    enabled: open && device.photos.length > 0,
+    enabled: open && photos.length > 0,
   });
   const urls = photosQ.data ?? [];
   const specs = Object.entries(device.specs ?? {}).filter(([, v]) => v !== null && v !== '');
@@ -236,10 +240,10 @@ function DeviceDetailDialog({
             </Badge>
           </div>
 
-          {device.photos.length > 0 && (
+          {photos.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {photosQ.isLoading ? (
-                Array.from({ length: device.photos.length }).map((_, i) => (
+                Array.from({ length: photos.length }).map((_, i) => (
                   <div key={i} className="h-16 w-16 animate-pulse rounded-lg bg-bg3" />
                 ))
               ) : urls.length > 0 ? (
@@ -272,9 +276,9 @@ function DeviceDetailDialog({
             </dl>
           )}
 
-          {device.defects.length > 0 && (
+          {defects.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {device.defects.map((d) => (
+              {defects.map((d) => (
                 <Badge key={d} variant="warning" size="sm">
                   {t(`purchase.defects.${d}`, { defaultValue: d })}
                 </Badge>
