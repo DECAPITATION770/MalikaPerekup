@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search as SearchIcon, Trash2 } from 'lucide-react';
+import { Plus, Search as SearchIcon, ShoppingCart, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -235,6 +235,16 @@ export default function Catalog() {
                     </div>
                   </div>
                 </button>
+                {m.purchase_count > 0 && (
+                  <div
+                    title={t('catalog.purchase_count', { n: m.purchase_count })}
+                    aria-label={t('catalog.purchase_count', { n: m.purchase_count })}
+                    className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-bg3 px-2.5 text-caption font-bold tabular-nums text-text-dim"
+                  >
+                    <ShoppingCart size={12} strokeWidth={2} />
+                    {m.purchase_count}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(m)}

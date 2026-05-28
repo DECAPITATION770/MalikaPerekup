@@ -7,6 +7,7 @@ import {
   BarChart3,
   BookMarked,
   Globe,
+  LogOut,
   MoreHorizontal,
   Search,
   Settings as SettingsIcon,
@@ -15,8 +16,20 @@ import {
 } from 'lucide-react';
 
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ThemeIconButton } from '@/components/ThemeToggle';
 import { MalikaWordmark } from '@/components/brand/MalikaWordmark';
 import { useTgHaptic } from '@/lib/telegram';
+import { useAuth } from '@/store/auth';
 
 /** Items that don't earn a bottom-nav slot but must stay reachable. Grouped
  *  the same way as the desktop sidebar: live destinations, then «Архив». */
@@ -40,7 +53,14 @@ export function AppHeader() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const haptic = useTgHaptic();
+  const { logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.setItem('tenant_manual_logout', '1');
+    logout();
+  };
 
   const go = (path: string) => {
     setOpen(false);
@@ -67,6 +87,15 @@ export function AppHeader() {
             <MalikaWordmark size="sm" className="text-text" />
           </button>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleLang}
+              aria-label={t('settings.language_label')}
+              className="flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-caption font-bold tracking-wide text-text-dim transition-colors hover:text-text active:bg-bg3"
+            >
+              {i18n.language === 'ru' ? 'RU' : 'UZ'}
+            </button>
+            <ThemeIconButton />
             <button
               type="button"
               onClick={() => {
@@ -135,9 +164,38 @@ export function AppHeader() {
               <Globe size={18} strokeWidth={1.8} />
               {i18n.language === 'ru' ? t('settings.lang_uz') : t('settings.lang_ru')}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setConfirmLogout(true);
+              }}
+              className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-body font-semibold text-text-muted transition-colors hover:bg-danger-faded/40 hover:text-danger active:bg-bg3"
+            >
+              <LogOut size={18} strokeWidth={1.8} />
+              {t('common.logout')}
+            </button>
           </div>
         </DrawerContent>
       </Drawer>
+
+      <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('logout.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('logout.body')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLogout}
+              className="bg-danger text-white hover:bg-danger/90"
+            >
+              <LogOut className="size-4" /> {t('common.logout')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

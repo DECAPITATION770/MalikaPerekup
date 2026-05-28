@@ -337,7 +337,7 @@ export default function SaleNew() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl animate-fade-up flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-3xl animate-fade-up flex-col gap-5 lg:max-w-5xl">
       <header className="flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}

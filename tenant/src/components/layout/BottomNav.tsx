@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -32,6 +32,13 @@ const TABS: readonly TabSpec[] = [
 
 export function BottomNav() {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
+
+  // Hide on focus-flow routes (wizards) so the global nav can't pull a user
+  // mid-deal — and so the wizard's own action bar isn't stacked under it.
+  if (pathname.startsWith('/purchase/new') || pathname.startsWith('/sale/new')) {
+    return null;
+  }
 
   const { data: overdue } = useQuery({
     queryKey: ['installments', 'overdue-count'],

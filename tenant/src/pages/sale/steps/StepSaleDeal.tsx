@@ -103,6 +103,9 @@ export default function StepSaleDeal({
         </div>
       )}
 
+      {/* Deal + Buyer — side-by-side on desktop, stacked on mobile.
+          Single grid so both sections share the same row baseline. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
       {/* Deal type + price */}
       <div className="flex flex-col gap-2">
         <SectionLabel>{t('sale.section_deal')}</SectionLabel>
@@ -253,6 +256,9 @@ export default function StepSaleDeal({
           )}
         </div>
       </div>
+
+      </div>
+      {/* /Deal + Buyer grid */}
 
       {/* Nasiya */}
       {saleType === 'nasiya' && (

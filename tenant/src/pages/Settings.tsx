@@ -36,6 +36,7 @@ import { useAuth } from '@/store/auth';
 import { useTgHaptic } from '@/lib/telegram';
 import { fmtDate } from '@/lib/fmt';
 import { cn } from '@/lib/utils';
+import { ThemeSegmented } from '@/components/ThemeToggle';
 
 // ── Password form ─────────────────────────────────────────────────────
 
@@ -240,6 +241,23 @@ function ShopSection() {
   );
 }
 
+// ── Appearance section ────────────────────────────────────────────────
+
+function AppearanceSection() {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.appearance_section')}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-1.5">
+        <Label>{t('settings.theme_label')}</Label>
+        <ThemeSegmented />
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Plan section ──────────────────────────────────────────────────────
 
 function PlanSection() {
@@ -318,6 +336,7 @@ export default function Settings() {
     <div className="flex flex-col gap-4 max-w-2xl animate-fade-up">
       <h1 className="text-title font-bold tracking-tight">{t('settings.title')}</h1>
       <ShopSection />
+      <AppearanceSection />
       <PlanSection />
       <PasswordSection />
       <AccountSection />

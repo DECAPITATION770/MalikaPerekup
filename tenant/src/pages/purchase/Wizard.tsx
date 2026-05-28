@@ -74,7 +74,7 @@ export function WizardFooter({
   const isLast = step === totalSteps - 1;
 
   return (
-    <div className="sticky bottom-16 md:bottom-4 z-30 card-elev shadow-2xl flex items-center gap-2 p-2.5 md:p-3">
+    <div className="sticky bottom-0 z-30 card-elev shadow-2xl flex items-center gap-2 p-2.5 pb-[max(env(safe-area-inset-bottom),0.625rem)] md:bottom-4 md:p-3 md:pb-3">
       <Button
         type="button"
         variant="secondary"

@@ -54,30 +54,34 @@ export default function StepDeal({
       title={t('purchase.step_deal_title')}
       subtitle={t('purchase.step_deal_subtitle')}
     >
-      <div className="flex flex-col gap-2">
-        <SectionLabel>{t('purchase.price_section')}</SectionLabel>
-        <PriceFields
-          control={control}
-          register={register}
-          setValue={setValue}
-          values={values}
-          errors={errors}
-          rateHints={rateHints}
-          priceResetKey={priceResetKey}
-        />
-      </div>
+      {/* Price + Seller — side-by-side on desktop, stacked on mobile.
+          Mirrors the sale wizard's deal step for a single "table" pattern. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-2">
+          <SectionLabel>{t('purchase.price_section')}</SectionLabel>
+          <PriceFields
+            control={control}
+            register={register}
+            setValue={setValue}
+            values={values}
+            errors={errors}
+            rateHints={rateHints}
+            priceResetKey={priceResetKey}
+          />
+        </div>
 
-      <div className="flex flex-col gap-2">
-        <SectionLabel>{t('purchase.seller_section')}</SectionLabel>
-        <SellerFields
-          control={control}
-          register={register}
-          setValue={setValue}
-          values={values}
-          errors={errors}
-          sellerPhotos={sellerPhotos}
-          onSellerPhotosChange={onSellerPhotosChange}
-        />
+        <div className="flex flex-col gap-2">
+          <SectionLabel>{t('purchase.seller_section')}</SectionLabel>
+          <SellerFields
+            control={control}
+            register={register}
+            setValue={setValue}
+            values={values}
+            errors={errors}
+            sellerPhotos={sellerPhotos}
+            onSellerPhotosChange={onSellerPhotosChange}
+          />
+        </div>
       </div>
     </StepShell>
   );

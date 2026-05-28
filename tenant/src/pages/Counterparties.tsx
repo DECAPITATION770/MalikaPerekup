@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Phone, Search as SearchIcon, ShoppingCart, User } from 'lucide-react';
+import { Phone, Search as SearchIcon, ShoppingCart, User, Wallet } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -18,10 +18,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   listCounterparties,
-  type CounterpartyOut,
+  type CounterpartyListItem,
   type CounterpartyType,
 } from '@/api/counterparties';
 import { useDebounced } from '@/lib/useDebounced';
+import { compactUnits, fmtDate, fmtUzsCompact } from '@/lib/fmt';
 
 type Filter = CounterpartyType | 'all';
 
@@ -42,33 +43,55 @@ function initials(name: string) {
   );
 }
 
-function CounterpartyCard({ cp }: { cp: CounterpartyOut }) {
+function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
   const { t } = useTranslation();
+  // Decimals come over the wire as strings (CLAUDE.md §9) — parse for compare,
+  // format with fmtUzsCompact for display. Treat NaN as "no debt".
+  const owed = Number(cp.outstanding_nasiya_uzs);
+  const hasDebt = Number.isFinite(owed) && owed > 0;
+  const units = compactUnits(t);
+  const owedLabel = `${t('counterparties.owes')} ${fmtUzsCompact(owed, units)} UZS`;
   return (
     <Link
       to={`/counterparties/${cp.id}`}
-      className="card px-4 py-3.5 flex items-start gap-3 hover:border-border-strong transition-all"
+      className="card flex items-start gap-3 px-4 py-3.5 transition-all hover:border-border-strong"
     >
-      <Avatar className="size-9 mt-0.5">
-        <AvatarFallback className="bg-bg3 text-text-dim text-caption">
+      <Avatar className="mt-0.5 size-9">
+        <AvatarFallback className="bg-bg3 text-caption text-text-dim">
           {initials(cp.full_name)}
         </AvatarFallback>
       </Avatar>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-body-lg font-bold tracking-tight truncate">{cp.full_name}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-body-lg font-bold tracking-tight">{cp.full_name}</span>
           <Badge variant={TYPE_VARIANT[cp.type]} size="sm">
             {t(`counterparties.type_${cp.type}`)}
           </Badge>
         </div>
         {cp.phone && (
-          <div className="flex items-center gap-1.5 mt-1 text-hint text-text-dim">
+          <div className="mt-1 flex items-center gap-1.5 text-hint text-text-dim">
             <Phone size={11} />
             <span className="font-mono">{cp.phone}</span>
           </div>
         )}
-        {cp.comment && <p className="text-caption text-text-muted mt-1 line-clamp-1">{cp.comment}</p>}
+        {cp.deals_count > 0 && (
+          <div className="mt-1 text-caption text-text-muted tabular-nums">
+            {t('counterparties.deals_count', { n: cp.deals_count })}
+            {cp.last_deal_at && ` · ${t('counterparties.last_deal', { date: fmtDate(cp.last_deal_at) })}`}
+          </div>
+        )}
+        {cp.comment && <p className="mt-1 line-clamp-1 text-caption text-text-muted">{cp.comment}</p>}
       </div>
+      {hasDebt && (
+        <div
+          className="ml-1 flex shrink-0 items-center gap-1 self-start rounded-full border border-danger/30 bg-danger-faded px-2.5 py-1 text-caption font-bold tabular-nums text-danger"
+          aria-label={owedLabel}
+          title={owedLabel}
+        >
+          <Wallet size={12} strokeWidth={2} />
+          {fmtUzsCompact(owed, units)}
+        </div>
+      )}
     </Link>
   );
 }

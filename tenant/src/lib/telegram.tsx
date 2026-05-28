@@ -157,12 +157,9 @@ export function useTgThemeBridge(): 'dark' | 'light' {
     return () => unsub?.();
   }, [inTelegram]);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (scheme === 'light') root.classList.add('light');
-    else root.classList.remove('light');
-  }, [scheme]);
-
+  // Class application is owned by ThemeProvider (src/lib/theme.tsx), which
+  // combines this detected scheme with the user's manual override. This hook
+  // now only *detects* the ambient Telegram/system scheme.
   return scheme;
 }
 

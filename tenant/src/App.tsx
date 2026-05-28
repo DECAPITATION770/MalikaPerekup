@@ -37,7 +37,8 @@ import { OfflineSync } from '@/components/OfflineSync';
 import { SessionExpiredToast } from '@/components/SessionExpiredToast';
 import { AppLayout } from '@/components/layout/AppLayout';
 
-import { TelegramProvider, useTgThemeBridge } from '@/lib/telegram';
+import { TelegramProvider } from '@/lib/telegram';
+import { ThemeProvider, useTheme } from '@/lib/theme';
 import {
   queryClient,
   queryPersister,
@@ -84,9 +85,8 @@ function RequireAuth() {
 }
 
 function ThemedShell() {
-  useTgThemeBridge();
   return (
-    <>
+    <ThemeProvider>
       <OfflineBanner />
       <OfflineSync />
       <SessionExpiredToast />
@@ -118,14 +118,22 @@ function ThemedShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-      <Toaster
-        position="top-center"
-        richColors
-        closeButton
-        theme="system"
-        toastOptions={{ className: 'card !rounded-xl' }}
-      />
-    </>
+      <ThemedToaster />
+    </ThemeProvider>
+  );
+}
+
+/** Sonner toaster that tracks the resolved theme (Auto/Light/Dark). */
+function ThemedToaster() {
+  const { resolved } = useTheme();
+  return (
+    <Toaster
+      position="top-center"
+      richColors
+      closeButton
+      theme={resolved}
+      toastOptions={{ className: 'card !rounded-xl' }}
+    />
   );
 }
 

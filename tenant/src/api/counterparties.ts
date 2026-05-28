@@ -24,10 +24,19 @@ export interface CounterpartiesQuery {
   offset?: number;
 }
 
+/** List-only shape: same as {@link CounterpartyOut} plus per-row aggregates so
+ *  the directory can show "owes ₽X across N deals" at a glance. Decimals come
+ *  over the wire as strings (CLAUDE.md §9). */
+export interface CounterpartyListItem extends CounterpartyOut {
+  deals_count: number;
+  outstanding_nasiya_uzs: string;
+  last_deal_at: string | null;
+}
+
 export async function listCounterparties(
   query: CounterpartiesQuery = {},
-): Promise<Page<CounterpartyOut>> {
-  const { data } = await api.get<Page<CounterpartyOut>>('/counterparties', { params: query });
+): Promise<Page<CounterpartyListItem>> {
+  const { data } = await api.get<Page<CounterpartyListItem>>('/counterparties', { params: query });
   return data;
 }
 

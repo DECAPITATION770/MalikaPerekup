@@ -75,6 +75,12 @@ export function Field({ label, required, children }: { label: string; required?:
   );
 }
 
+/** Pair two field cells side-by-side on desktop, stack on mobile.
+ *  Gives the purchase/sale deal step its "table-like" layout. */
+export function FieldRow({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>;
+}
+
 // ─── Optional collapse («Можно заполнить позже») ─────────────────────────
 //
 // Shared collapsible block for non-required fields — one consistent «надо /

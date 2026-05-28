@@ -13,6 +13,7 @@ from app.features.counterparties import service
 from app.features.counterparties.schemas import (
     CounterpartyCreate,
     CounterpartyDealsOut,
+    CounterpartyListItem,
     CounterpartyOut,
     CounterpartyType,
     CounterpartyUpdate,
@@ -52,7 +53,7 @@ def _doc_name(key: str) -> str:
     return tail if len(head) == 32 and tail else seg
 
 
-@router.get("", response_model=Page[CounterpartyOut])
+@router.get("", response_model=Page[CounterpartyListItem])
 async def list_counterparties(
     shop: CurrentShop,
     db: DbSession,
@@ -62,9 +63,11 @@ async def list_counterparties(
         CounterpartyType | None,
         Query(alias="type", description="filter by role"),
     ] = None,
-) -> Page[CounterpartyOut]:
-    """Search the directory — used by the autocomplete in purchase/sale forms."""
-    items, total = await repo.search(
+) -> Page[CounterpartyListItem]:
+    """Search the directory with per-row aggregates (debt + deal count + last
+    deal date). Used both by the standalone screen and by the autocomplete in
+    purchase/sale forms — the extra fields are cheap to ignore client-side."""
+    rows, total = await repo.search_with_aggregates(
         db,
         shop_id=shop.id,
         query=q,
@@ -72,11 +75,16 @@ async def list_counterparties(
         limit=params.limit,
         offset=params.offset,
     )
-    return Page.of(
-        items=[CounterpartyOut.model_validate(it) for it in items],
-        total=total,
-        params=params,
-    )
+    items = [
+        CounterpartyListItem(
+            **CounterpartyOut.model_validate(cp).model_dump(),
+            deals_count=deals,
+            outstanding_nasiya_uzs=owed,
+            last_deal_at=last_at,
+        )
+        for cp, deals, owed, last_at in rows
+    ]
+    return Page.of(items=items, total=total, params=params)
 
 
 @router.post(

@@ -1,6 +1,7 @@
 """Request and response shapes for ``/counterparties/*`` endpoints."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -49,6 +50,23 @@ class CounterpartyOut(BaseModel):
     comment: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class CounterpartyListItem(CounterpartyOut):
+    """Directory-list row: same fields as ``CounterpartyOut`` + per-row aggregates
+    so the screen can show "owes ₽X across N deals" at a glance without N+1
+    requests. All aggregates are ``shop_id``-scoped (CLAUDE.md §6)."""
+
+    deals_count: int = 0
+    """Total deals = sales as buyer + purchases as seller, within this shop."""
+
+    outstanding_nasiya_uzs: Decimal = Field(default_factory=lambda: Decimal(0))
+    """Sum of ``plan.total_amount - paid_so_far`` across this counterparty's
+    **active** installment plans (as buyer). Cash sales contribute 0."""
+
+    last_deal_at: datetime | None = None
+    """``GREATEST`` of the most recent sale (as buyer) and purchase (as seller).
+    ``None`` when the counterparty has no deals yet."""
 
 
 class CounterpartyDealsOut(BaseModel):
