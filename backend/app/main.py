@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import settings
+from app.features.auth.router import router as auth_router
 
 
 @asynccontextmanager
@@ -17,6 +18,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Malika v2", lifespan=lifespan)
+app.include_router(auth_router)
 
 
 @app.get("/health")

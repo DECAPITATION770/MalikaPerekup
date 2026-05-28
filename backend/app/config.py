@@ -1,9 +1,15 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve repo-root .env regardless of cwd (matters for pytest, alembic, scripts).
+REPO_ROOT = Path(__file__).resolve().parents[2]
+_ENV_FILE = REPO_ROOT / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -18,6 +24,9 @@ class Settings(BaseSettings):
     jwt_ttl_hours: int = 24
 
     bot_token: str = ""
+    # HTTPS URL where tenant is served — used by bot's WebApp button.
+    # Set to ngrok URL when testing locally with Telegram.
+    webapp_url: str = ""
 
     s3_endpoint: str = "http://localhost:9000"
     s3_bucket: str = "malika"

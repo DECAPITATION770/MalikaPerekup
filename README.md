@@ -23,6 +23,31 @@ cd tenant && pnpm install && pnpm dev
 
 Backend на `:8000`, tenant на `:5173`, /health возвращает `{"status": "ok"}`.
 
+С `DEV_AUTH_BYPASS=true` в `.env` (по умолчанию для dev) tenant в браузере залогинится автоматически
+как `tg_id=1` (`@devuser`) и покажет «Привет, Dev!».
+
+## Тест с настоящим Telegram (через ngrok)
+
+1. Запусти всё локально как выше (postgres, backend, tenant).
+2. В отдельном терминале — ngrok на tenant-порт:
+   ```bash
+   ngrok http 5173
+   ```
+   Скопируй HTTPS-URL (вида `https://abc123.ngrok-free.app`).
+3. Положи URL в `.env`:
+   ```
+   WEBAPP_URL=https://abc123.ngrok-free.app
+   ```
+4. Перезапусти uvicorn (чтобы подхватил новый env) и запусти бота:
+   ```bash
+   cd backend && uv run python -m bot.main
+   ```
+5. Открой бота в Telegram, отправь `/start`, тапни «🛒 Открыть Malika».
+   Mini App откроется — увидишь «Привет, @твой_username!»
+
+В Telegram `getInitData()` отдаёт реальные данные → backend HMAC-верифицирует → JWT.
+В обычном браузере та же страница работает через `DEV_AUTH_BYPASS=true`.
+
 ## Структура
 
 ```
