@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[codz]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev artefacts at repo root (screenshots etc.)
+/*.png
+/*.jpg
+/.playwright-mcp/
+
+# Coverage / build
+coverage/
+htmlcov/
+.coverage
+*.log

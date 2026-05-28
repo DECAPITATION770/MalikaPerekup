@@ -1,0 +1,19 @@
+# Production Caddy config — ссылается на tenant и backend сервисы из docker-compose.prod.yml.
+# Локально (без TLS) можно использовать `:80 {` блок вместо доменного.
+
+{$DOMAIN:malika.example.com} {
+    encode gzip zstd
+
+    # API and health routes — straight to backend.
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # Everything else — to the tenant SPA (Caddy file_server inside that image).
+    handle {
+        reverse_proxy tenant:80
+    }
+}
