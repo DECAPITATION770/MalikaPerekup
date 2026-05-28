@@ -33,13 +33,6 @@ const TABS: readonly TabSpec[] = [
 export function BottomNav() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-
-  // Hide on focus-flow routes (wizards) so the global nav can't pull a user
-  // mid-deal — and so the wizard's own action bar isn't stacked under it.
-  if (pathname.startsWith('/purchase/new') || pathname.startsWith('/sale/new')) {
-    return null;
-  }
-
   const { data: overdue } = useQuery({
     queryKey: ['installments', 'overdue-count'],
     queryFn: () => listInstallments({ status: 'overdue', limit: 1, offset: 0 }),
@@ -47,6 +40,13 @@ export function BottomNav() {
     refetchInterval: 60_000,
   });
   const overdueCount = overdue?.total ?? 0;
+
+  // Hide on focus-flow routes (wizards) so the global nav can't pull a user
+  // mid-deal — and so the wizard's own action bar isn't stacked under it.
+  // Early-return MUST come after all hooks (rules-of-hooks).
+  if (pathname.startsWith('/purchase/new') || pathname.startsWith('/sale/new')) {
+    return null;
+  }
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg2/95 backdrop-blur-md md:hidden">
