@@ -84,7 +84,7 @@ export function AppHeader() {
             aria-label="Malika"
             className="cursor-pointer"
           >
-            <MalikaWordmark size="sm" className="text-text" />
+            <MalikaWordmark size="sm" className="text-text" decorative />
           </button>
           <div className="flex items-center gap-1">
             <button

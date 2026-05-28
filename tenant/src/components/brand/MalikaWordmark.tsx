@@ -5,6 +5,10 @@ interface Props {
   className?: string;
   /** Hide the amber dot over «и» (when used on tight UI surfaces). */
   bare?: boolean;
+  /** Mark the SVG decorative when an ancestor element already labels it
+   *  (e.g. a wrapping button with `aria-label`) — avoids screen readers
+   *  announcing the brand name twice. */
+  decorative?: boolean;
 }
 
 const SIZES = {
@@ -18,16 +22,23 @@ const SIZES = {
  * plus an amber dot over the «и» — that single coloured dot is the brand
  * focal point on every screen (header, login, empty states).
  */
-export function MalikaWordmark({ size = 'md', className, bare = false }: Props) {
+export function MalikaWordmark({
+  size = 'md',
+  className,
+  bare = false,
+  decorative = false,
+}: Props) {
   const { font, height } = SIZES[size];
   const width = parseInt(font) * 4.5; // approximate text width for the 6-glyph word
+  const a11y = decorative
+    ? { 'aria-hidden': true as const, focusable: false }
+    : { role: 'img' as const, 'aria-label': 'Малика' };
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width={width}
       height={height}
-      role="img"
-      aria-label="Малика"
+      {...a11y}
       className={cn('inline-block align-middle', className)}
     >
       <text

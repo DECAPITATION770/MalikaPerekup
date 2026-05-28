@@ -44,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(KEY_TOKEN, t);
     localStorage.setItem(KEY_USER, JSON.stringify(u));
     localStorage.removeItem(KEY_MANUAL_LOGOUT);
+    // A stale device-override would otherwise win over the freshly
+    // signed-in account's preferred language (see effect below). Wipe it
+    // on login so the user's own `language` decides on first paint.
+    localStorage.removeItem('tenant_lang');
     setToken(t);
     setUser(u);
     setExpired(false);
@@ -52,6 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem(KEY_TOKEN);
     localStorage.removeItem(KEY_USER);
+    // Same reason as in setAuth — don't let the previous user's preference
+    // bleed into the next session that signs in on this device.
+    localStorage.removeItem('tenant_lang');
     localStorage.setItem(KEY_MANUAL_LOGOUT, '1');
     setToken(null);
     setUser(null);

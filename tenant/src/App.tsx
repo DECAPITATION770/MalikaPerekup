@@ -157,7 +157,12 @@ export function App() {
             <TooltipProvider delayDuration={250}>
               <ErrorBoundary>
                 <AuthProvider>
-                  <BrowserRouter>
+                  <BrowserRouter
+                    future={{
+                      v7_startTransition: true,
+                      v7_relativeSplatPath: true,
+                    }}
+                  >
                     <ThemedShell />
                   </BrowserRouter>
                 </AuthProvider>
