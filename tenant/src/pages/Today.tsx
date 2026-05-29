@@ -4,14 +4,12 @@
  * stack with the new shadcn-styled KpiCard + real useCountUp animation,
  * framer-motion staggered entry, and Tg haptic on overdue alert tap.
  */
+import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import {
-  AlertTriangle,
-  ArrowUpRight,
   BookMarked,
   CalendarClock,
   Package,
@@ -22,13 +20,20 @@ import {
 import { KpiCard, type KpiDelta } from '@/components/ui/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { ReceiveTodayCard } from '@/components/ReceiveTodayCard';
 import { FrozenIcon } from '@/components/icons';
 import { EmptyStockIllustration } from '@/components/illustrations';
 import { getPeriodReport, getShopMe, getToday } from '@/api/reports';
 import { compactUnits, fmtUzs, fmtUzsCompact, greetingKey } from '@/lib/fmt';
 import { useAuth } from '@/store/auth';
-import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
+
+// Recharts pulls in ~40 KB minified — code-split it so the dashboard's
+// first paint isn't taxed for a sparkline that only renders when there's at
+// least one non-zero day. Suspense fallback is empty (the slot is decorative).
+const ProfitSparkLazy = lazy(() =>
+  import('@/components/charts/ProfitSpark').then((m) => ({ default: m.ProfitSpark })),
+);
 
 const parseNum = (v: string | number | null | undefined): number => {
   if (v === null || v === undefined || v === '') return 0;
@@ -44,7 +49,6 @@ const SPARK_FROM = isoTashkent(new Date(Date.now() - 6 * 86_400_000));
 export default function Today() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const haptic = useTgHaptic();
 
   const todayQ = useQuery({ queryKey: ['reports', 'today'], queryFn: getToday });
   const shopQ = useQuery({ queryKey: ['shops', 'me'], queryFn: getShopMe });
@@ -57,6 +61,9 @@ export default function Today() {
     day: d.day,
     profit: parseNum(d.profit_uzs),
   }));
+  // Hide the sparkline when every point is zero — a flat green line at the
+  // bottom of the first KPI card reads as a stray divider, not a trend.
+  const hasSparkSignal = sparkData.some((d) => d.profit !== 0);
 
   const greeting = t(greetingKey());
   const firstName = user?.full_name?.split(' ')[0] ?? '';
@@ -86,22 +93,27 @@ export default function Today() {
         className="hero-mesh pointer-events-none absolute inset-x-0 -top-6 -z-10 h-64 md:-top-10"
       />
 
-      {/* Header */}
+      {/* Header — kept to a single line on mobile so all three KPIs clear the
+          fold (per CLAUDE.md §15). Shop name folds into a `·` separator;
+          desktop keeps the large display-size hero. */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
         className="flex items-end justify-between gap-3"
       >
-        <div>
-          <div className="text-label font-semibold uppercase tracking-wider text-text-muted">
-            {greeting}
-            {firstName ? ',' : ''}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 md:gap-x-3">
+            <h1 className="text-balance font-display text-title font-semibold tracking-[-0.03em] md:text-display">
+              {greeting}
+              {firstName ? `, ${firstName}` : ''}
+            </h1>
+            {shopQ.data && (
+              <span className="truncate text-body text-text-dim md:text-body-xl">
+                · {shopQ.data.name}
+              </span>
+            )}
           </div>
-          <h1 className="mt-1 text-title-lg font-bold tracking-tight md:text-display">
-            {firstName || t('today.title')}
-          </h1>
-          {shopQ.data && <div className="mt-1 text-sm text-text-dim">{shopQ.data.name}</div>}
         </div>
       </motion.header>
 
@@ -118,32 +130,13 @@ export default function Today() {
         </div>
       )}
 
-      {/* Overdue alert */}
-      {overdueCount > 0 && (
-        <Link
-          to="/installments?status=overdue"
-          onClick={() => haptic.tap('medium')}
-          className={cn(
-            'card-elev flex items-center gap-4 p-4 md:p-5',
-            'group animate-fade-up border-warning/40 transition-all hover:border-warning',
-          )}
-          style={{ animationDelay: '40ms' }}
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-faded text-warning">
-            <AlertTriangle size={20} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-body font-bold text-text">
-              {t('today.overdue_alert_title', { count: overdueCount })}
-            </div>
-            <div className="mt-0.5 text-hint text-text-dim">{t('today.overdue_alert_body')}</div>
-          </div>
-          <ArrowUpRight
-            size={18}
-            className="shrink-0 text-text-muted transition-colors group-hover:text-warning"
-          />
-        </Link>
-      )}
+      {/* Receive today — the single retention-critical block. UX_AUDIT §retention
+          #1: Nasiya is the only daily-action category in the product; without
+          surfacing «who owes you today, with a call button» the feature is a
+          passive archive. Card hides itself when there are no overdue plans,
+          so a clean day stays calm. The old single-line «overdue alert» is
+          superseded by this richer panel. */}
+      <ReceiveTodayCard delay={40} />
 
       {/* 3 headline KPI */}
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
@@ -158,7 +151,13 @@ export default function Today() {
           loading={todayQ.isLoading}
           delay={60}
           delta={profitDelta}
-          footer={sparkData.length >= 2 ? <ProfitSpark data={sparkData} /> : undefined}
+          footer={
+            sparkData.length >= 2 && hasSparkSignal ? (
+              <Suspense fallback={<div className="h-9" />}>
+                <ProfitSparkLazy data={sparkData} />
+              </Suspense>
+            ) : undefined
+          }
         />
         <KpiCard
           label={t('today.kpi_inventory_value')}
@@ -192,10 +191,12 @@ export default function Today() {
         />
       </section>
 
-      {/* Money of the day — already-fetched figures that were hidden */}
+      {/* Money of the day — already-fetched figures that were hidden.
+          No vertical dividers between cells: this is a summary trio, not a
+          spreadsheet — the divide-x line made it look like a card footer. */}
       {todayQ.data && (
         <section
-          className="card grid animate-fade-up grid-cols-3 divide-x divide-border p-0"
+          className="card grid animate-fade-up grid-cols-3 p-0"
           style={{ animationDelay: '210ms' }}
         >
           <FlowStat
@@ -220,7 +221,7 @@ export default function Today() {
           header icon, Nasiya is a bottom-nav tab — so they'd just duplicate
           chrome that's always on screen. */}
       <section className="animate-fade-up" style={{ animationDelay: '240ms' }}>
-        <h2 className="mb-3 text-label font-bold uppercase tracking-wider text-text-dim">
+        <h2 className="mb-3 text-label font-bold tracking-tight text-text-dim">
           {t('today.quick_actions')}
         </h2>
         <div className="grid grid-cols-2 gap-3">
@@ -257,32 +258,6 @@ export default function Today() {
             }
           />
         )}
-    </div>
-  );
-}
-
-function ProfitSpark({ data }: { data: { day: string; profit: number }[] }) {
-  return (
-    <div className="-mx-1 h-9">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
-          <defs>
-            <linearGradient id="today-spark" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgb(var(--c-success))" stopOpacity={0.4} />
-              <stop offset="100%" stopColor="rgb(var(--c-success))" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone"
-            dataKey="profit"
-            stroke="rgb(var(--c-success))"
-            strokeWidth={2}
-            fill="url(#today-spark)"
-            dot={false}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
     </div>
   );
 }
@@ -334,7 +309,10 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="card group flex cursor-pointer flex-col items-start gap-3 p-4 transition-all hover:border-border-strong md:p-5"
+      // Centred icon+label so the tile reads as a single «destination card»
+      // rather than a card with content prepared in a corner. Less p-4, more
+      // intentional vertical rhythm.
+      className="card group flex cursor-pointer flex-col items-center gap-2 px-4 py-3.5 text-center transition-all hover:border-border-strong md:gap-3 md:py-4"
     >
       <div
         className={cn(

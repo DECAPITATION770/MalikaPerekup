@@ -50,6 +50,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { NoInstallmentsIllustration } from '@/components/illustrations';
+import { ReceiveTodayCard } from '@/components/ReceiveTodayCard';
 
 import {
   listInstallments,
@@ -68,7 +69,11 @@ import { cn } from '@/lib/utils';
 
 type Filter = PlanStatus | 'all';
 
-const TAB_KEYS: Filter[] = ['active', 'overdue', 'completed', 'all'];
+// Overdue leads — this surface exists primarily to chase late payments, so
+// the most urgent state earns the first tab. «Активные» stays the visible
+// default via the searchParam fallback below so users opening /installments
+// with no filter still land on the «работающие» list.
+const TAB_KEYS: Filter[] = ['overdue', 'active', 'completed', 'all'];
 
 const STATUS_VARIANT: Record<PlanStatus, 'danger' | 'success' | 'muted' | 'accent'> = {
   overdue: 'danger',
@@ -180,7 +185,7 @@ function PaymentDialog({
           <label className="text-label font-medium tracking-tight text-text-dim">
             {t('installments.amount_label')}
           </label>
-          <div className="flex h-14 items-center gap-2 rounded-2xl border border-border bg-bg2 px-4 transition-colors focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
+          <div className="flex h-14 items-center gap-2 rounded-card border border-border bg-bg2 px-4 transition-colors focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
             <input
               autoFocus
               inputMode="numeric"
@@ -305,7 +310,7 @@ function PlanCard({ plan }: { plan: PlanOut }) {
       {/* Headline number — how much's left to collect */}
       <div>
         <div className="flex items-baseline justify-between gap-2">
-          <div className="text-caption font-semibold uppercase tracking-wider text-text-muted">
+          <div className="text-caption font-semibold tracking-tight text-text-muted">
             {t('installments.remaining')}
           </div>
           <div className="text-caption tabular-nums text-text-muted">
@@ -470,11 +475,24 @@ export default function Installments() {
     refetchInterval: 5_000,
   });
 
+  // Lightweight count for the «Просроченные» tab badge — shares cache with
+  // BottomNav's overdue indicator (same queryKey), so the red dot stays in
+  // sync without a duplicate network round-trip.
+  const { data: overdueData } = useQuery({
+    queryKey: ['installments', 'overdue-count'],
+    queryFn: () => listInstallments({ status: 'overdue', limit: 1, offset: 0 }),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const overdueCount = overdueData?.total ?? 0;
+
   const items = data?.items ?? [];
 
   return (
     <div className="flex animate-fade-up flex-col gap-4">
-      <h1 className="text-title font-bold tracking-tight">{t('installments.title')}</h1>
+      <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
+        {t('installments.title')}
+      </h1>
 
       {queued > 0 && (
         <div className="flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning-faded/40 px-3.5 py-2.5 text-label font-semibold text-warning">
@@ -483,12 +501,38 @@ export default function Installments() {
         </div>
       )}
 
+      {/* Leader: «сегодня надо получить» — same card as on /today, repeated
+          here so the user lands on action even if they came straight to the
+          archive view via a deep link. Hidden when no overdue. */}
+      <ReceiveTodayCard />
+
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
         <TabsList className="w-full md:w-auto">
-          <TabsTrigger value="active">{t('installments.active')}</TabsTrigger>
-          <TabsTrigger value="overdue">{t('installments.overdue')}</TabsTrigger>
-          <TabsTrigger value="completed">{t('installments.completed')}</TabsTrigger>
-          <TabsTrigger value="all">{t('installments.all')}</TabsTrigger>
+          <TabsTrigger value="active" className="flex-1">
+            {t('installments.active')}
+          </TabsTrigger>
+          {/* «Просроченные» carries a semantic identity: when active the
+              trigger goes danger-tinted; when inactive but the count is
+              non-zero, a small red dot signals there's something to look
+              at. Both states use existing danger tokens — no new colour. */}
+          <TabsTrigger
+            value="overdue"
+            className="flex-1 gap-1.5 data-[state=active]:!border-danger/40 data-[state=active]:!bg-danger-faded data-[state=active]:!text-danger"
+          >
+            {t('installments.overdue')}
+            {overdueCount > 0 && (
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger"
+              />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="flex-1">
+            {t('installments.completed')}
+          </TabsTrigger>
+          <TabsTrigger value="all" className="flex-1">
+            {t('installments.all')}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -499,7 +543,7 @@ export default function Installments() {
           ))}
         </div>
       ) : isError ? (
-        <div className="card p-4 text-sm text-danger">{t('common.error_load')}</div>
+        <div className="card p-4 text-body text-danger">{t('common.error_load')}</div>
       ) : items.length === 0 ? (
         <EmptyState
           illustration={<NoInstallmentsIllustration />}
@@ -508,7 +552,9 @@ export default function Installments() {
           action={
             (filter === 'active' || filter === 'all') && (
               <Link to="/sale/new">
-                <Button>
+                {/* Green to match /sales: buy = orange (money out), sell = green
+                    (money in). The default accent CTA here broke that pattern. */}
+                <Button variant="success">
                   <BadgeDollarSign className="size-4" />
                   {t('today.action_sale')}
                 </Button>

@@ -70,10 +70,35 @@ export default function Reports() {
     return { from: customFrom, to: customTo };
   }, [preset, customFrom, customTo]);
 
+  // Previous-period window of the same length, ending the day before `from`.
+  // The delta computation answers "растёт ли бизнес?" — UX_AUDIT §retention
+  // flagged Reports v0 as having raw numbers without trend context.
+  const { prevFrom, prevTo } = useMemo(() => {
+    if (!from || !to) return { prevFrom: '', prevTo: '' };
+    const fromDate = new Date(`${from}T00:00:00`);
+    const toDate = new Date(`${to}T00:00:00`);
+    const lengthDays = Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000);
+    if (lengthDays < 0) return { prevFrom: '', prevTo: '' };
+    const prevEnd = new Date(fromDate);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - lengthDays);
+    const fmt = (d: Date) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(d);
+    return { prevFrom: fmt(prevStart), prevTo: fmt(prevEnd) };
+  }, [from, to]);
+
   const { data, isLoading } = useQuery({
     queryKey: ['reports-period', from, to],
     queryFn: () => getPeriodReport(from, to),
     enabled: !!from && !!to && from <= to,
+  });
+
+  const { data: prevData } = useQuery({
+    queryKey: ['reports-period', prevFrom, prevTo],
+    queryFn: () => getPeriodReport(prevFrom, prevTo),
+    enabled: !!prevFrom && !!prevTo && prevFrom <= prevTo,
+    staleTime: 5 * 60_000,
   });
 
   const { data: inv } = useQuery({
@@ -117,7 +142,7 @@ export default function Reports() {
   return (
     <div className="flex animate-fade-up flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-title font-bold tracking-tight">{t('reports.title')}</h1>
+        <h1 className="font-display text-title font-semibold tracking-[-0.03em]">{t('reports.title')}</h1>
         <Button
           variant="secondary"
           size="sm"
@@ -197,7 +222,7 @@ export default function Reports() {
       ) : !data || (data.sales_count === 0 && data.purchases_count === 0) ? (
         <EmptyState
           illustration={
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-bg3 text-text-muted">
+            <div className="flex h-14 w-14 items-center justify-center rounded-card bg-bg3 text-text-muted">
               <BarChart2 size={26} />
             </div>
           }
@@ -210,6 +235,8 @@ export default function Reports() {
               icon={<TrendingUp size={14} />}
               label={t('reports.profit')}
               value={`${fmtUzs(data.profit_uzs)} UZS`}
+              delta={computeDelta(Number(data.profit_uzs), prevData ? Number(prevData.profit_uzs) : undefined)}
+              deltaLabel={t('reports.vs_prev_period')}
               sub={
                 data.sales_count > 0
                   ? `${t('reports.avg_profit')}: ${fmtUzs(data.avg_profit_per_sale_uzs)} UZS`
@@ -221,16 +248,22 @@ export default function Reports() {
               icon={<BarChart2 size={14} />}
               label={t('reports.revenue')}
               value={`${fmtUzs(data.revenue_uzs)} UZS`}
+              delta={computeDelta(Number(data.revenue_uzs), prevData ? Number(prevData.revenue_uzs) : undefined)}
+              deltaLabel={t('reports.vs_prev_period')}
             />
             <StatCard
               icon={<ShoppingCart size={14} />}
               label={t('reports.purchases')}
               value={String(data.purchases_count)}
+              delta={computeDelta(data.purchases_count, prevData?.purchases_count)}
+              deltaLabel={t('reports.vs_prev_period')}
             />
             <StatCard
               icon={<RotateCcw size={14} />}
               label={t('reports.sales')}
               value={String(data.sales_count)}
+              delta={computeDelta(data.sales_count, prevData?.sales_count)}
+              deltaLabel={t('reports.vs_prev_period')}
               sub={
                 data.returns_count > 0
                   ? `${t('reports.returns')}: ${data.returns_count}`
@@ -244,7 +277,7 @@ export default function Reports() {
             <Card className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-2 text-text-dim">
                 <TrendingUp size={14} />
-                <span className="text-caption font-semibold uppercase tracking-wider">
+                <span className="text-caption font-semibold tracking-tight">
                   {t('reports.profit_by_day')}
                 </span>
               </div>
@@ -293,7 +326,7 @@ export default function Reports() {
             <Card className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-2 text-text-dim">
                 <BarChart2 size={14} />
-                <span className="text-caption font-semibold uppercase tracking-wider">
+                <span className="text-caption font-semibold tracking-tight">
                   {t('reports.top_models')}
                 </span>
               </div>
@@ -332,7 +365,7 @@ export default function Reports() {
                 <Clock size={14} />
                 <span className="text-label font-semibold">{t('reports.avg_days')}</span>
               </div>
-              <span className="text-lg font-bold tabular-nums">
+              <span className="text-subhead font-bold tabular-nums">
                 {data.avg_days_in_stock.toFixed(1)}
               </span>
             </Card>
@@ -343,32 +376,73 @@ export default function Reports() {
   );
 }
 
+/** Period-over-period delta. Returns `undefined` if the previous period has
+ *  no data (first run or genuinely zero), since "infinite improvement" pills
+ *  are noise. Returns `dir:'flat'` with no pct when both are 0. */
+interface Delta {
+  dir: 'up' | 'down' | 'flat';
+  pct?: number;
+}
+function computeDelta(current: number, previous?: number): Delta | undefined {
+  if (previous === undefined) return undefined;
+  if (previous === 0 && current === 0) return { dir: 'flat' };
+  if (previous === 0) return { dir: current > 0 ? 'up' : 'down' };
+  const pct = Math.round(((current - previous) / Math.abs(previous)) * 100);
+  if (pct === 0) return { dir: 'flat' };
+  return { dir: pct > 0 ? 'up' : 'down', pct: Math.abs(pct) };
+}
+
 function StatCard({
   icon,
   label,
   value,
   sub,
   accent,
+  delta,
+  deltaLabel,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string;
   accent?: boolean;
+  delta?: Delta;
+  deltaLabel?: string;
 }) {
+  // Single delta chip per card — colour follows direction (success up / danger
+  // down / muted flat). Pct hidden when previous was 0 (would read as ∞%).
+  const deltaCls =
+    delta?.dir === 'up'
+      ? 'text-success bg-success-faded'
+      : delta?.dir === 'down'
+        ? 'text-danger bg-danger-faded'
+        : 'text-text-muted bg-bg3';
+  const deltaSign = delta?.dir === 'up' ? '↑' : delta?.dir === 'down' ? '↓' : '·';
+
   return (
     <Card className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2 text-text-dim">
         {icon}
-        <span className="text-caption font-semibold uppercase tracking-wider">{label}</span>
+        <span className="text-caption font-semibold tracking-tight">{label}</span>
       </div>
       <div
-        className={`text-title-sm font-bold tabular-nums leading-tight tracking-tight ${
+        className={`font-display text-title-sm font-semibold tabular-nums leading-tight tracking-[-0.02em] ${
           accent ? 'text-success' : ''
         }`}
       >
         {value}
       </div>
+      {delta && (
+        <div className="flex items-center gap-1.5 text-hint">
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-bold tabular-nums ${deltaCls}`}
+          >
+            {deltaSign}
+            {delta.pct !== undefined && ` ${delta.pct}%`}
+          </span>
+          {deltaLabel && <span className="text-text-muted">{deltaLabel}</span>}
+        </div>
+      )}
       {sub && <div className="text-caption text-text-muted">{sub}</div>}
     </Card>
   );
@@ -388,7 +462,7 @@ function ChartTooltip({
   if (!active || !payload?.length) return null;
   const p = payload[0];
   return (
-    <div className="rounded-lg border border-border bg-bg3 px-3 py-2 text-xs shadow-lg">
+    <div className="rounded-lg border border-border bg-bg3 px-3 py-2 text-hint shadow-lg">
       <div className="text-text-muted">{p.payload.name ?? label}</div>
       <div className="font-bold tabular-nums text-text">
         {fmtUzs(p.value)} {unit}
