@@ -11,18 +11,22 @@ import { cn } from '@/lib/utils';
 
 export function ThemeIconButton({ className }: { className?: string }) {
   const { t } = useTranslation();
-  const { pref, resolved, cycle } = useTheme();
-  // Header/sidebar cycler shows the *applied* colour — so users see Sun
-  // when the UI is currently light and Moon when it's dark, even if the
-  // underlying preference is "Auto". The selected preference still moves
-  // through the Auto → Light → Dark cycle; the explicit 3-state picker
-  // (ThemeSegmented in Settings) is where Monitor stays.
-  const Icon = resolved === 'dark' ? Moon : Sun;
-  const label = `${t('settings.theme_label')}: ${t(`settings.theme_${pref}`)}`;
+  const { resolved, setPref } = useTheme();
+  // Header/sidebar button is a plain light↔dark toggle:
+  //   * the icon shows the *applied* colour (Sun in light mode, Moon in
+  //     dark mode), so the meaning matches what the user sees, and
+  //   * one tap always flips to the opposite — no hidden Auto step that
+  //     would otherwise eat a click when the resolved colour happens to
+  //     match the underlying preference.
+  // The full Auto / Light / Dark picker still lives in Settings.
+  const isDark = resolved === 'dark';
+  const Icon = isDark ? Moon : Sun;
+  const next = isDark ? 'light' : 'dark';
+  const label = `${t('settings.theme_label')}: ${t(`settings.theme_${next}`)}`;
   return (
     <button
       type="button"
-      onClick={cycle}
+      onClick={() => setPref(next)}
       aria-label={label}
       title={label}
       className={cn(

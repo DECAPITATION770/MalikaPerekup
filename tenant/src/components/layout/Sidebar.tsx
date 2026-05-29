@@ -61,11 +61,13 @@ const NAV_ARCHIVE: readonly NavSpec[] = [
 export function Sidebar() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
-  const { pref: themePref, resolved: themeResolved, cycle: cycleTheme } = useTheme();
-  // The sidebar cycler mirrors the header button: the icon reflects the
-  // *applied* colour (Sun for light, Moon for dark). The Monitor preset
-  // still lives in the Settings 3-state picker via THEME_ICON.
-  const ThemeIcon = themeResolved === 'dark' ? Moon : Sun;
+  const { resolved: themeResolved, setPref: setThemePref } = useTheme();
+  // Sidebar mirrors the header button: a plain light↔dark toggle so one
+  // tap always flips the colour you can see. The Auto preset lives in
+  // the Settings 3-state picker.
+  const themeIsDark = themeResolved === 'dark';
+  const ThemeIcon = themeIsDark ? Moon : Sun;
+  const themeNext = themeIsDark ? 'light' : 'dark';
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const initials =
@@ -160,11 +162,11 @@ export function Sidebar() {
       {/* Footer */}
       <div className="flex flex-col gap-1 border-t border-border px-3 pb-4 pt-3">
         <button
-          onClick={cycleTheme}
+          onClick={() => setThemePref(themeNext)}
           className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-label font-semibold text-text-dim transition-all hover:bg-bg3 hover:text-text"
         >
           <ThemeIcon size={16} strokeWidth={1.8} />
-          {t('settings.theme_label')}: {t(`settings.theme_${themePref}`)}
+          {t('settings.theme_label')}: {t(`settings.theme_${themeNext}`)}
         </button>
         <button
           onClick={toggleLang}
