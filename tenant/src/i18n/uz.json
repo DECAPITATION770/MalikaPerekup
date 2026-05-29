@@ -1,5 +1,6 @@
 {
   "nav": {
+    "primary_label": "Asosiy navigatsiya",
     "today": "Bugun",
     "stock": "Vitrina",
     "purchase_new": "Qabul qilish",
@@ -134,6 +135,12 @@
     "encourage_first_purchase": "Birinchi qabuldan boshlang — telefonni qo'shing, u shu yerda paydo bo'ladi.",
     "overdue_alert_title": "Muddati o'tgan to'lovlar: {{count}}",
     "overdue_alert_body": "Nasiya bo'limiga qarang — xaridorlarga eslatish vaqti keldi.",
+    "receive_today_title": "Bugun olish kerak",
+    "receive_today_body": "Muddati o'tgan nasiya — shu yerdan qo'ng'iroq qiling",
+    "receive_today_remaining": "Qoldiq {{amount}}",
+    "receive_today_call": "Qo'ng'iroq",
+    "receive_today_more": "Hammasi ({{count}})",
+    "receive_today_no_phone": "Telefon yo'q",
     "frozen_badge": "Muzlatilgan",
     "kpi_vs_yesterday": "kechagiga nisbatan"
   },
@@ -195,6 +202,8 @@
     "col_status": "Holat",
     "days_n": "{{n}} kun",
     "open": "Ochish",
+    "clear_search": "Qidiruvni tozalash",
+    "remove_filter": "Filtrni olib tashlash",
     "detail_qr_print": "Stiker chop etish",
     "sell_this": "Qurilmani sotish",
     "return_action": "Qaytarishni rasmiylashtirish",
@@ -457,7 +466,8 @@
     "empty": "Tanlangan davr uchun sotuvlar yo'q",
     "no_data": "—",
     "export": "Eksport",
-    "profit_by_day": "Kunlik foyda"
+    "profit_by_day": "Kunlik foyda",
+    "vs_prev_period": "o'tgan davrga nisbatan"
   },
   "sale": {
     "title": "Sotuv",
@@ -482,12 +492,14 @@
     "device_selected": "Qurilma tanlandi",
     "device_clear": "O'zgartirish",
     "device_info": "Batafsil",
+    "device_days_one": "{{count}} kun",
+    "device_days_other": "{{count}} kun",
     "detail_title": "Qurilma haqida ma'lumot",
     "detail_purchase_price": "Sotib olish narxi",
     "detail_in_stock": "Vitrinada",
     "detail_no_photos": "Surat yo'q",
     "buyer_search": "Xaridorni ma'lumotnomadan topish",
-    "buyer_name_label": "Xaridor FISh",
+    "buyer_name_label": "Xaridor to'liq ismi",
     "buyer_name_placeholder": "Ivanov Ivan Ivanovich",
     "buyer_phone_label": "Telefon",
     "buyer_phone_placeholder": "+998 90 123 45 67",
@@ -538,7 +550,11 @@
     },
     "nasiya_summary": "Bo'lib to'lashga",
     "nasiya_warn_down": "Birinchi to'lov narxdan katta",
-    "buyer_photos_label": "Xaridor hujjatining fotosi"
+    "buyer_photos_label": "Xaridor hujjatining fotosi",
+    "cost_reminder": "Xarid {{amount}} UZS",
+    "profit_cash": "Foyda",
+    "profit_loss": "Zarar",
+    "profit_breakeven": "Nolda"
   },
   "installments": {
     "title": "Nasiya",
@@ -601,6 +617,10 @@
     "theme_auto": "Avto",
     "theme_light": "Yorug'",
     "theme_dark": "Tungi",
+    "theme_switch_to_light": "Yorug' mavzuga o'tish",
+    "theme_switch_to_dark": "Tungi mavzuga o'tish",
+    "lang_switch_to_uz": "O‘zbek tiliga o‘tish",
+    "lang_switch_to_ru": "Rus tiliga o‘tish",
     "save": "Saqlash",
     "save_ok": "Sozlamalar saqlandi",
     "plan_section": "Tarif",

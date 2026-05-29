@@ -43,7 +43,9 @@ import { getSalesByDevice, returnSale, type SaleOut } from '@/api/sales';
 import { fmtDate, fmtUzs } from '@/lib/fmt';
 import { formatSpecValue } from '@/lib/specsFmt';
 import BrandBadge from '@/components/BrandBadge';
-import { brandColor, brandTint } from '@/lib/brand';
+import DevicePhoto from '@/components/DevicePhoto';
+import { brandTextColor, brandTint } from '@/lib/brand';
+import { useTheme } from '@/lib/theme';
 import { useTgMainButton, useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 
@@ -92,7 +94,7 @@ function StatTile({
   accent?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-2xl border border-border/60 bg-bg3 p-3.5">
+    <div className="flex flex-col gap-1 rounded-card border border-border/60 bg-bg3 p-3.5">
       <div className="text-caption text-text-muted">{label}</div>
       <div className={cn('text-body-lg font-bold tabular-nums', accent && 'text-accent')}>
         {value}
@@ -104,7 +106,7 @@ function StatTile({
 function BatteryTile({ label, pct }: { label: string; pct: number }) {
   const tone = pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger';
   return (
-    <div className="flex flex-col gap-1 rounded-2xl border border-border/60 bg-bg3 p-3.5">
+    <div className="flex flex-col gap-1 rounded-card border border-border/60 bg-bg3 p-3.5">
       <div className="text-caption text-text-muted">{label}</div>
       <div className="text-body-lg font-bold tabular-nums">{pct}%</div>
       <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-bg">
@@ -120,6 +122,7 @@ function BatteryTile({ label, pct }: { label: string; pct: number }) {
 export default function StockDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const { resolved } = useTheme();
   const haptic = useTgHaptic();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -227,20 +230,27 @@ export default function StockDetail() {
 
       {/* Hero */}
       <div className="card flex flex-col gap-5 p-5 sm:flex-row">
+        {/* Brand-tinted bg sits behind both states; the photo fully covers it
+            when it loads and shows through as the icon backdrop on failure
+            (MinIO presigned URLs do go 404 — guard against the broken-image
+            glyph filling half the viewport). */}
         <div
-          className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-border sm:h-36 sm:w-36"
-          style={
-            heroUrl
-              ? undefined
-              : { backgroundColor: brandTint(d.brand, 0.14), color: brandColor(d.brand) }
-          }
+          className="flex h-48 w-full shrink-0 items-center justify-center overflow-hidden rounded-card ring-1 ring-border sm:h-36 sm:w-36"
+          style={{
+            backgroundColor: brandTint(d.brand, 0.14),
+            color: brandTextColor(d.brand, resolved),
+          }}
         >
-          {heroUrl ? (
-            <img src={heroUrl} alt="" className="h-full w-full object-cover" />
-          ) : photos.length > 0 && photosQuery.isLoading ? (
+          {photos.length > 0 && photosQuery.isLoading ? (
             <Skeleton className="h-full w-full" />
           ) : (
-            <Icon size={44} strokeWidth={1.4} />
+            <DevicePhoto
+              src={heroUrl}
+              alt={`${d.brand} ${d.model}`}
+              loading="eager"
+              fallback={<Icon size={44} strokeWidth={1.4} />}
+              className="h-full w-full object-cover"
+            />
           )}
         </div>
 
@@ -263,7 +273,9 @@ export default function StockDetail() {
             <Badge variant={CONDITION_VARIANT[d.condition]} size="sm">
               {t(`condition.${d.condition}`)}
             </Badge>
-            <Badge variant="neutral" size="sm">
+            {/* Category is descriptive metadata, not a state — quieter
+                «muted» variant so the row reads status > condition > kind. */}
+            <Badge variant="muted" size="sm">
               {t(`category.${d.category}`)}
             </Badge>
           </div>
@@ -310,7 +322,12 @@ export default function StockDetail() {
 
       {/* Photos */}
       {photos.length > 0 && (
-        <PhotoGallery urls={photoUrls} loading={photosQuery.isLoading} count={photos.length} />
+        <PhotoGallery
+          urls={photoUrls}
+          loading={photosQuery.isLoading}
+          count={photos.length}
+          label={`${d.brand} ${d.model}`}
+        />
       )}
 
       {/* Specs */}
@@ -378,7 +395,10 @@ export default function StockDetail() {
             {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
             {copied ? t('stock.detail_qr_copied') : t('stock.detail_qr_copy')}
           </button>
-          <Button size="sm" onClick={() => setQrOpen(true)}>
+          {/* Secondary, not primary: «Продать аппарат» up the page already
+              owns the amber CTA on this screen — print is a utility, not the
+              main verb. Two amber CTAs side-by-side dilute the call to sell. */}
+          <Button size="sm" variant="secondary" onClick={() => setQrOpen(true)}>
             <Printer className="size-4" />
             {t('stock.detail_qr_print')}
           </Button>
@@ -397,13 +417,20 @@ function PhotoGallery({
   urls,
   loading,
   count,
+  label,
 }: {
   urls: string[];
   loading: boolean;
   count: number;
+  label: string;
 }) {
   const { t } = useTranslation();
   const [active, setActive] = useState<number | null>(null);
+  // Bullet fallback for the rare 404 — keeps the thumb slot visible (so the
+  // grid doesn't reflow on partial failures) without the browser glyph.
+  const thumbFallback = (
+    <span className="text-caption font-semibold text-text-muted">—</span>
+  );
   return (
     <div className="card flex flex-col gap-3 p-5">
       <h2 className="text-body-lg font-bold tracking-tight">
@@ -419,9 +446,14 @@ function PhotoGallery({
                 key={i}
                 type="button"
                 onClick={() => setActive(i)}
-                className="h-24 w-24 cursor-pointer overflow-hidden rounded-xl border border-border bg-bg3 transition-all hover:border-border-strong active:scale-[0.98]"
+                className="h-24 w-24 cursor-pointer overflow-hidden rounded-xl border border-border bg-bg3 transition-all hover:border-border-strong active:scale-[0.98] flex items-center justify-center"
               >
-                <img src={u} alt="" className="h-full w-full object-cover" />
+                <DevicePhoto
+                  src={u}
+                  alt={`${label} — ${t('stock.detail_photos')} ${i + 1}`}
+                  fallback={thumbFallback}
+                  className="h-full w-full object-cover"
+                />
               </button>
             ))}
       </div>
@@ -433,7 +465,7 @@ function PhotoGallery({
           {active !== null && urls[active] && (
             <img
               src={urls[active]}
-              alt=""
+              alt={`${label} — ${t('stock.detail_photos')} ${active + 1}`}
               className="max-h-[70vh] w-full rounded-xl bg-bg3 object-contain"
             />
           )}
@@ -495,7 +527,7 @@ function QrStickerDialog({ deviceId, label }: { deviceId: number; label: string 
               className="size-full object-contain [image-rendering:pixelated]"
             />
           ) : (
-            <span className="text-sm text-danger">{t('common.error_load')}</span>
+            <span className="text-body text-danger">{t('common.error_load')}</span>
           )}
         </div>
         <div className="text-center text-label font-bold">{label}</div>
@@ -561,7 +593,7 @@ function ReturnSaleAction({
           <DialogHeader>
             <DialogTitle>{t('stock.return_title')}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm leading-relaxed text-text-dim">{t('stock.return_body')}</p>
+          <p className="text-body leading-relaxed text-text-dim">{t('stock.return_body')}</p>
           <div className="flex flex-col gap-1.5">
             <label className="text-label font-medium text-text-dim">
               {t('stock.return_reason_label')}

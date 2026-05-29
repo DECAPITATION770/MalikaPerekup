@@ -28,7 +28,7 @@ CardTitle.displayName = 'CardTitle';
 
 const CardDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...rest }, ref) => (
-    <div ref={ref} className={cn('text-sm text-text-dim', className)} {...rest} />
+    <div ref={ref} className={cn('text-body text-text-dim', className)} {...rest} />
   ),
 );
 CardDescription.displayName = 'CardDescription';

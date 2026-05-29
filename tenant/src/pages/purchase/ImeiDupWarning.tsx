@@ -33,7 +33,7 @@ export function ImeiDupWarning({ imei }: { imei: string }) {
   return (
     <div className="mt-1.5 flex items-start gap-2 px-3 py-2 rounded-lg bg-warning-faded border border-warning/30 text-warning animate-fade-in">
       <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-      <div className="text-xs leading-relaxed">
+      <div className="text-hint leading-relaxed">
         <span className="font-semibold">{t('purchase.imei_dup_warning')}</span>
         {parts.length > 0 && (
           <span className="text-warning/80"> · {parts.join(' · ')}</span>

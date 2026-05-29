@@ -38,7 +38,7 @@ const DialogContent = React.forwardRef<
         ref={ref}
         className={cn(
           'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2',
-          'card p-6 gap-4 sm:rounded-2xl',
+          'card p-6 gap-4 sm:rounded-card',
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -94,7 +94,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...rest }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-text-dim leading-relaxed', className)}
+    className={cn('text-body text-text-dim leading-relaxed', className)}
     {...rest}
   />
 ));

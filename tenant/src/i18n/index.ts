@@ -10,6 +10,18 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+// Keep <html lang> in sync with the active locale — the boot script in
+// index.html sets the initial value from localStorage, but every subsequent
+// `i18n.changeLanguage()` (lang toggle, restore from settings) must also
+// update the document so screen-readers, hyphenation and translate="no" tags
+// resolve against the right language.
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = i18n.language;
+  i18n.on('languageChanged', (lng) => {
+    document.documentElement.lang = lng;
+  });
+}
+
 // Dev-only: i18next caches its dictionary on init, so Vite-hot-updating a
 // JSON file alone won't refresh visible strings (you'd see raw keys until a
 // hard reload). This wires JSON changes back into the live i18n instance.

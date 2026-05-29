@@ -4,7 +4,10 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     // ── Typography scale ───────────────────────────────────────────────────
-    // Named tokens instead of arbitrary px. Change one number → updates everywhere.
+    // Semantic-only — was 17 names for ~12 sizes (DESIGN_AUDIT.md §Type scale).
+    // Codemod in this branch swept `text-xs/sm/base/xl/2xl/lg` → equivalents,
+    // and `text-3xl/4xl` were unused. Adding new sizes here is encouraged —
+    // adding back numeric Tailwind defaults is not.
     fontSize: {
       micro: ['10px', { lineHeight: '14px', letterSpacing: '0.02em' }],
       caption: ['11px', { lineHeight: '15px' }],
@@ -18,14 +21,6 @@ export default {
       title: ['24px', { lineHeight: '32px' }],
       'title-lg': ['28px', { lineHeight: '36px' }],
       display: ['34px', { lineHeight: '40px' }],
-      xs: ['12px', { lineHeight: '16px' }],
-      sm: ['14px', { lineHeight: '20px' }],
-      base: ['16px', { lineHeight: '24px' }],
-      lg: ['18px', { lineHeight: '28px' }],
-      xl: ['20px', { lineHeight: '28px' }],
-      '2xl': ['24px', { lineHeight: '32px' }],
-      '3xl': ['30px', { lineHeight: '36px' }],
-      '4xl': ['36px', { lineHeight: '40px' }],
     },
 
     container: {
@@ -117,12 +112,27 @@ export default {
       },
 
       fontFamily: {
+        // Body text — system stack stays the default because no webfont beats
+        // the user's native fallback for first paint, and most of the UI is
+        // utilitarian dense text where Geist's character vs system is marginal.
         sans: [
           '-apple-system',
           'BlinkMacSystemFont',
           '"SF Pro Text"',
           '"Segoe UI"',
           'Roboto',
+          'system-ui',
+          'sans-serif',
+        ],
+        // Display face — applied only to hero headlines (h1/h2) and KPI
+        // numerals. One axis of hierarchy the system font can't provide:
+        // tighter spacing, more confident weights, distinct identity for the
+        // numbers that actually run the business. Variable woff2 = ~70 KB.
+        display: [
+          '"Geist Variable"',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Display"',
           'system-ui',
           'sans-serif',
         ],

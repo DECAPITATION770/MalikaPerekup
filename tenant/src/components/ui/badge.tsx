@@ -2,8 +2,14 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+// Badge base — sentence-case pill. Caps + `tracking-wider` previously gave
+// every status row a 2003-admin-theme feel; with `font-semibold` and tight
+// tracking the chip carries weight without screaming. `rounded-full` unifies
+// with BrandBadge + the handmade chips so list rows stop mixing three radii.
+// `whitespace-nowrap` is preserved — multi-line status labels still double row
+// height in tight lists.
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 font-bold uppercase tracking-wider rounded-md ring-1',
+  'inline-flex items-center gap-1 font-semibold tracking-tight whitespace-nowrap rounded-full ring-1',
   {
     variants: {
       variant: {
@@ -16,8 +22,10 @@ const badgeVariants = cva(
         outline: 'bg-transparent text-text-dim ring-border-strong',
       },
       size: {
-        sm: 'px-1.5 py-0.5 text-micro',
-        md: 'px-2 py-0.5 text-caption',
+        // Pill needs a touch more horizontal padding than the old `rounded-md`
+        // shape to keep the text optically centred between the arcs.
+        sm: 'px-2 py-0.5 text-micro',
+        md: 'px-2.5 py-0.5 text-caption',
       },
     },
     defaultVariants: { variant: 'neutral', size: 'md' },

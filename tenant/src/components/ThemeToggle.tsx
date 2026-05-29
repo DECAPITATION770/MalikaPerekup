@@ -22,7 +22,9 @@ export function ThemeIconButton({ className }: { className?: string }) {
   const isDark = resolved === 'dark';
   const Icon = isDark ? Moon : Sun;
   const next = isDark ? 'light' : 'dark';
-  const label = `${t('settings.theme_label')}: ${t(`settings.theme_${next}`)}`;
+  // Verb-led so screen-readers announce the *action*, not a state that
+  // contradicts the visible icon (Sun = «you're in light»). See UX_AUDIT.md.
+  const label = t(`settings.theme_switch_to_${next}`);
   return (
     <button
       type="button"
@@ -34,7 +36,13 @@ export function ThemeIconButton({ className }: { className?: string }) {
         className,
       )}
     >
-      <Icon size={20} />
+      {/* `key` on the icon span forces a remount when the theme flips, which
+          gives us a free fade-in animation on the new glyph instead of an
+          instantaneous swap. The global prefers-reduced-motion override in
+          index.css clamps the duration to ~0ms for users who opt out. */}
+      <span key={isDark ? 'moon' : 'sun'} className="animate-fade-in" aria-hidden>
+        <Icon size={20} />
+      </span>
     </button>
   );
 }

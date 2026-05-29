@@ -57,11 +57,11 @@ const LabeledInput = forwardRef<HTMLInputElement, Props>(function LabeledInput(
         {suffix && <span className="shrink-0">{suffix}</span>}
       </div>
       {error ? (
-        <span role="alert" className="text-xs text-danger animate-fade-in">
+        <span role="alert" className="text-hint text-danger animate-fade-in">
           {error}
         </span>
       ) : hint ? (
-        <span className="text-xs text-text-muted">{hint}</span>
+        <span className="text-hint text-text-muted">{hint}</span>
       ) : null}
     </div>
   );

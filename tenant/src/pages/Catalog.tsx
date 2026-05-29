@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import BrandBadge from '@/components/BrandBadge';
+import DevicePhoto from '@/components/DevicePhoto';
 import DocumentUploader from '@/components/DocumentUploader';
 import SpecsForm from '@/pages/purchase/SpecsForm';
 import { CATEGORY_ICON, CategoryPicker, Field, OptionalGroup } from '@/pages/purchase/primitives';
@@ -134,10 +135,25 @@ export default function Catalog() {
 
   return (
     <div className="flex flex-col gap-4 animate-fade-up">
-      <div className="flex items-start justify-between gap-3">
+      {/* Header — compact inline title on mobile (count appended), full
+          heading + side action on desktop. Matches the list-page hero idiom
+          shared with Stock/Sales. */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:hidden">
+        <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
+          {t('catalog.title')}
+        </h1>
+        <span className="text-body text-text-dim">
+          {(data?.total ?? 0) > 0
+            ? `· ${t('catalog.total', { count: data!.total })}`
+            : `· ${t('catalog.subtitle')}`}
+        </span>
+      </div>
+      <div className="hidden items-start justify-between gap-3 md:flex">
         <div>
-          <h1 className="text-title font-bold tracking-tight">{t('catalog.title')}</h1>
-          <p className="text-sm text-text-dim mt-0.5">
+          <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
+            {t('catalog.title')}
+          </h1>
+          <p className="text-body text-text-dim mt-0.5">
             {(data?.total ?? 0) > 0
               ? t('catalog.total', { count: data!.total })
               : t('catalog.subtitle')}
@@ -149,17 +165,39 @@ export default function Catalog() {
         </Button>
       </div>
 
-      <div className="relative">
-        <SearchIcon
-          size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
-        />
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('catalog.search')}
-          className="pl-10"
-        />
+      {/* Sticky search + add-CTA strip on mobile — sticks flush under the
+          AppHeader (which is itself sticky at top-0 + safe-area padding) so
+          notched devices don't ghost the strip behind the chrome. Desktop
+          flattens the strip back into the page flow. */}
+      <div
+        className="sticky z-30 -mx-4 flex items-center gap-2 border-b border-border bg-bg/90 px-4 py-2 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 3.5rem)' }}
+      >
+        <div className="relative flex-1">
+          <SearchIcon
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+          />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t('catalog.search')}
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            spellCheck={false}
+            className="pl-10"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setEditing({ ...EMPTY_FORM })}
+          aria-label={t('catalog.add')}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg2 text-text-dim transition-colors hover:border-border-strong hover:text-text md:hidden"
+        >
+          <Plus size={18} aria-hidden />
+        </button>
       </div>
 
       {isLoading ? (
@@ -169,11 +207,11 @@ export default function Catalog() {
           ))}
         </div>
       ) : isError ? (
-        <div className="card p-4 text-sm text-danger">{t('common.error_load')}</div>
+        <div className="card p-4 text-body text-danger">{t('common.error_load')}</div>
       ) : items.length === 0 ? (
         <EmptyState
           illustration={
-            <div className="w-14 h-14 rounded-2xl bg-bg3 flex items-center justify-center text-text-muted">
+            <div className="w-14 h-14 rounded-card bg-bg3 flex items-center justify-center text-text-muted">
               <Plus size={24} />
             </div>
           }
@@ -212,17 +250,17 @@ export default function Catalog() {
                   }
                   className="flex flex-1 min-w-0 items-center gap-3 text-left cursor-pointer"
                 >
-                  {m.photo_urls[0] ? (
-                    <img
+                  {/* DevicePhoto guards against 404 from presigned-URL drift;
+                      a bare <img> would leave a broken-image glyph in the
+                      list. Falls back to the same category-icon tile. */}
+                  <div className="size-11 shrink-0 overflow-hidden rounded-xl bg-bg3 flex items-center justify-center text-text-muted">
+                    <DevicePhoto
                       src={m.photo_urls[0]}
-                      alt=""
-                      className="size-11 shrink-0 rounded-xl object-cover bg-bg3"
+                      alt={`${m.brand} ${m.model}`}
+                      fallback={<Icon size={20} />}
+                      className="h-full w-full object-cover"
                     />
-                  ) : (
-                    <div className="size-11 shrink-0 rounded-xl bg-bg3 flex items-center justify-center text-text-muted">
-                      <Icon size={20} />
-                    </div>
-                  )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <BrandBadge brand={m.brand} />
@@ -236,12 +274,15 @@ export default function Catalog() {
                   </div>
                 </button>
                 {m.purchase_count > 0 && (
+                  // `title` is the hover-tooltip for sighted users; SRs read
+                  // `aria-label`. Setting both to the same copy made SRs
+                  // announce the chip twice — drop the `title` and let the
+                  // accessible name carry the meaning.
                   <div
-                    title={t('catalog.purchase_count', { n: m.purchase_count })}
                     aria-label={t('catalog.purchase_count', { n: m.purchase_count })}
                     className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-bg3 px-2.5 text-caption font-bold tabular-nums text-text-dim"
                   >
-                    <ShoppingCart size={12} strokeWidth={2} />
+                    <ShoppingCart size={12} strokeWidth={2} aria-hidden />
                     {m.purchase_count}
                   </div>
                 )}

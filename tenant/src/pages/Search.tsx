@@ -118,10 +118,10 @@ export default function SearchPage() {
         <CommandList className="max-h-[60vh]">
           {!enabled && (
             <div className="py-10 flex flex-col items-center text-center gap-2">
-              <div className="w-12 h-12 rounded-2xl bg-bg3 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-card bg-bg3 flex items-center justify-center">
                 <SearchIcon size={22} className="text-text-muted" />
               </div>
-              <p className="text-sm text-text-dim max-w-xs leading-relaxed px-6">
+              <p className="text-body text-text-dim max-w-xs leading-relaxed px-6">
                 {t('search.hint')}
               </p>
             </div>

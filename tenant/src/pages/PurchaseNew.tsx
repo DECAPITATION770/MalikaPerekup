@@ -290,12 +290,15 @@ export default function PurchaseNew() {
   })();
 
   // Native Telegram MainButton mirrors the wizard footer: «Далее» on steps
-  // 1–3, the «Принять закупку …» submit on the last step.
+  // 1–3, the «Принять закупку …» submit on the last step. `isEnabled`
+  // mirrors the in-page footer so an incomplete step can't silently no-op.
+  const isLastStep = step === TOTAL_STEPS - 1;
   useTgMainButton({
-    text: step < TOTAL_STEPS - 1 ? t('purchase.wizard_next') : submitLabel,
+    text: isLastStep ? submitLabel : t('purchase.wizard_next'),
     isLoaderVisible: isSubmitting || mutation.isPending,
+    isEnabled: isLastStep || (stepStatus[step] ?? false),
     onClick: () => {
-      if (step < TOTAL_STEPS - 1) void goNext();
+      if (!isLastStep) void goNext();
       else void onSubmit();
     },
   });
@@ -374,6 +377,7 @@ export default function PurchaseNew() {
             step={step}
             totalSteps={TOTAL_STEPS}
             canGoBack={step > 0}
+            canGoNext={stepStatus[step] ?? false}
             onBack={goBack}
             onNext={goNext}
             onSubmit={onSubmit}

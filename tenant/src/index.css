@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geist Variable — display face for hero headlines and KPI numerals.
+   Sourced from the `geist` npm package's `dist/fonts/geist-sans/` woff2 (OFL,
+   © Vercel / Basement Studio). Single Variable file covers weights 100-900
+   at ~70 KB. `font-display: swap` keeps the page interactive while the font
+   downloads; the system fallback (defined in tailwind `font-sans`) is what
+   the user sees for the first frame on a cold cache.
+   Refresh procedure when a new Geist version lands: `pnpm add geist`,
+   copy `node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2`
+   to `public/fonts/`, `pnpm remove geist`. */
+@font-face {
+  font-family: 'Geist Variable';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── Design tokens ──────────────────────────────────────────────────────────
    RGB triplets (space-separated) so Tailwind opacity modifiers work:
    bg-accent/50 → rgb(var(--c-accent) / 0.5)
@@ -29,6 +46,12 @@
   --c-success-faded:  15  46  34;
   --c-warning:       242 197  82;
   --c-warning-faded:  58  45   8;
+  /* Foreground glyph for brand-coloured avatars (BrandBadge). The vivid
+     brand hex sits behind it, so on dark theme a near-black ink reads as
+     crisp identity ink; on light it stays the same for consistency since
+     light-theme avatar tiles use a paler tint where dark ink still clears
+     AA. Tokenised so palette edits stay in one place. */
+  --c-on-brand:       11  15  25;
 
   /* shadcn / tailwindcss-animate convention */
   --radius: 16px;
@@ -57,6 +80,9 @@
   --c-success-faded: 220 244 233;
   --c-warning:       133  96   0;   /* #856000 */
   --c-warning-faded: 250 242 214;
+  /* Avatar ink stays near-black in light too — paler brand tints under it
+     keep the AA budget. */
+  --c-on-brand:       11  15  25;
 }
 
 @layer base {
@@ -71,11 +97,21 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  html { color-scheme: dark; }
+  html {
+    color-scheme: dark;
+    /* Firefox-side scrollbar theming — the `::-webkit-scrollbar` rules
+       below only style WebKit/Blink. Without `scrollbar-color` Firefox
+       falls back to the OS default, which on dark theme means a bright
+       grey track that pops against `--c-bg`. */
+    scrollbar-color: rgb(var(--c-border-strong)) transparent;
+  }
   html.light { color-scheme: light; }
 
   body {
-    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    /* No global font-feature-settings: the cv11/ss01/ss03 stylistic sets only
+       apply to Inter, which we don't ship; they were silently ignored by the
+       system fonts in production. Per-element `tabular-nums` (Tailwind) stays
+       opt-in for money columns. */
     overscroll-behavior-y: none;
   }
 
@@ -146,6 +182,34 @@
       0 2px 6px 0 rgb(15 25 50 / 0.08),
       0 14px 38px -16px rgb(15 25 50 / 0.16),
       inset 0 1px 0 0 rgb(255 255 255 / 0.6);
+  }
+
+  /* Content section — no border, no shadow, just the secondary surface and a
+     rounded shape. The complement to `.card` for groups inside scroll views
+     where every group surrounded by an outlined card creates a "wall of
+     cards" pattern. Use `.section` when grouping is semantic, not elevated. */
+  .section {
+    @apply bg-bg2 rounded-card p-5;
+  }
+  .light .section {
+    @apply bg-bg2/60;
+  }
+
+  /* Elevated panel — reserved for ONE highlighted module per surface (e.g.
+     the active Nasiya block on Today, or a featured device on Stock).
+     Heavier shadow + a 2 px accent border-top to telegraph importance. */
+  .panel {
+    @apply bg-bg2 rounded-card border-t-2 border-accent;
+    box-shadow:
+      0 4px 8px 0 rgb(0 0 0 / 0.30),
+      0 24px 60px -24px rgb(0 0 0 / 0.75),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.04);
+  }
+  .light .panel {
+    box-shadow:
+      0 4px 10px 0 rgb(15 25 50 / 0.10),
+      0 18px 48px -20px rgb(15 25 50 / 0.20),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.7);
   }
 
   /* Ambient mesh behind hero — barely-there amber wash so the top has air. */

@@ -43,7 +43,7 @@ function FallbackUI() {
     <div className="min-h-dvh flex items-center justify-center p-6 bg-bg">
       <div className="card p-8 max-w-md text-center space-y-4">
         <h1 className="text-subhead font-bold text-text">{t('errors.boundary_title')}</h1>
-        <p className="text-sm text-text-dim leading-relaxed">{t('errors.boundary_body')}</p>
+        <p className="text-body text-text-dim leading-relaxed">{t('errors.boundary_body')}</p>
         <Button onClick={() => window.location.reload()} full>
           {t('errors.boundary_reload')}
         </Button>

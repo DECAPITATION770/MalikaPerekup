@@ -26,6 +26,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeIconButton } from '@/components/ThemeToggle';
 import { MalikaWordmark } from '@/components/brand/MalikaWordmark';
 import { useTgHaptic } from '@/lib/telegram';
@@ -45,15 +54,14 @@ const MENU_ARCHIVE = [
   { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
 ] as const;
 
-/** Slim mobile top bar: brand + global search + overflow menu. Frees the
- *  bottom nav for the two money actions (Buy/Sell) and makes search and the
- *  low-frequency destinations discoverable. Hidden on desktop (Sidebar owns
- *  navigation there). */
+/** Top bar — slim on mobile (brand + lang/theme/search/menu drawer), and on
+ *  desktop a compact strip with just lang/theme/avatar-dropdown that lives
+ *  next to the sidebar (sidebar already owns the brand + navigation). */
 export function AppHeader() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const haptic = useTgHaptic();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -74,28 +82,46 @@ export function AppHeader() {
     localStorage.setItem('tenant_lang', next);
   };
 
+  const initials =
+    user?.full_name
+      ?.split(' ')
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase() || 'M';
+
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border bg-bg2/95 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
-        <div className="flex h-14 items-center justify-between px-4">
+      <header className="sticky top-0 z-40 border-b border-border bg-bg2/95 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+        <div className="flex h-14 items-center justify-between gap-2 px-4 md:justify-end md:px-6">
+          {/* Brand — mobile only; sidebar owns it on desktop. */}
           <button
             type="button"
             onClick={() => go('/')}
             aria-label="Malika"
-            className="cursor-pointer"
+            className="cursor-pointer md:hidden"
           >
             <MalikaWordmark size="sm" className="text-text" decorative />
           </button>
           <div className="flex items-center gap-1">
+            {/* Lang toggle mirrors ThemeToggle's convention: the chip shows
+                the *applied* language so the visible state matches the
+                actually-rendered text, and the `aria-label` is verb-led so
+                screen-readers announce the action that will happen on tap. */}
             <button
               type="button"
               onClick={toggleLang}
-              aria-label={t('settings.language_label')}
+              aria-label={t(
+                i18n.language === 'ru' ? 'settings.lang_switch_to_uz' : 'settings.lang_switch_to_ru',
+              )}
               className="flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-caption font-bold tracking-wide text-text-dim transition-colors hover:text-text active:bg-bg3"
             >
-              {i18n.language === 'ru' ? 'RU' : 'UZ'}
+              {/* Identifier tokens — auto-translate must not turn "RU" into
+                  "ru" or worse. */}
+              <span translate="no">{i18n.language === 'ru' ? 'RU' : 'UZ'}</span>
             </button>
             <ThemeIconButton />
+            {/* Search + overflow menu — mobile only (sidebar covers them on desktop). */}
             <button
               type="button"
               onClick={() => {
@@ -103,7 +129,7 @@ export function AppHeader() {
                 navigate('/search');
               }}
               aria-label={t('nav.search')}
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-text-dim transition-colors hover:text-text active:bg-bg3"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-text-dim transition-colors hover:text-text active:bg-bg3 md:hidden"
             >
               <Search size={20} />
             </button>
@@ -114,10 +140,56 @@ export function AppHeader() {
                 setOpen(true);
               }}
               aria-label={t('common.menu')}
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-text-dim transition-colors hover:text-text active:bg-bg3"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-text-dim transition-colors hover:text-text active:bg-bg3 md:hidden"
             >
-              <MoreHorizontal size={22} />
+              <MoreHorizontal size={20} />
             </button>
+            {/* Account dropdown — desktop only. Avatar + name/contact in the
+                header, then Settings link and Logout. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={user?.full_name ?? t('common.menu')}
+                  className="ml-1 hidden h-10 items-center gap-2 rounded-xl px-1.5 text-text-dim transition-colors hover:text-text active:bg-bg3 md:flex"
+                >
+                  <Avatar className="size-8">
+                    <AvatarFallback className="bg-accent text-hint text-[rgb(var(--c-on-accent))]">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[200px]">
+                <DropdownMenuLabel className="flex flex-col gap-0.5">
+                  <span className="truncate text-label font-semibold text-text">
+                    {user?.full_name ?? '—'}
+                  </span>
+                  {(user?.tg_username || user?.phone) && (
+                    <span className="truncate text-caption font-normal text-text-muted">
+                      {user.tg_username ? `@${user.tg_username}` : user.phone}
+                    </span>
+                  )}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => navigate('/settings')}>
+                  <SettingsIcon size={15} className="mr-2" />
+                  {t('nav.settings')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={toggleLang}>
+                  <Globe size={15} className="mr-2" />
+                  {i18n.language === 'ru' ? 'O‘zbekcha' : 'Русский'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => setConfirmLogout(true)}
+                  className="text-danger focus:text-danger"
+                >
+                  <LogOut size={15} className="mr-2" />
+                  {t('common.logout')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -140,7 +212,7 @@ export function AppHeader() {
               </button>
             ))}
 
-            <div className="px-3 pb-1 pt-4 text-micro font-semibold uppercase tracking-wider text-text-muted">
+            <div className="px-3 pb-1 pt-4 text-micro font-semibold tracking-tight text-text-muted">
               {t('nav.archive')}
             </div>
             {MENU_ARCHIVE.map(({ to, icon: Icon, key }) => (
@@ -156,14 +228,6 @@ export function AppHeader() {
             ))}
 
             <div className="mx-3 my-1.5 h-px bg-border" />
-            <button
-              type="button"
-              onClick={toggleLang}
-              className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-body font-semibold text-text-dim transition-colors hover:bg-bg3 hover:text-text active:bg-bg3"
-            >
-              <Globe size={18} strokeWidth={1.8} />
-              {i18n.language === 'ru' ? t('settings.lang_uz') : t('settings.lang_ru')}
-            </button>
             <button
               type="button"
               onClick={() => {

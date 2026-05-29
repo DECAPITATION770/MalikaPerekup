@@ -164,7 +164,7 @@ export default function DocumentUploader({
         )}
       </div>
       {err && (
-        <span className="text-xs text-danger flex items-center gap-1">
+        <span className="text-hint text-danger flex items-center gap-1">
           <AlertCircle size={11} />{err}
         </span>
       )}

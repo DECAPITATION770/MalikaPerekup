@@ -1,5 +1,6 @@
 {
   "nav": {
+    "primary_label": "Основная навигация",
     "today": "Сегодня",
     "stock": "Витрина",
     "purchase_new": "Закупка",
@@ -134,8 +135,14 @@
     "encourage_first_purchase": "Начните с первой закупки — добавьте телефон, и он появится здесь.",
     "overdue_alert_title": "Просроченных платежей: {{count}}",
     "overdue_alert_body": "Загляните в раздел рассрочек — есть что напомнить покупателям.",
+    "receive_today_title": "Сегодня надо получить",
+    "receive_today_body": "Просрочка по рассрочке — позвоните прямо отсюда",
+    "receive_today_remaining": "Осталось {{amount}}",
+    "receive_today_call": "Позвонить",
+    "receive_today_more": "Все ({{count}})",
+    "receive_today_no_phone": "Нет телефона",
     "frozen_badge": "Заморожен",
-    "kpi_vs_yesterday": "vs вчера"
+    "kpi_vs_yesterday": "за вчера"
   },
   "stub": {
     "title": "Раздел в разработке",
@@ -199,6 +206,8 @@
     "days_n_many": "{{n}} дней",
     "days_n": "{{n}} дн.",
     "open": "Открыть",
+    "clear_search": "Очистить поиск",
+    "remove_filter": "Убрать фильтр",
     "detail_qr_print": "Печать стикера",
     "sell_this": "Продать аппарат",
     "return_action": "Оформить возврат",
@@ -461,7 +470,8 @@
     "empty": "Нет продаж за выбранный период",
     "no_data": "—",
     "export": "Экспорт",
-    "profit_by_day": "Прибыль по дням"
+    "profit_by_day": "Прибыль по дням",
+    "vs_prev_period": "к прошлому периоду"
   },
   "sale": {
     "title": "Продажа",
@@ -486,6 +496,9 @@
     "device_selected": "Устройство выбрано",
     "device_clear": "Изменить",
     "device_info": "Подробнее",
+    "device_days_one": "{{count}} дн.",
+    "device_days_few": "{{count}} дн.",
+    "device_days_many": "{{count}} дн.",
     "detail_title": "Информация об устройстве",
     "detail_purchase_price": "Цена закупки",
     "detail_in_stock": "На витрине",
@@ -542,7 +555,11 @@
     },
     "nasiya_summary": "К рассрочке",
     "nasiya_warn_down": "Первый взнос больше цены",
-    "buyer_photos_label": "Фото документа покупателя"
+    "buyer_photos_label": "Фото документа покупателя",
+    "cost_reminder": "Закупка {{amount}} UZS",
+    "profit_cash": "Прибыль",
+    "profit_loss": "Убыток",
+    "profit_breakeven": "В ноль"
   },
   "installments": {
     "title": "Рассрочка",
@@ -605,6 +622,10 @@
     "theme_auto": "Авто",
     "theme_light": "Светлая",
     "theme_dark": "Тёмная",
+    "theme_switch_to_light": "Переключить на светлую тему",
+    "theme_switch_to_dark": "Переключить на тёмную тему",
+    "lang_switch_to_uz": "O‘zbek tiliga o‘tish",
+    "lang_switch_to_ru": "Переключить на русский",
     "save": "Сохранить",
     "save_ok": "Настройки сохранены",
     "plan_section": "Тариф",

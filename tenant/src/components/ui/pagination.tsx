@@ -22,7 +22,7 @@ export function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="flex items-center justify-between gap-3 text-body">
       <span className="text-text-dim tabular-nums">
         {t('common.page_n_of_m', { current: currentPage, total: totalPages })}
       </span>

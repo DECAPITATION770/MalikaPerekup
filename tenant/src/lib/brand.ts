@@ -16,13 +16,46 @@ const PALETTE = [
   '#5FB0E8', // sky
 ];
 
-/** Stable colour for a brand name. */
-export function brandColor(brand: string): string {
+/**
+ * Darker mirrors of the same hues — used as *text* color on the tinted
+ * chip background in light mode. The vivid PALETTE looks great on dark
+ * surfaces but pairs the chip text with its own pale tint on light bg
+ * (ratio ~2.4, axe-core "color-contrast" fail). These shades all clear
+ * WCAG AA (≥4.5:1) on the light bg2 used for chips.
+ */
+const PALETTE_ON_LIGHT = [
+  '#8A5A12', // amber
+  '#1F5F94', // blue
+  '#177451', // green
+  '#A5294A', // pink
+  '#4929A6', // violet
+  '#0E6B78', // cyan
+  '#3D6326', // olive
+  '#8C4520', // terracotta
+  '#7A2E80', // orchid
+  '#1A5E91', // sky
+];
+
+function indexFor(brand: string): number {
   let hash = 0;
   for (let i = 0; i < brand.length; i++) {
     hash = (hash * 31 + brand.charCodeAt(i)) | 0;
   }
-  return PALETTE[Math.abs(hash) % PALETTE.length];
+  return Math.abs(hash) % PALETTE.length;
+}
+
+/** Stable vivid colour for a brand name — for backgrounds, avatars, accents. */
+export function brandColor(brand: string): string {
+  return PALETTE[indexFor(brand)];
+}
+
+/**
+ * Theme-aware text colour for the chip body. Pass `resolved` from
+ * `useTheme()`; light mode uses the darker mirror, dark mode uses the
+ * vivid hex so the chip keeps its identity on the dark surface.
+ */
+export function brandTextColor(brand: string, resolved: 'light' | 'dark'): string {
+  return resolved === 'light' ? PALETTE_ON_LIGHT[indexFor(brand)] : PALETTE[indexFor(brand)];
 }
 
 /** Faded fill of a brand's colour — for avatar tiles / soft backgrounds. */

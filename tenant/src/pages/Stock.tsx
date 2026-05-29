@@ -65,7 +65,9 @@ import { specsSummary } from '@/lib/specsFmt';
 import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import BrandBadge from '@/components/BrandBadge';
-import { brandColor, brandTint } from '@/lib/brand';
+import DevicePhoto from '@/components/DevicePhoto';
+import { brandTextColor, brandTint } from '@/lib/brand';
+import { useTheme } from '@/lib/theme';
 
 const STATUSES: DeviceStatus[] = ['in_stock', 'reserved', 'sold', 'returned', 'written_off'];
 const CATEGORIES: DeviceCategory[] = [
@@ -265,14 +267,31 @@ export default function Stock() {
 
   return (
     <div className="flex animate-fade-up flex-col gap-6">
-      {/* Header */}
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      {/* Header — split layouts by breakpoint so the list page doesn't repeat
+          the same big-title hero as every other screen (DESIGN_AUDIT
+          §Modernization moves #2). Mobile gets a compact inline title with
+          the count appended; the action lives in the sticky strip below so
+          it stays one-tap-away mid-scroll. Desktop keeps the larger header
+          + side CTA because there's more horizontal room. */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:hidden">
+        <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
+          {t('stock.title')}
+        </h1>
+        {data && (
+          <span className="text-body tabular-nums text-text-dim">
+            · {isFiltered
+              ? t('stock.found', { n: data.total, total: data.total })
+              : t('stock.total', { n: data.total })}
+          </span>
+        )}
+      </div>
+      <header className="hidden flex-wrap items-end justify-between gap-3 md:flex">
         <div>
-          <h1 className="text-title-lg font-bold tracking-tight md:text-display">
+          <h1 className="font-display text-title-lg font-semibold tracking-[-0.03em] md:text-display">
             {t('stock.title')}
           </h1>
           {data && (
-            <div className="mt-1 text-sm tabular-nums text-text-dim">
+            <div className="mt-1 text-body tabular-nums text-text-dim">
               {isFiltered
                 ? t('stock.found', { n: data.total, total: data.total })
                 : t('stock.total', { n: data.total })}
@@ -287,8 +306,16 @@ export default function Stock() {
         </Link>
       </header>
 
-      {/* Mobile: search + filter button */}
-      <div className="flex items-center gap-2 md:hidden">
+      {/* Mobile: sticky search + filter + Buy CTA. The AppHeader is itself
+          `sticky top-0` with `pt-[env(safe-area-inset-top)]`, so its rendered
+          height on a notched device is `safe-area + h-14`. We stick at that
+          exact offset so the strip lands flush below the header instead of
+          ghosting behind it on iPhone Notch / Telegram chrome.
+          `-mx-4` + `px-4` bleed the strip to the container edge while pinned. */}
+      <div
+        className="sticky z-30 -mx-4 flex items-center gap-2 border-b border-border bg-bg/90 px-4 py-2 backdrop-blur md:hidden"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 3.5rem)' }}
+      >
         <div className="relative flex-1">
           <SearchIcon
             size={16}
@@ -298,13 +325,22 @@ export default function Stock() {
             value={inputQ}
             onChange={(e) => setInputQ(e.target.value)}
             placeholder={t('stock.search_placeholder')}
+            // `type="search"` paints the native clear "x" in some browsers,
+            // sends an appropriate `inputmode` to the OS keyboard, and lets
+            // assistive tech announce the field as a search box; `enterKeyHint`
+            // labels the on-screen Return key so a touch-tap finishes the
+            // search instead of dismissing the keyboard.
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
             spellCheck={false}
             className="h-11 pl-10 pr-10"
           />
           {inputQ && (
             <button
               onClick={clearQ}
-              aria-label="Clear search"
+              aria-label={t('stock.clear_search')}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text"
             >
               <X size={14} />
@@ -327,6 +363,18 @@ export default function Stock() {
             </span>
           )}
         </button>
+        {/* Buy CTA — icon-only on mobile because the sticky strip is the
+            third hot row on screen (header + sticky + chips); the verb is
+            already a permanent BottomNav slot, so the chip here just lets
+            the user act on a list scroll without rebounding to the bar. */}
+        <Link
+          to="/purchase/new"
+          onClick={() => haptic.select()}
+          aria-label={t('today.action_purchase')}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-[rgb(var(--c-on-accent))] transition-colors hover:bg-accent-hover"
+        >
+          <ShoppingCart size={18} aria-hidden />
+        </Link>
       </div>
 
       {/* Mobile: active filter chips */}
@@ -362,7 +410,7 @@ export default function Stock() {
           )}
           <button
             onClick={reset}
-            className="ml-auto flex cursor-pointer items-center gap-1 text-xs text-text-muted transition-colors hover:text-text"
+            className="ml-auto flex cursor-pointer items-center gap-1 text-hint text-text-muted transition-colors hover:text-text"
           >
             <X size={12} /> {t('stock.filter_reset')}
           </button>
@@ -384,13 +432,17 @@ export default function Stock() {
               value={inputQ}
               onChange={(e) => setInputQ(e.target.value)}
               placeholder={t('stock.search_placeholder')}
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
               spellCheck={false}
               className="h-11 pl-10 pr-10"
             />
             {inputQ && (
               <button
                 onClick={clearQ}
-                aria-label="Clear search"
+                aria-label={t('stock.clear_search')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text"
               >
                 <X size={14} />
@@ -472,7 +524,7 @@ export default function Stock() {
             {isFiltered && (
               <button
                 onClick={reset}
-                className="flex cursor-pointer items-center gap-1 self-start text-xs text-text-muted transition-colors hover:text-text"
+                className="flex cursor-pointer items-center gap-1 self-start text-hint text-text-muted transition-colors hover:text-text"
               >
                 <X size={12} /> {t('stock.filter_reset')}
               </button>
@@ -590,10 +642,17 @@ function DeviceList({
 
   return (
     <div className="card overflow-hidden">
-      {/* Desktop: real <table> with sticky header */}
-      <div className="hidden md:block">
+      {/* Desktop ≥1024: real <table>. Was ≥768, but with the sidebar (244px)
+          eating into the content column the 6-column table overflowed at
+          768–1023 and clipped «Цена / Дни / Статус». Fall back to the card
+          list in that zone — it fits and already renders the same data. */}
+      <div className="hidden lg:block">
         <Table>
-          <TableHeader className="sticky top-0 bg-bg2/60">
+          {/* Sticky header was `bg-bg2/60` — at 60% alpha the rows below
+              ghosted through and broke column-edge alignment as the user
+              scrolled. Bump to 95% + backdrop-blur so the header sits as a
+              solid plate while content moves under it. */}
+          <TableHeader className="sticky top-0 bg-bg2/95 backdrop-blur-sm">
             <TableRow>
               <TableHead className="w-2/5">{t('stock.col_device')}</TableHead>
               <TableHead>{t('stock.col_specs')}</TableHead>
@@ -612,8 +671,8 @@ function DeviceList({
         </Table>
       </div>
 
-      {/* Mobile: list */}
-      <ul className="divide-y divide-border md:hidden">
+      {/* Mobile + sidebar zone: card list */}
+      <ul className="divide-y divide-border lg:hidden">
         {items.map((d, i) => (
           <DeviceRowMobile key={d.id} d={d} delay={i * 20} highlight={d.id === hl} />
         ))}
@@ -624,6 +683,7 @@ function DeviceList({
 
 function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highlight: boolean }) {
   const { t } = useTranslation();
+  const { resolved } = useTheme();
   const Icon = CATEGORY_ICON[d.category];
   const specs = specsSummary(d.category, d.specs);
   const ref = useRef<HTMLTableRowElement>(null);
@@ -635,19 +695,21 @@ function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highligh
     <TableRow ref={ref} className={cn('transition-colors', highlight && 'bg-accent-faded')}>
       <TableCell>
         <Link to={`/stock/${d.id}`} className="flex min-w-0 items-center gap-3">
+          {/* Brand-tinted bg sits behind both states; the photo fully covers it
+              when it loads, and shows through as the icon backdrop on failure. */}
           <div
             className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl"
-            style={
-              d.photo_url
-                ? undefined
-                : { backgroundColor: brandTint(d.brand, 0.14), color: brandColor(d.brand) }
-            }
+            style={{
+              backgroundColor: brandTint(d.brand, 0.14),
+              color: brandTextColor(d.brand, resolved),
+            }}
           >
-            {d.photo_url ? (
-              <img src={d.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-            ) : (
-              <Icon size={20} strokeWidth={1.8} />
-            )}
+            <DevicePhoto
+              src={d.photo_url}
+              alt={`${d.brand} ${d.model}`}
+              fallback={<Icon size={20} strokeWidth={1.8} />}
+              className="h-full w-full object-cover"
+            />
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
@@ -706,6 +768,7 @@ function DeviceRowMobile({
   highlight: boolean;
 }) {
   const { t } = useTranslation();
+  const { resolved } = useTheme();
   const Icon = CATEGORY_ICON[d.category];
   const specs = specsSummary(d.category, d.specs);
   const ref = useRef<HTMLLIElement>(null);
@@ -722,17 +785,17 @@ function DeviceRowMobile({
       <Link to={`/stock/${d.id}`} className="flex items-center gap-3 p-3">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl"
-          style={
-            d.photo_url
-              ? undefined
-              : { backgroundColor: brandTint(d.brand, 0.14), color: brandColor(d.brand) }
-          }
+          style={{
+            backgroundColor: brandTint(d.brand, 0.14),
+            color: brandTextColor(d.brand, resolved),
+          }}
         >
-          {d.photo_url ? (
-            <img src={d.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-          ) : (
-            <Icon size={20} strokeWidth={1.8} />
-          )}
+          <DevicePhoto
+            src={d.photo_url}
+            alt={`${d.brand} ${d.model}`}
+            fallback={<Icon size={20} strokeWidth={1.8} />}
+            className="h-full w-full object-cover"
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
@@ -776,12 +839,15 @@ function DeviceRowMobile({
 // ── Tiny chips ────────────────────────────────────────────────────────
 
 function ActiveFilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  // `t` lives outside this presentational fn; pull it from the parent scope
+  // via the hook so the aria-label localises with the rest of the page.
+  const { t } = useTranslation();
   return (
     <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/40 bg-accent-faded pl-2.5 pr-1 text-caption font-semibold tracking-tight text-accent">
       {label}
       <button
         onClick={onClear}
-        aria-label="Remove filter"
+        aria-label={t('stock.remove_filter')}
         className="cursor-pointer p-0.5 text-accent/70 hover:text-accent"
       >
         <X size={12} />
@@ -946,8 +1012,12 @@ function FilterControls({
 function DeviceTableSkeleton() {
   return (
     <div className="card overflow-hidden">
-      <div className="hidden md:block">
-        <div className="border-b border-border bg-bg2/60 px-4 py-3">
+      {/* Skeleton breakpoints must mirror the real table — see lg:block above. */}
+      <div className="hidden lg:block">
+        {/* Skeleton mirrors the real sticky-header opacity (see TableHeader
+            comment above) so the initial frame doesn't visibly shift when
+            data arrives. */}
+        <div className="border-b border-border bg-bg2/95 px-4 py-3">
           <Skeleton className="h-3 w-3/5" />
         </div>
         {Array.from({ length: 6 }).map((_, i) => (
@@ -967,7 +1037,7 @@ function DeviceTableSkeleton() {
           </div>
         ))}
       </div>
-      <ul className="divide-y divide-border md:hidden">
+      <ul className="divide-y divide-border lg:hidden">
         {Array.from({ length: 6 }).map((_, i) => (
           <li key={i} className="flex items-center gap-3 p-3">
             <Skeleton className="size-12 rounded-xl" />

@@ -30,7 +30,7 @@ import {
   type DeviceCategory,
   type DeviceOut,
 } from '@/api/devices';
-import { formatSpecValue } from '@/lib/specsFmt';
+import { formatSpecValue, specsSummary } from '@/lib/specsFmt';
 import { fmtUzs } from '@/lib/fmt';
 import { useDebounced } from '@/lib/useDebounced';
 import { cn } from '@/lib/utils';
@@ -109,7 +109,7 @@ export default function StepSaleDevice({ selectedDevice, onSelect, onClear, erro
               className="flex-1 bg-transparent text-body outline-none placeholder:text-text-muted"
             />
           </div>
-          {error && <span className="text-xs text-danger">{error}</span>}
+          {error && <span className="text-hint text-danger">{error}</span>}
           {devicesLoading ? (
             <div className="flex flex-col gap-2">
               {[1, 2, 3].map((i) => (
@@ -121,7 +121,7 @@ export default function StepSaleDevice({ selectedDevice, onSelect, onClear, erro
           ) : (
             <div className="flex flex-col gap-2">
               {!debouncedSearch && (
-                <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
+                <div className="px-1 text-caption font-semibold tracking-tight text-text-muted">
                   {t('sale.section_device_in_stock')}
                 </div>
               )}
@@ -148,6 +148,12 @@ function DeviceRow({
   const { t } = useTranslation();
   const Icon = CATEGORY_ICON[device.category] ?? PackageIcon;
   const [infoOpen, setInfoOpen] = useState(false);
+  // Meta row shown under the model: «6/64 · Чёрный · 3 дн.» so the perekup
+  // can pick «that older one» / «that more-expensive one» without opening
+  // each card. Purchase price sits on its own line, right-aligned.
+  const specs = specsSummary(device.category, device.specs);
+  const days = device.days_in_stock;
+  const cost = device.purchase_price_uzs;
   return (
     <div className="flex items-stretch gap-2">
       <button
@@ -166,10 +172,19 @@ function DeviceRow({
             <BrandBadge brand={device.brand} size="sm" />
             <span className="truncate text-body font-bold">{device.model}</span>
           </div>
-          <div className="mt-0.5 text-caption text-text-muted">
-            {device.imei ?? device.serial ?? '—'}
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-caption text-text-muted">
+            {specs && <span className="truncate">{specs}</span>}
+            {specs && days !== null && days !== undefined && <span>·</span>}
+            {days !== null && days !== undefined && (
+              <span>{t('sale.device_days', { count: days })}</span>
+            )}
           </div>
         </div>
+        {cost && !selected && (
+          <span className="shrink-0 self-center text-right text-label font-bold tabular-nums text-text">
+            {fmtUzs(cost)} UZS
+          </span>
+        )}
         {selected && <Check size={16} className="shrink-0 text-accent" />}
       </button>
       <button

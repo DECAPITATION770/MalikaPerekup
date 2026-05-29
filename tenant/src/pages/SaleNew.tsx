@@ -289,13 +289,17 @@ export default function SaleNew() {
   const submitLabel = saleType === 'nasiya' ? t('sale.submit_nasiya') : t('sale.submit');
 
   // Native MainButton mirrors the footer: «Далее» on step 0, submit on step 1.
+  // `isEnabled` is gated by stepStatus so the native button can't silently
+  // no-op on an incomplete step (mirror the in-page footer's disabled state).
+  const isLastStep = step === TOTAL_STEPS - 1;
   useTgMainButton(
     !done
       ? {
-          text: step < TOTAL_STEPS - 1 ? t('purchase.wizard_next') : submitLabel,
+          text: isLastStep ? submitLabel : t('purchase.wizard_next'),
           isLoaderVisible: isSubmitting || mutation.isPending,
+          isEnabled: isLastStep || (stepStatus[step] ?? false),
           onClick: () => {
-            if (step < TOTAL_STEPS - 1) void goNext();
+            if (!isLastStep) void goNext();
             else void onSubmit();
           },
         }
@@ -317,7 +321,7 @@ export default function SaleNew() {
   if (done) {
     return (
       <div className="flex min-h-[60vh] animate-fade-up flex-col items-center justify-center gap-5 px-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-success-faded">
+        <div className="flex h-16 w-16 items-center justify-center rounded-card bg-success-faded">
           <Check size={28} className="text-success" />
         </div>
         <div className="text-center">
@@ -407,6 +411,7 @@ export default function SaleNew() {
             step={step}
             totalSteps={TOTAL_STEPS}
             canGoBack={step > 0}
+            canGoNext={stepStatus[step] ?? false}
             onBack={goBack}
             onNext={goNext}
             onSubmit={onSubmit}

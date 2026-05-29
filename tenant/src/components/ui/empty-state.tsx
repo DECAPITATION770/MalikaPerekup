@@ -24,9 +24,9 @@ export function EmptyState({ illustration, title, description, action, className
     >
       {illustration}
       <div className="space-y-1">
-        <h3 className="text-base font-bold tracking-tight text-text">{title}</h3>
+        <h3 className="text-body-xl font-bold tracking-tight text-text">{title}</h3>
         {description && (
-          <p className="text-sm text-text-dim leading-relaxed max-w-sm mx-auto">
+          <p className="text-body text-text-dim leading-relaxed max-w-sm mx-auto">
             {description}
           </p>
         )}

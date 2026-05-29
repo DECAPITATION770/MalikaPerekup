@@ -276,14 +276,14 @@ export function Showcase() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-text-dim leading-relaxed">
+                <p className="text-body text-text-dim leading-relaxed">
                   Используется для большинства поверхностей.
                 </p>
               </CardContent>
             </Card>
             <div className="card-elev p-6 space-y-2">
               <div className="text-subhead font-bold">Поднятая карточка (card-elev)</div>
-              <p className="text-sm text-text-dim leading-relaxed">
+              <p className="text-body text-text-dim leading-relaxed">
                 bg-bg3, более глубокая тень. Применяется для важных KPI и активных состояний.
               </p>
             </div>
@@ -307,7 +307,7 @@ function Section({
     <section className="space-y-3">
       <header>
         <h2 className="text-title font-bold tracking-tight">{title}</h2>
-        <p className="text-sm text-text-dim mt-1">{description}</p>
+        <p className="text-body text-text-dim mt-1">{description}</p>
       </header>
       {children}
     </section>

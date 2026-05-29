@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import {
   LayoutDashboard,
   Package,
@@ -13,27 +11,9 @@ import {
   Users as UsersIcon,
   Settings as SettingsIcon,
   Search,
-  LogOut,
-  Globe,
-  Sun,
-  Moon,
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MalikaWordmark } from '@/components/brand/MalikaWordmark';
-import { useAuth } from '@/store/auth';
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/lib/theme';
 
 interface NavSpec {
   to: string;
@@ -58,31 +38,13 @@ const NAV_ARCHIVE: readonly NavSpec[] = [
   { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
 ];
 
+/**
+ * Desktop sidebar — brand, the two money-action CTAs, and navigation. Nothing
+ * else. Theme, language, account and logout live in the top-right header
+ * dropdown so the chrome stays minimal and consistent across breakpoints.
+ */
 export function Sidebar() {
-  const { t, i18n } = useTranslation();
-  const { user, logout } = useAuth();
-  const { resolved: themeResolved, setPref: setThemePref } = useTheme();
-  // Sidebar mirrors the header button: a plain light↔dark toggle so one
-  // tap always flips the colour you can see. The Auto preset lives in
-  // the Settings 3-state picker.
-  const themeIsDark = themeResolved === 'dark';
-  const ThemeIcon = themeIsDark ? Moon : Sun;
-  const themeNext = themeIsDark ? 'light' : 'dark';
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const initials =
-    user?.full_name
-      ?.split(' ')
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase() || 'M';
-
-  const toggleLang = () => {
-    const next = i18n.language === 'ru' ? 'uz' : 'ru';
-    void i18n.changeLanguage(next).then(() => toast.success(t('common.language_switched')));
-    localStorage.setItem('tenant_lang', next);
-  };
+  const { t } = useTranslation();
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-[244px] shrink-0 flex-col border-r border-border bg-bg2 md:flex">
@@ -109,46 +71,73 @@ export function Sidebar() {
         </NavLink>
       </div>
 
-      {/* Nav */}
-      <nav className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
+      {/* Nav — labelled because the desktop chrome carries three landmarks
+          (aside, header, main) and SR users need to distinguish them. */}
+      <nav
+        aria-label={t('nav.primary_label')}
+        className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4"
+      >
         {NAV_PRIMARY.map(({ to, icon: Icon, key, end }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
+            // Two-tone restraint (modernization move #4): active state used to
+            // be a full amber chip (bg-accent-faded text-accent) on every nav
+            // row, which painted half the sidebar orange. Now active is
+            // text-text + a left rail accent + filled icon — three small
+            // channels of state hand off the hierarchy without dominating the
+            // page with brand colour. The primary amber budget is reserved
+            // for the two real CTAs above the nav (Принять закупку / Продать).
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-body font-semibold tracking-tight transition-all',
+                'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-body font-semibold tracking-tight transition-colors duration-150',
                 isActive
-                  ? 'bg-accent-faded text-accent'
+                  ? 'bg-bg3 text-text'
                   : 'text-text-dim hover:bg-bg3 hover:text-text',
               )
             }
           >
             {({ isActive }) => (
               <>
-                <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
-                <span>{t(key)}</span>
+                {/* 2 px accent rail on active — the indicator that does the
+                    "where am I" work. Sits inside the row's rounded shape so
+                    it reads as part of the chip, not a sidebar border. */}
                 {isActive && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />
+                  <span
+                    aria-hidden
+                    className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
+                  />
                 )}
+                <Icon
+                  size={18}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  className={cn(
+                    isActive && 'fill-accent/15 text-accent',
+                  )}
+                />
+                <span>{t(key)}</span>
               </>
             )}
           </NavLink>
         ))}
 
-        <div className="px-3 pb-1 pt-5 text-micro font-semibold uppercase tracking-wider text-text-muted">
+        <div className="px-3 pb-1 pt-5 text-micro font-semibold tracking-tight text-text-muted">
           {t('nav.archive')}
         </div>
         {NAV_ARCHIVE.map(({ to, icon: Icon, key }) => (
           <NavLink
             key={to}
             to={to}
+            // Archive nav stays quieter than the primary group — only a colour
+            // shift on active, no rail, since these aren't the rooms users
+            // live in. Keeps visual hierarchy: brand → CTAs → primary nav →
+            // archive.
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2 text-label font-medium tracking-tight transition-all',
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-label font-medium tracking-tight transition-colors duration-150',
                 isActive
-                  ? 'bg-accent-faded text-accent'
+                  ? 'bg-bg3 text-text'
                   : 'text-text-muted hover:bg-bg3 hover:text-text',
               )
             }
@@ -158,64 +147,6 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      {/* Footer */}
-      <div className="flex flex-col gap-1 border-t border-border px-3 pb-4 pt-3">
-        <button
-          onClick={() => setThemePref(themeNext)}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-label font-semibold text-text-dim transition-all hover:bg-bg3 hover:text-text"
-        >
-          <ThemeIcon size={16} strokeWidth={1.8} />
-          {t('settings.theme_label')}: {t(`settings.theme_${themeNext}`)}
-        </button>
-        <button
-          onClick={toggleLang}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-label font-semibold text-text-dim transition-all hover:bg-bg3 hover:text-text"
-        >
-          <Globe size={16} strokeWidth={1.8} />
-          {i18n.language === 'ru' ? t('settings.lang_uz') : t('settings.lang_ru')}
-        </button>
-
-        <div className="mt-1 flex items-center gap-3 px-3 py-2.5">
-          <Avatar className="size-9">
-            <AvatarFallback className="bg-accent text-xs text-[rgb(var(--c-on-accent))]">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-label font-semibold text-text">
-              {user?.full_name ?? '—'}
-            </div>
-            <div className="truncate text-caption text-text-muted">
-              {user?.tg_username ? `@${user.tg_username}` : (user?.phone ?? '—')}
-            </div>
-          </div>
-        </div>
-
-        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <AlertDialogTrigger asChild>
-            <button className="mt-1 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-label font-semibold text-text-muted transition-all hover:bg-danger-faded/40 hover:text-danger">
-              <LogOut size={15} strokeWidth={1.8} />
-              {t('common.logout')}
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('logout.title')}</AlertDialogTitle>
-              <AlertDialogDescription>{t('logout.body')}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => logout()}
-                className="bg-danger text-white hover:bg-danger/90"
-              >
-                <LogOut className="size-4" /> {t('common.logout')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
     </aside>
   );
 }

@@ -70,23 +70,42 @@ export default function Sales() {
 
   return (
     <div className="flex flex-col gap-5 animate-fade-up">
-      <header className="flex items-end justify-between gap-3 flex-wrap">
+      {/* Header — mobile gets a compact inline title + count strip; desktop
+          keeps the larger heading + side CTA. Matches the sticky-filter idiom
+          rolled out across list pages (Stock first, Sales here). */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:hidden">
+        <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
+          {t('sales.title')}
+        </h1>
+        {data && (
+          <span className="text-body tabular-nums text-text-dim">
+            · {t('sales.total', { n: data.total })}
+          </span>
+        )}
+      </div>
+      <header className="hidden items-end justify-between gap-3 flex-wrap md:flex">
         <div>
-          <h1 className="text-title-lg md:text-display font-bold tracking-tight">
+          <h1 className="font-display text-title-lg md:text-display font-semibold tracking-[-0.03em]">
             {t('sales.title')}
           </h1>
           {data && (
-            <div className="text-sm text-text-dim mt-1 tabular-nums">
+            <div className="text-body text-text-dim mt-1 tabular-nums">
               {t('sales.total', { n: data.total })}
             </div>
           )}
         </div>
-        <Link to="/sale/new" onClick={() => haptic.select()}>
-          <Button variant="success">
-            <BadgeDollarSign className="size-4" />
-            {t('today.action_sale')}
-          </Button>
-        </Link>
+        {/* Hide the header CTA when the list is empty — the EmptyState below
+            renders the same green CTA in the empty card. Two identical
+            «Оформить продажу» buttons on a blank page just doubled visual
+            noise. Once there's at least one sale, the header CTA returns. */}
+        {!(data && data.items.length === 0 && !isFiltered) && (
+          <Link to="/sale/new" onClick={() => haptic.select()}>
+            <Button variant="success">
+              <BadgeDollarSign className="size-4" />
+              {t('today.action_sale')}
+            </Button>
+          </Link>
+        )}
       </header>
 
       <Card className="p-4 flex flex-col gap-3">
@@ -99,6 +118,9 @@ export default function Sales() {
               value={from}
               max={to || undefined}
               onChange={(e) => setParam('from', e.target.value)}
+              // Date filters aren't credentials — password managers offering
+              // to autofill them is pure noise.
+              autoComplete="off"
               className="h-11"
             />
           </div>
@@ -110,6 +132,7 @@ export default function Sales() {
               value={to}
               min={from || undefined}
               onChange={(e) => setParam('to', e.target.value)}
+              autoComplete="off"
               className="h-11"
             />
           </div>
@@ -176,7 +199,7 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
       className="card hover:border-border-strong transition-all animate-fade-up"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <Link to={`/stock/${s.device_id}`} className="p-3 md:p-4 flex items-center gap-4 rounded-2xl">
+      <Link to={`/stock/${s.device_id}`} className="p-3 md:p-4 flex items-center gap-4 rounded-card">
         <div className="w-11 h-11 shrink-0 rounded-xl bg-bg3 ring-1 ring-border text-text-muted flex items-center justify-center">
           <BadgeDollarSign size={18} />
         </div>
@@ -192,7 +215,8 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
               </Badge>
             )}
             <span className="text-caption text-text-muted flex items-center gap-1 shrink-0">
-              <Calendar size={11} />
+              {/* lucide icons read poorly below ~14px — bumped from 11. */}
+              <Calendar size={14} aria-hidden />
               {fmtDate(s.sale_date)}
             </span>
           </div>

@@ -45,9 +45,14 @@ export function MalikaWordmark({
         x="0"
         y={height * 0.78}
         fontSize={font}
-        fontWeight={800}
-        letterSpacing="-0.02em"
-        fontFamily='-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif'
+        fontWeight={700}
+        letterSpacing="-0.03em"
+        // Geist Variable fronts the family list — the same display face used
+        // for hero copy elsewhere, with weight pulled back from 800 to 700
+        // because Geist is denser than SF Pro Display at the same numeric
+        // weight. System fonts remain as the immediate fallback for the
+        // first paint before the variable woff2 swaps in.
+        fontFamily='"Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif'
         fill="currentColor"
       >
         Малика

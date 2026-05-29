@@ -88,7 +88,7 @@ function PasswordForm({ onSuccess }: PasswordFormProps) {
           />
         </div>
         {errors.login && (
-          <span role="alert" className="text-xs text-danger animate-fade-in">
+          <span role="alert" className="text-hint text-danger animate-fade-in">
             {errors.login.message}
           </span>
         )}
@@ -122,7 +122,7 @@ function PasswordForm({ onSuccess }: PasswordFormProps) {
           </button>
         </div>
         {errors.password && (
-          <span role="alert" className="text-xs text-danger animate-fade-in">
+          <span role="alert" className="text-hint text-danger animate-fade-in">
             {errors.password.message}
           </span>
         )}
@@ -135,7 +135,7 @@ function PasswordForm({ onSuccess }: PasswordFormProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             role="alert"
-            className="text-sm text-danger bg-danger-faded border border-danger/40 rounded-xl px-4 py-3 leading-snug"
+            className="text-body text-danger bg-danger-faded border border-danger/40 rounded-xl px-4 py-3 leading-snug"
           >
             {apiError}
           </motion.div>
@@ -155,11 +155,11 @@ function Brand() {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center mb-8 animate-fade-up">
-      <div className="relative mb-4 shadow-glow-accent rounded-2xl">
+      <div className="relative mb-4 shadow-glow-accent rounded-card">
         <MalikaLogo size={64} className="text-accent" />
       </div>
       <MalikaWordmark size="lg" className="text-text" />
-      <p className="text-text-dim text-sm mt-2">{t('login.subtitle')}</p>
+      <p className="text-text-dim text-body mt-2">{t('login.subtitle')}</p>
     </div>
   );
 }
@@ -229,10 +229,10 @@ export default function Login() {
     return (
       <div className="min-h-dvh bg-bg flex flex-col items-center justify-center gap-4 p-4 hero-mesh">
         <Loader2 className="size-8 text-accent animate-spin" />
-        <p className="text-text-dim text-sm">{t('login.tg_loading')}</p>
+        <p className="text-text-dim text-body">{t('login.tg_loading')}</p>
         <button
           onClick={() => setTgTimedOut(true)}
-          className="text-xs text-accent hover:text-accent-hover transition-colors mt-4 font-semibold cursor-pointer"
+          className="text-hint text-accent hover:text-accent-hover transition-colors mt-4 font-semibold cursor-pointer"
         >
           {t('login.fallback_to_password')}
         </button>
@@ -251,7 +251,7 @@ export default function Login() {
           {tgError && (
             <div
               role="alert"
-              className="mb-4 text-sm text-danger bg-danger-faded border border-danger/40 rounded-xl px-4 py-3"
+              className="mb-4 text-body text-danger bg-danger-faded border border-danger/40 rounded-xl px-4 py-3"
             >
               {tgError}
             </div>

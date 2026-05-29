@@ -62,7 +62,7 @@ export default function SellerFields({
             <button
               type="button"
               onClick={onClearCounterparty}
-              className="text-text-dim hover:text-text text-xs flex items-center gap-1 cursor-pointer shrink-0"
+              className="text-text-dim hover:text-text text-hint flex items-center gap-1 cursor-pointer shrink-0"
             >
               <X size={12} /> {t('common.cancel')}
             </button>

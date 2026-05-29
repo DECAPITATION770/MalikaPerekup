@@ -26,6 +26,8 @@ import type { CounterpartyOut } from '@/api/counterparties';
 import type { ExchangeRateHint } from '@/api/reports';
 import { fmtMoneyInput, moneyToNumber } from '@/lib/money';
 import { fmtUzs } from '@/lib/fmt';
+import { specsSummary } from '@/lib/specsFmt';
+import { cn } from '@/lib/utils';
 
 import { OptionalGroup, SegmentedRow } from '../../purchase/primitives';
 import { SellerSearch as CounterpartySearch } from '../../purchase/SellerSearch';
@@ -55,7 +57,7 @@ interface Props {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
+    <div className="px-1 text-caption font-semibold tracking-tight text-text-muted">
       {children}
     </div>
   );
@@ -90,16 +92,36 @@ export default function StepSaleDeal({
       title={t('sale.step_deal_title')}
       subtitle={t('sale.step_deal_subtitle')}
     >
-      {/* Compact reminder of what's being sold */}
+      {/* Compact reminder of what's being sold — brand, model, IMEI on row 1;
+          specs summary + cost on row 2 so the perekup remembers what they
+          paid for it and can sanity-check the sale price below. */}
       {selectedDevice && (
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-bg2 px-3.5 py-2.5">
-          <BrandBadge brand={selectedDevice.brand} size="sm" />
-          <span className="truncate text-label font-bold tracking-tight">
-            {selectedDevice.model}
-          </span>
-          <span className="ml-auto shrink-0 font-mono text-caption text-text-muted">
-            {selectedDevice.imei ?? selectedDevice.serial ?? '—'}
-          </span>
+        <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-bg2 px-3.5 py-2.5">
+          <div className="flex items-center gap-2">
+            <BrandBadge brand={selectedDevice.brand} size="sm" />
+            <span className="truncate text-label font-bold tracking-tight">
+              {selectedDevice.model}
+            </span>
+            <span className="ml-auto shrink-0 font-mono text-caption text-text-muted">
+              {selectedDevice.imei ?? selectedDevice.serial ?? '—'}
+            </span>
+          </div>
+          {(() => {
+            const specs = specsSummary(selectedDevice.category, selectedDevice.specs);
+            const cost = selectedDevice.purchase_price_uzs;
+            if (!specs && !cost) return null;
+            return (
+              <div className="flex items-center gap-2 text-caption text-text-dim">
+                {specs && <span className="truncate">{specs}</span>}
+                {specs && cost && <span className="text-text-muted">·</span>}
+                {cost && (
+                  <span className="shrink-0">
+                    {t('sale.cost_reminder', { amount: fmtUzs(cost) })}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -148,6 +170,20 @@ export default function StepSaleDeal({
             }}
           />
 
+          {selectedDevice?.purchase_price_uzs && (
+            <ProfitPreview
+              priceUzs={salePriceInUzs(
+                watch('price'),
+                watch('currency') as Currency,
+                watch('exchange_rate'),
+              )}
+              costUzs={selectedDevice.purchase_price_uzs}
+              cashLabel={t('sale.profit_cash')}
+              lossLabel={t('sale.profit_loss')}
+              breakevenLabel={t('sale.profit_breakeven')}
+            />
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-label font-medium text-text-dim">{t('sale.date_label')}</label>
             <input
@@ -185,7 +221,7 @@ export default function StepSaleDeal({
               <button
                 type="button"
                 onClick={onClearBuyer}
-                className="flex shrink-0 cursor-pointer items-center gap-1 text-xs text-text-dim hover:text-text"
+                className="flex shrink-0 cursor-pointer items-center gap-1 text-hint text-text-dim hover:text-text"
               >
                 <X size={12} /> {t('common.cancel')}
               </button>
@@ -333,7 +369,7 @@ export default function StepSaleDeal({
                 className="h-12 rounded-xl border border-border bg-bg2 px-3.5 text-body text-text outline-none transition-colors focus:border-accent"
               />
               {errors.start_date && (
-                <span className="text-xs text-danger">{t('sale.errors.start_date_required')}</span>
+                <span className="text-hint text-danger">{t('sale.errors.start_date_required')}</span>
               )}
             </div>
 
@@ -390,7 +426,7 @@ function NasiyaPreview({
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-bg3 px-4 py-3">
       <div className="min-w-0">
-        <div className="text-caption uppercase tracking-wider text-text-muted">
+        <div className="text-caption tracking-tight text-text-muted">
           {t('sale.nasiya_summary')}
         </div>
         <div className="mt-0.5 truncate text-body-lg font-bold tabular-nums text-text">
@@ -405,6 +441,72 @@ function NasiyaPreview({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Sale price in UZS, taking currency + rate into account. */
+function salePriceInUzs(price: string, currency: Currency, rate: string): number {
+  const priceN = moneyToNumber(price);
+  if (currency === 'UZS') return priceN;
+  const rateN = moneyToNumber(rate || '0');
+  return priceN * rateN;
+}
+
+/**
+ * Live profit indicator. The single most-asked-for KPI in the audit — the
+ * perekup wants to see «am I in the black yet?» the moment they type the
+ * price. Green when positive, neutral on breakeven, danger when in the
+ * red. Hidden until the sale price is non-zero (avoid the «−9 118 480»
+ * scarecrow on an empty form).
+ */
+function ProfitPreview({
+  priceUzs,
+  costUzs,
+  cashLabel,
+  lossLabel,
+  breakevenLabel,
+}: {
+  priceUzs: number;
+  costUzs: string;
+  cashLabel: string;
+  lossLabel: string;
+  breakevenLabel: string;
+}) {
+  if (priceUzs <= 0) return null;
+  const cost = moneyToNumber(costUzs);
+  const profit = priceUzs - cost;
+  const isLoss = profit < 0;
+  const isFlat = profit === 0;
+  const label = isLoss ? lossLabel : isFlat ? breakevenLabel : cashLabel;
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5',
+        isLoss
+          ? 'border-danger/30 bg-danger-faded'
+          : isFlat
+            ? 'border-border bg-bg3'
+            : 'border-success/30 bg-success-faded',
+      )}
+    >
+      <span
+        className={cn(
+          'text-caption font-semibold tracking-tight',
+          isLoss ? 'text-danger' : isFlat ? 'text-text-dim' : 'text-success',
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          'truncate text-body-lg font-bold tabular-nums',
+          isLoss ? 'text-danger' : isFlat ? 'text-text' : 'text-success',
+        )}
+      >
+        {isLoss ? '' : '+'}
+        {fmtUzs(profit)} UZS
+      </span>
     </div>
   );
 }

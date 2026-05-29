@@ -119,7 +119,7 @@ export default function Counterparties() {
       <div>
         <h1 className="text-title font-bold tracking-tight">{t('counterparties.title')}</h1>
         {(data?.total ?? 0) > 0 && (
-          <p className="text-sm text-text-dim mt-0.5">
+          <p className="text-body text-text-dim mt-0.5">
             {t('counterparties.total', { count: data!.total })}
           </p>
         )}
@@ -153,11 +153,11 @@ export default function Counterparties() {
           ))}
         </div>
       ) : isError ? (
-        <div className="card p-4 text-sm text-danger">{t('common.error_load')}</div>
+        <div className="card p-4 text-body text-danger">{t('common.error_load')}</div>
       ) : items.length === 0 ? (
         <EmptyState
           illustration={
-            <div className="w-14 h-14 rounded-2xl bg-bg3 flex items-center justify-center text-text-muted">
+            <div className="w-14 h-14 rounded-card bg-bg3 flex items-center justify-center text-text-muted">
               <User size={24} />
             </div>
           }

@@ -30,7 +30,7 @@ interface Props {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
+    <div className="px-1 text-caption font-semibold tracking-tight text-text-muted">
       {children}
     </div>
   );

@@ -131,8 +131,8 @@ export default function CounterpartyDetail() {
       {/* Hero */}
       <div className="card flex flex-col gap-4 p-5">
         <div className="flex items-start gap-4">
-          <Avatar className="size-12 rounded-2xl">
-            <AvatarFallback className="rounded-2xl bg-bg3 text-text-dim">{initials}</AvatarFallback>
+          <Avatar className="size-12 rounded-card">
+            <AvatarFallback className="rounded-card bg-bg3 text-text-dim">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -446,7 +446,7 @@ function StatTile({
     <div className="card flex flex-col gap-1 p-4">
       <div className="flex items-center gap-2 text-text-dim">
         {icon}
-        <span className="text-caption font-semibold uppercase tracking-wider">{label}</span>
+        <span className="text-caption font-semibold tracking-tight">{label}</span>
       </div>
       <div className="text-title-sm font-bold tabular-nums">{n}</div>
       <div className="text-caption tabular-nums text-text-muted">{fmtUzs(sum)} UZS</div>

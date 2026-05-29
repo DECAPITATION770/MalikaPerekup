@@ -169,7 +169,7 @@ export default function StepDevice({
         key={u.kind === 'catalog' ? `c-${u.item.id}` : `r-${brand}-${model}-${category}`}
         type="button"
         onClick={() => pick(u)}
-        className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-bg2 p-3.5 text-left transition-all hover:border-border-strong active:scale-[0.99]"
+        className="flex cursor-pointer items-center gap-3 rounded-card border border-border bg-bg2 p-3.5 text-left transition-all hover:border-border-strong active:scale-[0.99]"
       >
         {photo ? (
           <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover bg-bg3" />
@@ -328,7 +328,7 @@ export default function StepDevice({
 
       {hasModel && (
         <div className="flex flex-col gap-2">
-          <div className="px-1 text-caption font-semibold uppercase tracking-wider text-text-muted">
+          <div className="px-1 text-caption font-semibold tracking-tight text-text-muted">
             {t('purchase.device_section')}
           </div>
           <DeviceFields

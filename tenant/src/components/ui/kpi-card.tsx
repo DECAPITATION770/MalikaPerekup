@@ -74,22 +74,30 @@ export function KpiCard({
 
   return (
     <div
-      className="card group animate-fade-up p-5 transition-all hover:border-border-strong hover:bg-bg3 md:p-6"
+      className="card group animate-fade-up p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-border-strong hover:bg-bg3 md:p-6"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-label font-semibold uppercase tracking-tight text-text-dim">
+        {/* Sentence-case label — caps + tracking-wider read like a 2003 admin
+            theme on a fintech surface. Tone colour already carries identity. */}
+        <div className="text-label font-semibold tracking-tight text-text-dim">
           {label}
         </div>
         {icon && (
           <div className={cn('relative shrink-0', t.text)}>
+            {/* Glow gated to dark theme — on a near-white surface
+                `blur-xl bg-current opacity-25` painted as grey dust under
+                the tile rather than as ambient light. We toggle off in
+                light via `[.light_&]:hidden` because the project uses an
+                explicit `.light` class on <html> (dark is the default,
+                so Tailwind's `dark:` modifier doesn't fit the model). */}
             <span
               aria-hidden
-              className="absolute inset-0 scale-125 rounded-full bg-current opacity-25 blur-xl transition-opacity group-hover:opacity-40"
+              className="absolute inset-0 scale-125 rounded-full bg-current opacity-25 blur-xl transition-opacity group-hover:opacity-40 [.light_&]:hidden"
             />
             <div
               className={cn(
-                'relative flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition-transform group-hover:scale-110',
+                'relative flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition-transform duration-200 group-hover:scale-110',
                 t.bg,
                 t.text,
                 t.ring,
@@ -106,16 +114,22 @@ export function KpiCard({
           <Skeleton className="h-9 w-32" />
         ) : (
           <>
-            <span className="text-title-lg font-bold tabular-nums leading-none tracking-tight md:text-[32px]">
+            {/* Tighter tracking + tabular-nums for stable money columns;
+                the old `text-[32px]` magic is replaced by the existing
+                `text-display` token (34 px) — visually indistinguishable
+                but discoverable in the type scale. The display family
+                (Geist Variable, loaded in index.css) carries the numerals
+                — body text keeps the system font for crisp first paint. */}
+            <span className="font-display text-title-lg font-semibold leading-none tracking-[-0.025em] tabular-nums md:text-display">
               {format(animated)}
             </span>
-            {unit && <span className="text-sm font-semibold text-text-muted">{unit}</span>}
+            {unit && <span className="text-body font-semibold text-text-muted">{unit}</span>}
           </>
         )}
       </div>
 
       {(delta || hint) && !loading && (
-        <div className="mt-2.5 flex items-center gap-2 text-xs">
+        <div className="mt-2.5 flex items-center gap-2 text-hint">
           {delta && DeltaIcon && (
             <span
               className={cn(

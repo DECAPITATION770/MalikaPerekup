@@ -55,7 +55,7 @@ export function Section({
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-body-xl md:text-subhead font-bold tracking-tight">{title}</h2>
-          <p className="text-xs text-text-muted mt-0.5">{hint}</p>
+          <p className="text-hint text-text-muted mt-0.5">{hint}</p>
         </div>
       </div>
       <div className="flex flex-col gap-4">{children}</div>
@@ -193,7 +193,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
         className={`bg-bg2 rounded-xl border px-3.5 py-3 text-body text-text outline-none transition-colors resize-none placeholder:text-text-muted leading-relaxed
           ${error ? 'border-danger' : 'border-border focus:border-accent'}`}
       />
-      {error && <span role="alert" className="text-xs text-danger">{error}</span>}
+      {error && <span role="alert" className="text-hint text-danger">{error}</span>}
     </div>
   );
 });

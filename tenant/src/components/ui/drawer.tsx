@@ -80,7 +80,7 @@ const DrawerDescription = React.forwardRef<
 >(({ className, ...rest }, ref) => (
   <DrawerPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-text-dim', className)}
+    className={cn('text-body text-text-dim', className)}
     {...rest}
   />
 ));

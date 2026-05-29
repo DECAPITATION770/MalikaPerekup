@@ -32,18 +32,23 @@ export function WizardProgress({
               type="button"
               disabled={!clickable}
               onClick={() => clickable && onJump(s)}
+              // Visual hierarchy: current = filled accent (the eye anchor);
+              // done = quiet outline + green check (clickable, but not
+              // competing with current); future = muted. Two filled tabs side
+              // by side («Устройство» green + «Сделка» amber) used to read as
+              // two competing CTAs — fixed by dropping the success-faded fill.
               className={`w-full h-12 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all text-caption font-bold tracking-tight
                 ${isCurrent
                   ? 'bg-accent-faded border-accent/50 text-accent'
                   : isDone
-                    ? 'bg-success-faded border-success/30 text-success cursor-pointer hover:border-success/60'
+                    ? 'bg-bg2 border-success/40 text-success cursor-pointer hover:bg-success-faded/40 hover:border-success/60'
                     : 'bg-bg2 border-border text-text-muted'}
                 ${clickable && !isCurrent ? 'cursor-pointer' : ''}
                 ${!clickable && !isCurrent ? 'cursor-default' : ''}`}
               aria-current={isCurrent ? 'step' : undefined}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-micro shrink-0
-                ${isCurrent ? 'bg-accent text-white' : isDone ? 'bg-success/20 text-success' : 'bg-bg3 text-text-muted'}`}
+                ${isCurrent ? 'bg-accent text-white' : isDone ? 'text-success' : 'bg-bg3 text-text-muted'}`}
               >
                 {isDone && !isCurrent ? <Check size={11} strokeWidth={3} /> : s + 1}
               </span>
@@ -59,11 +64,16 @@ export function WizardProgress({
 // ─── Sticky footer (Back / Next or Submit) ─────────────────────────────
 
 export function WizardFooter({
-  step, totalSteps, canGoBack, onBack, onNext, onSubmit, submitting, submitLabel,
+  step, totalSteps, canGoBack, canGoNext, onBack, onNext, onSubmit, submitting, submitLabel,
 }: {
   step: number;
   totalSteps: number;
   canGoBack: boolean;
+  /** Whether the current step's required fields are filled. Gates «Далее»
+      on intermediate steps so a primary-looking button doesn't silently
+      no-op on an empty form. Submit on the last step stays enabled so
+      inline form errors can surface. */
+  canGoNext: boolean;
   onBack: () => void;
   onNext: () => void;
   onSubmit: () => void;
@@ -94,6 +104,7 @@ export function WizardFooter({
         size="lg"
         full
         onClick={isLast ? onSubmit : onNext}
+        disabled={!isLast && !canGoNext}
         loading={isLast && submitting}
         icon={isLast ? <ShoppingCart size={16} /> : <ChevronRight size={16} />}
       >
@@ -127,7 +138,7 @@ export function StepShell({
         <h2 id={`step-${step}-title`} className="text-title font-bold tracking-tight">
           {title}
         </h2>
-        {subtitle && <p className="text-sm text-text-dim leading-relaxed">{subtitle}</p>}
+        {subtitle && <p className="text-body text-text-dim leading-relaxed">{subtitle}</p>}
       </header>
       <div className="flex flex-col gap-4">{children}</div>
     </section>

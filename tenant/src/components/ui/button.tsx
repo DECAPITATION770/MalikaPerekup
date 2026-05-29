@@ -8,8 +8,16 @@ const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 whitespace-nowrap',
     'rounded-xl font-semibold tracking-tight',
-    'transition-all active:scale-[0.97]',
-    'disabled:pointer-events-none disabled:opacity-60',
+    // List properties explicitly — `transition-all` retiggers layout-affecting
+    // properties on every state change and was a Web Interface Guidelines flag.
+    // We only animate colour, border, shadow and the active scale.
+    'transition-[background-color,border-color,box-shadow,color,transform] duration-150 active:scale-[0.97]',
+    // Disabled state goes truly neutral instead of a faded brand colour:
+    // `opacity-60` on an amber CTA still reads as «amber, just dimmer»,
+    // which is exactly what a user clicks and gets no feedback for. We
+    // replace the fill, text, border and glow with bg3/muted tokens so
+    // disabled is visibly inert across every variant.
+    'disabled:pointer-events-none disabled:bg-bg3 disabled:text-text-muted disabled:border-border disabled:shadow-none',
     'outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
     '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   ].join(' '),
@@ -63,6 +71,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           ref={ref}
           className={cn(buttonVariants({ variant, size, full }), className)}
           disabled={disabled || loading}
+          aria-busy={loading || undefined}
           {...rest}
         >
           {children}
@@ -74,9 +83,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(buttonVariants({ variant, size, full }), className)}
         disabled={disabled || loading}
+        aria-busy={loading || undefined}
         {...rest}
       >
-        {loading ? <Loader2 className="animate-spin" /> : icon}
+        {loading ? <Loader2 className="animate-spin" aria-hidden /> : icon}
         {children}
       </Comp>
     );

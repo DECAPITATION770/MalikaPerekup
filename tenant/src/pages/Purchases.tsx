@@ -65,7 +65,7 @@ export default function Purchases() {
             {t('purchases.title')}
           </h1>
           {data && (
-            <div className="text-sm text-text-dim mt-1 tabular-nums">
+            <div className="text-body text-text-dim mt-1 tabular-nums">
               {t('purchases.total', { n: data.total })}
             </div>
           )}
@@ -164,7 +164,7 @@ function PurchaseRow({ p, delay }: { p: PurchaseOut; delay: number }) {
     >
       <Link
         to={`/stock/${p.device_id}`}
-        className="p-3 md:p-4 flex items-center gap-4 rounded-2xl"
+        className="p-3 md:p-4 flex items-center gap-4 rounded-card"
       >
         <div className="w-11 h-11 shrink-0 rounded-xl bg-bg3 ring-1 ring-border text-text-muted flex items-center justify-center">
           <ShoppingCart size={18} />

@@ -20,7 +20,7 @@ export function StubPage({ name, hint }: { name: string; hint?: string }) {
         <CardDescription>{hint ?? t('common.soon')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-text-dim leading-relaxed">{t('common.soon_body')}</p>
+        <p className="text-body text-text-dim leading-relaxed">{t('common.soon_body')}</p>
       </CardContent>
     </Card>
   );

@@ -140,7 +140,7 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
       <Label htmlFor={id}>{label}</Label>
       <Input id={id} ref={ref} {...rest} aria-invalid={!!error} />
       {error && (
-        <span role="alert" className="text-xs text-danger animate-fade-in">
+        <span role="alert" className="text-hint text-danger animate-fade-in">
           {error}
         </span>
       )}

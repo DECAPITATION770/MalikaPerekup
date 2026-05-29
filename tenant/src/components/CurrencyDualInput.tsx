@@ -136,7 +136,7 @@ export default function CurrencyDualInput({
       )}
 
       {/* Main amount field */}
-      <div className={`flex items-center gap-2 bg-bg2 rounded-2xl border h-14 px-4 transition-colors
+      <div className={`flex items-center gap-2 bg-bg2 rounded-card border h-14 px-4 transition-colors
         focus-within:ring-4 focus-within:ring-accent/15
         ${priceError ? 'border-danger' : 'border-border focus-within:border-accent'}`}>
         <input
@@ -208,8 +208,8 @@ export default function CurrencyDualInput({
         </div>
       )}
 
-      {priceError && <span className="text-xs text-danger animate-fade-in">{priceError}</span>}
-      {rateError  && <span className="text-xs text-danger animate-fade-in">{rateError}</span>}
+      {priceError && <span className="text-hint text-danger animate-fade-in">{priceError}</span>}
+      {rateError  && <span className="text-hint text-danger animate-fade-in">{rateError}</span>}
     </div>
   );
 }

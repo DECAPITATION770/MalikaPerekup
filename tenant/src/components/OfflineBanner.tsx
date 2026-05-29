@@ -48,7 +48,7 @@ export function OfflineBanner() {
           role="status"
           aria-live="polite"
         >
-          <div className="container py-2 flex items-center gap-2 text-sm font-semibold">
+          <div className="container py-2 flex items-center gap-2 text-body font-semibold">
             {online ? <Wifi size={16} /> : <CloudOff size={16} />}
             <span>
               {online ? t('common.online_again') : t('common.offline_banner')}

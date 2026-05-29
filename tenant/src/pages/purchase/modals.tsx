@@ -45,11 +45,11 @@ export function DraftRestoreModal({
       }
     >
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-faded text-accent">
+        <div className="flex h-12 w-12 items-center justify-center rounded-card bg-accent-faded text-accent">
           {icon ?? <ShoppingCart size={22} />}
         </div>
-        <h2 className="text-base font-bold tracking-tight">{titleText}</h2>
-        <p className="max-w-xs text-sm leading-relaxed text-text-dim">{bodyText}</p>
+        <h2 className="text-body-xl font-bold tracking-tight">{titleText}</h2>
+        <p className="max-w-xs text-body leading-relaxed text-text-dim">{bodyText}</p>
       </div>
     </Modal>
   );
