@@ -9,14 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  BookMarked,
-  CalendarClock,
-  Package,
-  ShoppingCart,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
+import { CalendarClock, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 import { KpiCard, type KpiDelta } from '@/components/ui/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
@@ -86,35 +79,31 @@ export default function Today() {
     : undefined;
 
   return (
-    <div className="relative flex flex-col gap-6 md:gap-8">
+    <div className="relative flex flex-col gap-5 md:gap-7">
       {/* Ambient mesh behind the hero — pure decoration */}
       <div
         aria-hidden
         className="hero-mesh pointer-events-none absolute inset-x-0 -top-6 -z-10 h-64 md:-top-10"
       />
 
-      {/* Header — kept to a single line on mobile so all three KPIs clear the
-          fold (per CLAUDE.md §15). Shop name folds into a `·` separator;
-          desktop keeps the large display-size hero. */}
+      {/* Hero — tight on mobile so 3 KPIs clear the fold on 420×820 (CLAUDE.md
+          §15, UX_AUDIT P1 #4). Greeting stays the headline; shop name moves
+          to a half-step dim sub-line so the H1 never wraps. Desktop opens up
+          to the display-size hero on a single row. */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-        className="flex items-end justify-between gap-3"
       >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-2 md:gap-x-3">
-            <h1 className="text-balance font-display text-title font-semibold tracking-[-0.03em] md:text-display">
-              {greeting}
-              {firstName ? `, ${firstName}` : ''}
-            </h1>
-            {shopQ.data && (
-              <span className="truncate text-body text-text-dim md:text-body-xl">
-                · {shopQ.data.name}
-              </span>
-            )}
+        <h1 className="truncate font-display text-title-sm font-semibold leading-tight tracking-[-0.03em] md:text-display">
+          {greeting}
+          {firstName ? `, ${firstName}` : ''}
+        </h1>
+        {shopQ.data && (
+          <div className="mt-0.5 truncate text-hint text-text-muted md:text-body-xl md:text-text-dim">
+            {shopQ.data.name}
           </div>
-        </div>
+        )}
       </motion.header>
 
       {/* Frozen-shop banner — account suspended, business endpoints 403 */}
@@ -216,29 +205,11 @@ export default function Today() {
         </section>
       )}
 
-      {/* Quick actions — only destinations without a persistent slot. Buy/Sell
-          live in the bottom nav (mobile) / sidebar (desktop), Search is the
-          header icon, Nasiya is a bottom-nav tab — so they'd just duplicate
-          chrome that's always on screen. */}
-      <section className="animate-fade-up" style={{ animationDelay: '240ms' }}>
-        <h2 className="mb-3 text-label font-bold tracking-tight text-text-dim">
-          {t('today.quick_actions')}
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          <QuickAction
-            to="/counterparties"
-            icon={<Users size={20} />}
-            label={t('nav.counterparties')}
-            tone="neutral"
-          />
-          <QuickAction
-            to="/catalog"
-            icon={<BookMarked size={20} />}
-            label={t('nav.catalog')}
-            tone="neutral"
-          />
-        </div>
-      </section>
+      {/* «Быстрые действия» секция здесь раньше указывала на Контрагенты +
+          Каталог — но обе ссылки уже доступны через Sidebar (desktop) и
+          MoreHorizontal-drawer в AppHeader (mobile). Дублировали chrome и
+          притворялись действиями, будучи справочниками. Удалили чтобы Today
+          не тащил мёртвый вес и KPI/ReceiveTodayCard занимали фолд. */}
 
       {/* Empty hero when nothing's happened yet */}
       {todayQ.data &&
@@ -286,44 +257,3 @@ function FlowStat({
   );
 }
 
-function QuickAction({
-  to,
-  icon,
-  label,
-  tone,
-}: {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  tone: 'accent' | 'success' | 'neutral';
-}) {
-  const ring =
-    tone === 'accent'
-      ? 'group-hover:ring-accent/40 group-hover:bg-accent-faded'
-      : tone === 'success'
-        ? 'group-hover:ring-success/40 group-hover:bg-success-faded'
-        : 'group-hover:ring-border-strong group-hover:bg-bg3';
-  const iconTone =
-    tone === 'accent' ? 'text-accent' : tone === 'success' ? 'text-success' : 'text-text-dim';
-
-  return (
-    <Link
-      to={to}
-      // Centred icon+label so the tile reads as a single «destination card»
-      // rather than a card with content prepared in a corner. Less p-4, more
-      // intentional vertical rhythm.
-      className="card group flex cursor-pointer flex-col items-center gap-2 px-4 py-3.5 text-center transition-all hover:border-border-strong md:gap-3 md:py-4"
-    >
-      <div
-        className={cn(
-          'flex h-10 w-10 items-center justify-center rounded-xl bg-bg3 ring-1 ring-border transition-all',
-          iconTone,
-          ring,
-        )}
-      >
-        {icon}
-      </div>
-      <div className="text-label font-semibold tracking-tight md:text-body">{label}</div>
-    </Link>
-  );
-}

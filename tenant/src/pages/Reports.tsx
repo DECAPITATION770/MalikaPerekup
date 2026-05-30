@@ -232,7 +232,7 @@ export default function Reports() {
         <>
           <div className="grid grid-cols-2 gap-3">
             <StatCard
-              icon={<TrendingUp size={14} />}
+              icon={<TrendingUp size={18} />}
               label={t('reports.profit')}
               value={`${fmtUzs(data.profit_uzs)} UZS`}
               delta={computeDelta(Number(data.profit_uzs), prevData ? Number(prevData.profit_uzs) : undefined)}
@@ -245,21 +245,21 @@ export default function Reports() {
               accent
             />
             <StatCard
-              icon={<BarChart2 size={14} />}
+              icon={<BarChart2 size={18} />}
               label={t('reports.revenue')}
               value={`${fmtUzs(data.revenue_uzs)} UZS`}
               delta={computeDelta(Number(data.revenue_uzs), prevData ? Number(prevData.revenue_uzs) : undefined)}
               deltaLabel={t('reports.vs_prev_period')}
             />
             <StatCard
-              icon={<ShoppingCart size={14} />}
+              icon={<ShoppingCart size={18} />}
               label={t('reports.purchases')}
               value={String(data.purchases_count)}
               delta={computeDelta(data.purchases_count, prevData?.purchases_count)}
               deltaLabel={t('reports.vs_prev_period')}
             />
             <StatCard
-              icon={<RotateCcw size={14} />}
+              icon={<RotateCcw size={18} />}
               label={t('reports.sales')}
               value={String(data.sales_count)}
               delta={computeDelta(data.sales_count, prevData?.sales_count)}

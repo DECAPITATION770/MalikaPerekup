@@ -59,9 +59,21 @@ export default function Purchases() {
 
   return (
     <div className="flex flex-col gap-5 animate-fade-up">
-      <header className="flex items-end justify-between gap-3 flex-wrap">
+      {/* Header — compact inline title+count on mobile, full hero on desktop
+          (matches Sales/Stock/Catalog list-page idiom). */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:hidden">
+        <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
+          {t('purchases.title')}
+        </h1>
+        {data && (
+          <span className="text-body tabular-nums text-text-dim">
+            · {t('purchases.total', { n: data.total })}
+          </span>
+        )}
+      </div>
+      <header className="hidden items-end justify-between gap-3 flex-wrap md:flex">
         <div>
-          <h1 className="text-title-lg md:text-display font-bold tracking-tight">
+          <h1 className="font-display text-title-lg md:text-display font-semibold tracking-[-0.03em]">
             {t('purchases.title')}
           </h1>
           {data && (
@@ -88,6 +100,7 @@ export default function Purchases() {
               value={from}
               max={to || undefined}
               onChange={(e) => setParam('from', e.target.value)}
+              autoComplete="off"
               className="h-11"
             />
           </div>
@@ -99,6 +112,7 @@ export default function Purchases() {
               value={to}
               min={from || undefined}
               onChange={(e) => setParam('to', e.target.value)}
+              autoComplete="off"
               className="h-11"
             />
           </div>
@@ -173,7 +187,9 @@ function PurchaseRow({ p, delay }: { p: PurchaseOut; delay: number }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-body font-bold tracking-tight truncate">{deviceLabel}</span>
             <span className="text-caption text-text-muted flex items-center gap-1 shrink-0">
-              <Calendar size={11} />
+              {/* lucide icons read poorly below ~14px — bumped from 11 to match
+                  the same change on /sales. */}
+              <Calendar size={14} aria-hidden />
               {fmtDate(p.purchase_date)}
             </span>
           </div>

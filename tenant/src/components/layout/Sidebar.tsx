@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -45,6 +45,16 @@ const NAV_ARCHIVE: readonly NavSpec[] = [
  */
 export function Sidebar() {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
+
+  // Focus-mode on wizard routes — mirror BottomNav.tsx:48 behaviour for
+  // desktop. Without this a misclick in the sidebar mid-deal silently
+  // drops the user out of the wizard with the draft autosaved but no
+  // visible trace of the in-flight transaction. On mobile BottomNav
+  // hides for the same reason; desktop deserves the same focus.
+  if (pathname.startsWith('/purchase/new') || pathname.startsWith('/sale/new')) {
+    return null;
+  }
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-[244px] shrink-0 flex-col border-r border-border bg-bg2 md:flex">
