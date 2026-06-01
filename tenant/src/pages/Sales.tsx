@@ -69,7 +69,7 @@ export default function Sales() {
   const isFiltered = Boolean(from || to || filter !== 'all');
 
   return (
-    <div className="flex flex-col gap-5 animate-fade-up">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       {/* Header — mobile gets a compact inline title + count strip; desktop
           keeps the larger heading + side CTA. Matches the sticky-filter idiom
           rolled out across list pages (Stock first, Sales here). */}
@@ -206,11 +206,11 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-body font-bold tracking-tight truncate">{deviceLabel}</span>
-            <Badge variant={s.sale_type === 'nasiya' ? 'accent' : 'neutral'} size="sm">
+            <Badge dot variant={s.sale_type === 'nasiya' ? 'accent' : 'neutral'} size="sm">
               {t(`sale.${s.sale_type}`)}
             </Badge>
             {s.status !== 'active' && (
-              <Badge variant={STATUS_VARIANT[s.status]} size="sm">
+              <Badge dot variant={STATUS_VARIANT[s.status]} size="sm">
                 {t(`sales.status_${s.status}`)}
               </Badge>
             )}

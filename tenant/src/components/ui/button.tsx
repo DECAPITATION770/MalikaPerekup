@@ -18,7 +18,10 @@ const buttonVariants = cva(
     // replace the fill, text, border and glow with bg3/muted tokens so
     // disabled is visibly inert across every variant.
     'disabled:pointer-events-none disabled:bg-bg3 disabled:text-text-muted disabled:border-border disabled:shadow-none',
-    'outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+    // .focus-ring is the project's tokenised focus state (index.css). Using the
+    // class instead of the inlined shadcn shorthand kills a 40-char string that
+    // repeated across half the UI primitives — DRY + identity in one move.
+    'focus-ring',
     '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   ].join(' '),
   {

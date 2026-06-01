@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.dates import now_utc
 from app.common.money import Currency, quantize, to_uzs
+from app.features.counterparties import notes_service as cp_notes
 from app.features.counterparties import service as counterparty_service
 from app.features.devices import service as device_service
 from app.features.devices.models import Device, DeviceStatus
@@ -147,6 +148,25 @@ async def create_sale(
 
     # 6. Flip device status atomically with the sale insert.
     device_service.transition_status(device, DeviceStatus.SOLD.value)
+
+    # 7. Auto-system-note for the buyer's directory entry. Best-effort —
+    # a note write failure must not block a real sale. The nasiya period
+    # count isn't known at sale creation (the schedule is created by the
+    # installments feature later); the note is appended with no period
+    # hint here, and the user can edit / re-add manually if needed.
+    try:
+        await cp_notes.auto_note_sale(
+            db,
+            shop_id=shop_id,
+            user_id=user_id,
+            counterparty_id=counterparty.id,
+            device_brand=device.brand,
+            device_model=device.model,
+            price_uzs=sale_price_uzs,
+            sale_type=sale_type,
+        )
+    except Exception:  # noqa: BLE001 — note write is best-effort
+        pass
 
     return sale, device
 

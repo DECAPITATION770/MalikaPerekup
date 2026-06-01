@@ -61,6 +61,15 @@ class Counterparty(Base):
 
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # User-curated VIP flag. Pinned counterparties always sort to the top
+    # of the directory regardless of debt / activity recency — useful for
+    # repeat suppliers («тот самый Шохрух с iPhone'ами») and high-volume
+    # buyers. Per-shop, not per-user — single-perekupschik shops are the
+    # norm so per-user pinning would be over-engineering for v1.
+    is_pinned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     # Soft delete: hide instead of erase, because purchases/sales still
     # reference this row via FK.
     deleted_at: Mapped[datetime | None] = mapped_column(

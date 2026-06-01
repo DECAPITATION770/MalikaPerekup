@@ -22,11 +22,14 @@ interface NavSpec {
   end?: boolean;
 }
 
+// «Поиск» убран отсюда — теперь живёт как Cmd+K палитра в шапке, чтобы
+// поиск не занимал постоянный nav-slot, а вызывался хоткеем или верхней
+// кнопкой. Маршрут /search оставлен для deep-link'ов (старые закладки,
+// share-ссылки), но в первичной навигации его место заняла Catalog.
 const NAV_PRIMARY: readonly NavSpec[] = [
   { to: '/', icon: LayoutDashboard, key: 'nav.today', end: true },
   { to: '/stock', icon: Package, key: 'nav.stock' },
   { to: '/catalog', icon: BookMarked, key: 'nav.catalog' },
-  { to: '/search', icon: Search, key: 'nav.search' },
   { to: '/counterparties', icon: UsersIcon, key: 'nav.counterparties' },
   { to: '/installments', icon: CalendarClock, key: 'nav.installments' },
   { to: '/reports', icon: BarChart3, key: 'nav.reports' },
@@ -38,12 +41,18 @@ const NAV_ARCHIVE: readonly NavSpec[] = [
   { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
 ];
 
+interface SidebarProps {
+  /** Open the Cmd+K palette. Optional so the sidebar still works
+   *  outside the AppLayout (e.g. tests). */
+  onOpenSearch?: () => void;
+}
+
 /**
  * Desktop sidebar — brand, the two money-action CTAs, and navigation. Nothing
  * else. Theme, language, account and logout live in the top-right header
  * dropdown so the chrome stays minimal and consistent across breakpoints.
  */
-export function Sidebar() {
+export function Sidebar({ onOpenSearch }: SidebarProps = {}) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
 
@@ -63,8 +72,23 @@ export function Sidebar() {
         <MalikaWordmark size="md" className="text-text" />
       </div>
 
+      {/* Search trigger — opens the global search palette. Lives above
+          the money CTAs because finding the right device is the workflow
+          people start with most often. The kbd hint badge was dropped
+          along with the keyboard shortcut, so the chip is plain. */}
+      <div className="px-3 pt-4">
+        <button
+          type="button"
+          onClick={() => onOpenSearch?.()}
+          className="flex h-10 w-full items-center gap-2.5 rounded-xl border border-border bg-bg3 px-3 text-left text-label text-text-dim transition-colors hover:border-border-strong hover:text-text"
+        >
+          <Search size={15} strokeWidth={1.8} />
+          <span className="flex-1">{t('nav.search')}</span>
+        </button>
+      </div>
+
       {/* Money actions — the two verbs the shop runs all day */}
-      <div className="flex flex-col gap-2 px-3 pt-4">
+      <div className="flex flex-col gap-2 px-3 pt-3">
         <NavLink
           to="/purchase/new"
           className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent text-label font-bold text-[rgb(var(--c-on-accent))] transition-colors hover:bg-accent-hover"

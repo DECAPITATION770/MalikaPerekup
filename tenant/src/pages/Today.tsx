@@ -9,9 +9,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarClock, Package, ShoppingCart, TrendingUp } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CalendarClock,
+  Minus,
+  Package,
+  ShoppingCart,
+  TrendingUp,
+} from 'lucide-react';
 import { KpiCard, type KpiDelta } from '@/components/ui/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ReceiveTodayCard } from '@/components/ReceiveTodayCard';
 import { FrozenIcon } from '@/components/icons';
@@ -36,8 +45,14 @@ const parseNum = (v: string | number | null | undefined): number => {
 
 const isoTashkent = (d: Date): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(d);
-const SPARK_TO = isoTashkent(new Date());
-const SPARK_FROM = isoTashkent(new Date(Date.now() - 6 * 86_400_000));
+
+// Re-compute the 7-day spark window inside queryFn (not at module load) so a
+// tab kept open across midnight pulls fresh dates on the next refetch instead
+// of being stuck on yesterday's range until the user reloads.
+function sparkRange(): [string, string] {
+  const now = Date.now();
+  return [isoTashkent(new Date(now - 6 * 86_400_000)), isoTashkent(new Date(now))];
+}
 
 export default function Today() {
   const { t } = useTranslation();
@@ -46,8 +61,11 @@ export default function Today() {
   const todayQ = useQuery({ queryKey: ['reports', 'today'], queryFn: getToday });
   const shopQ = useQuery({ queryKey: ['shops', 'me'], queryFn: getShopMe });
   const sparkQ = useQuery({
-    queryKey: ['reports', 'period', SPARK_FROM, SPARK_TO],
-    queryFn: () => getPeriodReport(SPARK_FROM, SPARK_TO),
+    queryKey: ['reports', 'period', 'spark-7d'],
+    queryFn: () => {
+      const [from, to] = sparkRange();
+      return getPeriodReport(from, to);
+    },
     staleTime: 5 * 60_000,
   });
   const sparkData = (sparkQ.data?.profit_by_day ?? []).map((d) => ({
@@ -79,6 +97,9 @@ export default function Today() {
     : undefined;
 
   return (
+    // Full-width — internal KPI grids (3-col secondary pair, 3-col flow
+    // stats) already distribute themselves across whatever room is given,
+    // so no outer max-width is needed.
     <div className="relative flex flex-col gap-5 md:gap-7">
       {/* Ambient mesh behind the hero — pure decoration */}
       <div
@@ -89,18 +110,26 @@ export default function Today() {
       {/* Hero — tight on mobile so 3 KPIs clear the fold on 420×820 (CLAUDE.md
           §15, UX_AUDIT P1 #4). Greeting stays the headline; shop name moves
           to a half-step dim sub-line so the H1 never wraps. Desktop opens up
-          to the display-size hero on a single row. */}
+          to the display-size hero on a single row. `title` carries the full
+          string for truncated names — single-handed perekupschiks like
+          «Абдурахмон Тошкентбоев» trip the ellipsis and lose context. */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
       >
-        <h1 className="truncate font-display text-title-sm font-semibold leading-tight tracking-[-0.03em] md:text-display">
+        <h1
+          className="truncate font-display text-title-sm font-semibold leading-tight tracking-[-0.03em] md:text-display"
+          title={`${greeting}${firstName ? `, ${firstName}` : ''}`}
+        >
           {greeting}
           {firstName ? `, ${firstName}` : ''}
         </h1>
         {shopQ.data && (
-          <div className="mt-0.5 truncate text-hint text-text-muted md:text-body-xl md:text-text-dim">
+          <div
+            className="mt-0.5 truncate text-hint text-text-muted md:text-body-xl md:text-text-dim"
+            title={shopQ.data.name}
+          >
             {shopQ.data.name}
           </div>
         )}
@@ -127,27 +156,28 @@ export default function Today() {
           superseded by this richer panel. */}
       <ReceiveTodayCard delay={40} />
 
-      {/* 3 headline KPI */}
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
-        <KpiCard
-          label={t('today.kpi_profit_today')}
-          value={parseNum(todayQ.data?.profit_today)}
-          format={fmtUzs}
-          unit={t('common.currency_uzs')}
-          hint={t('today.kpi_profit_today_hint')}
-          icon={<TrendingUp size={18} strokeWidth={2} />}
-          tone="success"
-          loading={todayQ.isLoading}
-          delay={60}
-          delta={profitDelta}
-          footer={
-            sparkData.length >= 2 && hasSparkSignal ? (
-              <Suspense fallback={<div className="h-9" />}>
-                <ProfitSparkLazy data={sparkData} />
-              </Suspense>
-            ) : undefined
-          }
-        />
+      {/* Hero KPI — Прибыль сегодня. One anchor per screen: removes the
+          "three equal KPIs" flatness flagged in style review. No card chrome
+          here — the hero sits on the page bg with one big amber numeral so
+          the eye lands on profit first; secondary KPIs follow in a compact
+          pair below. Spark line moves into the hero block since it's
+          intrinsic to the profit story. */}
+      <ProfitHero
+        value={parseNum(todayQ.data?.profit_today)}
+        delta={profitDelta}
+        loading={todayQ.isLoading}
+        spark={
+          sparkData.length >= 2 && hasSparkSignal ? (
+            <Suspense fallback={<div className="h-9" />}>
+              <ProfitSparkLazy data={sparkData} />
+            </Suspense>
+          ) : null
+        }
+      />
+
+      {/* Secondary KPI pair — Замороженные + Долги. Compact 2-col grid so
+          both clear the fold on 420×820 even with the hero block above. */}
+      <section className="grid grid-cols-2 gap-3 md:gap-4">
         <KpiCard
           label={t('today.kpi_inventory_value')}
           value={parseNum(todayQ.data?.inventory_value_uzs)}
@@ -160,6 +190,7 @@ export default function Today() {
           }
           icon={<Package size={18} strokeWidth={2} />}
           tone="warning"
+          size="compact"
           loading={todayQ.isLoading}
           delay={120}
         />
@@ -175,6 +206,7 @@ export default function Today() {
           }
           icon={<CalendarClock size={18} strokeWidth={2} />}
           tone={overdueCount > 0 ? 'danger' : 'accent'}
+          size="compact"
           loading={todayQ.isLoading}
           delay={180}
         />
@@ -254,6 +286,98 @@ function FlowStat({
         {value}
       </span>
     </div>
+  );
+}
+
+/**
+ * ProfitHero — the single dominant KPI on Today. Lives without `.card`
+ * chrome (no border, no shadow) so the eye treats it as part of the page
+ * surface, not as a competing tile against the secondary pair below.
+ *
+ * Display: 48px on mobile, 64px on desktop, weight 300 in display-face so
+ * the numeral reads as confident-quiet — Tesla App / Linear influence. The
+ * full-precision `fmtUzs` is used here (vs the compact `fmtUzsCompact` on
+ * the secondary KPIs) because the hero earns the room; using compact «12.5M»
+ * for the headline value reads as down-rounded estimation, not a number.
+ */
+function ProfitHero({
+  value,
+  delta,
+  loading,
+  spark,
+}: {
+  value: number;
+  delta?: KpiDelta;
+  loading?: boolean;
+  spark?: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  const DeltaIcon = delta
+    ? delta.dir === 'up'
+      ? ArrowUp
+      : delta.dir === 'down'
+        ? ArrowDown
+        : Minus
+    : null;
+  const isNeg = (delta?.dir ?? 'flat') === 'down';
+
+  return (
+    <section
+      className="animate-fade-up"
+      style={{ animationDelay: '60ms' }}
+      aria-label={t('today.kpi_profit_today')}
+    >
+      <div className="flex items-center gap-2 text-label font-medium text-text-dim">
+        <span
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-accent-faded text-accent"
+          aria-hidden
+        >
+          <TrendingUp size={13} strokeWidth={2.2} />
+        </span>
+        <span>{t('today.kpi_profit_today')}</span>
+      </div>
+
+      <div className="mt-2 flex items-baseline gap-2.5">
+        {loading ? (
+          <Skeleton className="h-12 w-48 md:h-16 md:w-64" />
+        ) : (
+          <>
+            <span className="font-display text-[48px] font-light leading-none tracking-[-0.04em] tabular-nums text-accent md:text-[64px]">
+              {fmtUzs(value)}
+            </span>
+            <span className="text-body-lg font-semibold text-text-muted">
+              {t('common.currency_uzs')}
+            </span>
+          </>
+        )}
+      </div>
+
+      {(delta || !loading) && (
+        <div className="mt-2 flex items-center gap-2 text-hint">
+          {delta && DeltaIcon && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-bold tabular-nums',
+                delta.dir === 'up'
+                  ? 'bg-success-faded text-success'
+                  : isNeg
+                    ? 'bg-danger-faded text-danger'
+                    : 'bg-bg3 text-text-muted',
+              )}
+            >
+              <DeltaIcon size={11} strokeWidth={2.6} />
+              {delta.pct !== undefined && `${delta.pct}%`}
+            </span>
+          )}
+          {delta && <span className="text-text-muted">{delta.label}</span>}
+          {!delta && !loading && (
+            <span className="text-text-muted">{t('today.kpi_profit_today_hint')}</span>
+          )}
+        </div>
+      )}
+
+      {spark && <div className="mt-3">{spark}</div>}
+    </section>
   );
 }
 

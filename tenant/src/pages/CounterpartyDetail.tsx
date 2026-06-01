@@ -9,13 +9,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
+  AlertTriangle,
   ArrowLeft,
   BadgeDollarSign,
   Calendar,
+  CalendarClock,
   ChevronRight,
   FileText,
   Pencil,
   Phone,
+  Pin,
+  PinOff,
   Send,
   ShoppingCart,
 } from 'lucide-react';
@@ -40,10 +44,14 @@ import { DOC_TYPES } from '@/pages/purchase/types';
 import {
   getCounterpartyDeals,
   getCounterpartyDocFiles,
+  getCounterpartyStats,
+  pinCounterparty,
   requestCounterpartyUploadUrl,
   updateCounterparty,
   type CounterpartyOut,
 } from '@/api/counterparties';
+import { NotesTimeline } from '@/components/NotesTimeline';
+import { compactUnits, fmtUzsCompact } from '@/lib/fmt';
 import type { PurchaseOut } from '@/api/purchases';
 import type { SaleOut } from '@/api/sales';
 import { fmtDate, fmtUzs } from '@/lib/fmt';
@@ -66,6 +74,7 @@ export default function CounterpartyDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
 
   const q = useQuery({
@@ -73,6 +82,38 @@ export default function CounterpartyDetail() {
     queryFn: () => getCounterpartyDeals(Number(id!)),
     enabled: Boolean(id),
     retry: false,
+  });
+
+  // Server-side stats — replaces the in-memory sum() over deals because the
+  // server can JOIN nasiya plans and compute lifetime money without the
+  // client refetching every deal.
+  const statsQ = useQuery({
+    queryKey: ['counterparty-stats', Number(id)],
+    queryFn: () => getCounterpartyStats(Number(id!)),
+    enabled: Boolean(id),
+  });
+
+  const pinM = useMutation({
+    mutationFn: (next: boolean) => pinCounterparty(Number(id!), next),
+    onSuccess: (updated) => {
+      haptic.notify('success');
+      // Patch the deals query so the hero re-renders with the new flag —
+      // /deals returns the same Counterparty shape so this is a one-field
+      // swap, no refetch needed.
+      qc.setQueryData(
+        ['counterparty-deals', Number(id)],
+        (
+          prev: ReturnType<typeof getCounterpartyDeals> extends Promise<infer R>
+            ? R | undefined
+            : never,
+        ) => (prev ? { ...prev, counterparty: { ...prev.counterparty, is_pinned: updated.is_pinned } } : prev),
+      );
+      qc.invalidateQueries({ queryKey: ['counterparties'] });
+    },
+    onError: () => {
+      haptic.notify('error');
+      toast.error(t('counterparties.pin_failed'));
+    },
   });
 
   const BackLink = (
@@ -86,7 +127,7 @@ export default function CounterpartyDetail() {
 
   if (q.isLoading) {
     return (
-      <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
+      <div className="flex w-full animate-fade-up flex-col gap-5">
         {BackLink}
         <Skeleton className="h-36 w-full" />
         <Skeleton className="h-20 w-full" />
@@ -95,7 +136,7 @@ export default function CounterpartyDetail() {
   }
   if (q.isError || !q.data) {
     return (
-      <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
+      <div className="flex w-full animate-fade-up flex-col gap-5">
         {BackLink}
         <EmptyState
           title={t('common.error_load')}
@@ -125,7 +166,7 @@ export default function CounterpartyDetail() {
       .toUpperCase() || '?';
 
   return (
-    <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       {BackLink}
 
       {/* Hero */}
@@ -157,14 +198,38 @@ export default function CounterpartyDetail() {
               <p className="mt-2 text-caption leading-relaxed text-text-dim">{cp.comment}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            aria-label={t('counterparties.edit')}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-bg3 text-text-dim transition-colors hover:border-border-strong hover:text-text"
-          >
-            <Pencil size={15} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* Pin / Unpin — VIP flag that floats the row to the top of
+                the directory regardless of debt or activity recency.
+                Optimistic UI via the pinM mutation; failure rolls back
+                visually by virtue of invalidating the deals query. */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic.tap('light');
+                pinM.mutate(!cp.is_pinned);
+              }}
+              disabled={pinM.isPending}
+              aria-label={t(cp.is_pinned ? 'counterparties.unpin' : 'counterparties.pin')}
+              title={t(cp.is_pinned ? 'counterparties.unpin' : 'counterparties.pin')}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-xl border transition-all active:scale-95',
+                cp.is_pinned
+                  ? 'border-accent/40 bg-accent-faded text-accent hover:bg-accent/15'
+                  : 'border-border bg-bg3 text-text-dim hover:border-border-strong hover:text-text',
+              )}
+            >
+              {cp.is_pinned ? <Pin size={15} fill="currentColor" /> : <PinOff size={15} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label={t('counterparties.edit')}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-bg3 text-text-dim transition-colors hover:border-border-strong hover:text-text"
+            >
+              <Pencil size={15} />
+            </button>
+          </div>
         </div>
 
         {(cp.phone || cp.tg_username) && (
@@ -198,21 +263,54 @@ export default function CounterpartyDetail() {
       {/* Documents */}
       {cp.doc_photos.length > 0 && <DocumentsSection id={cp.id} />}
 
-      {/* Totals */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Stale-contact banner — fires when last_contact_at is older than
+          STALE_DAYS days. Soft warning tone, not danger: a 90-day silence
+          isn't an error, it's a nudge. Hidden for first-time entries
+          (last_contact_at === null) — the whole detail page is already
+          a «getting to know» surface in that case. */}
+      <StaleContactBanner
+        lastContactAt={statsQ.data?.last_contact_at ?? null}
+        counterpartyName={cp.full_name}
+      />
+
+      {/* Lifetime totals — drives the «brought X, spent Y, owes Z» readout.
+          Backed by /counterparties/{id}/stats which joins Sale + Purchase +
+          InstallmentPlan in one query — replacing the previous client-side
+          sum() that ignored cash-vs-nasiya splits. The third tile shows
+          active nasiya count: a buyer with 0 deals but 2 active plans is
+          a known-bad-payer worth flagging up here. */}
+      {/* `min-w-0` on the grid so each cell can truncate its label
+          instead of forcing horizontal overflow on narrow viewports
+          («Активные Nasiya» was cut off the right edge of the page
+          before this guard). */}
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatTile
           icon={<ShoppingCart size={14} />}
           label={t('purchases.title')}
-          n={purchases.length}
-          sum={purchases.reduce((acc, p) => acc + Number(p.price_uzs || 0), 0)}
+          n={statsQ.data?.purchases_count ?? purchases.length}
+          sum={Number(statsQ.data?.purchases_total_uzs ?? 0)}
+          loading={statsQ.isLoading}
         />
         <StatTile
           icon={<BadgeDollarSign size={14} />}
           label={t('sales.title')}
-          n={sales.length}
-          sum={sales.reduce((acc, s) => acc + Number(s.sale_price_uzs || 0), 0)}
+          n={statsQ.data?.sales_count ?? sales.length}
+          sum={Number(statsQ.data?.sales_total_uzs ?? 0)}
+          loading={statsQ.isLoading}
+        />
+        <StatTile
+          icon={<CalendarClock size={14} />}
+          label={t('counterparties.active_nasiya')}
+          n={statsQ.data?.active_nasiya_count ?? 0}
+          loading={statsQ.isLoading}
+          tone={statsQ.data && statsQ.data.active_nasiya_count > 0 ? 'warning' : 'neutral'}
         />
       </div>
+
+      {/* Interaction log — append-only timeline of calls / meetings /
+          messages / payments. Always rendered (even with 0 notes) so the
+          «add note» button is discoverable. */}
+      <NotesTimeline counterpartyId={cp.id} />
 
       {/* Timeline */}
       {events.length === 0 ? (
@@ -431,25 +529,109 @@ function EditCounterpartySheet({
   );
 }
 
+/**
+ * Stale-contact banner — soft warning when we haven't interacted with a
+ * counterparty for STALE_DAYS+ days. Anti-churn surface: shop owners
+ * forget about repeat customers after a few months, this nudges them.
+ *
+ * Threshold of 60 days picked empirically — long enough to skip casual
+ * silences (week off, holiday), short enough that a 2-month gap is
+ * actually a warning sign for an active relationship.
+ */
+const STALE_DAYS = 60;
+
+function StaleContactBanner({
+  lastContactAt,
+  counterpartyName,
+}: {
+  lastContactAt: string | null;
+  counterpartyName: string;
+}) {
+  const { t } = useTranslation();
+  if (!lastContactAt) return null;
+  const days = Math.floor(
+    (Date.now() - new Date(lastContactAt).getTime()) / 86_400_000,
+  );
+  if (days < STALE_DAYS) return null;
+  return (
+    <div
+      className="card-elev flex items-start gap-3 border-warning/40 bg-warning-faded/40 p-4"
+      role="status"
+    >
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning-faded text-warning"
+        aria-hidden
+      >
+        <AlertTriangle size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-label font-bold text-warning">
+          {t('counterparties.stale_title', { count: days })}
+        </div>
+        <div className="mt-0.5 text-hint text-text-dim">
+          {t('counterparties.stale_body', { name: counterpartyName })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatTile({
   icon,
   label,
   n,
   sum,
+  loading,
+  tone = 'neutral',
 }: {
   icon: React.ReactNode;
   label: string;
   n: number;
-  sum: number;
+  /** Optional money figure under the count. Omit for count-only tiles
+   *  (e.g. «активных Nasiya: 1» — money lives in the parent debt strip). */
+  sum?: number;
+  loading?: boolean;
+  /** Visual emphasis for state — `warning` highlights tiles that the user
+   *  should look at (e.g. active nasiya > 0 is «watch this person»). */
+  tone?: 'neutral' | 'warning';
 }) {
+  const { t } = useTranslation();
+  const units = compactUnits(t);
   return (
-    <div className="card flex flex-col gap-1 p-4">
-      <div className="flex items-center gap-2 text-text-dim">
+    <div
+      className={cn(
+        // min-w-0 lets the cell shrink inside a constrained grid track —
+        // without it, a long label («Активные Nasiya») would force the
+        // grid wider than the parent and clip the right edge offscreen.
+        'card flex min-w-0 flex-col gap-1 p-4',
+        tone === 'warning' && n > 0 && 'border-warning/40',
+      )}
+    >
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-2',
+          tone === 'warning' && n > 0 ? 'text-warning' : 'text-text-dim',
+        )}
+      >
         {icon}
-        <span className="text-caption font-semibold tracking-tight">{label}</span>
+        <span className="truncate text-caption font-semibold tracking-tight">
+          {label}
+        </span>
       </div>
-      <div className="text-title-sm font-bold tabular-nums">{n}</div>
-      <div className="text-caption tabular-nums text-text-muted">{fmtUzs(sum)} UZS</div>
+      {loading ? (
+        <Skeleton className="h-7 w-12" />
+      ) : (
+        <div className="text-title-sm font-bold tabular-nums">{n}</div>
+      )}
+      {sum !== undefined && (
+        loading ? (
+          <Skeleton className="h-4 w-20" />
+        ) : (
+          <div className="text-caption tabular-nums text-text-muted">
+            {fmtUzsCompact(sum, units)} UZS
+          </div>
+        )
+      )}
     </div>
   );
 }

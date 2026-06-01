@@ -140,7 +140,7 @@ export default function Reports() {
   const hasChartData = dayData.length >= 2 && dayData.some((d) => d.profit > 0);
 
   return (
-    <div className="flex animate-fade-up flex-col gap-5">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="font-display text-title font-semibold tracking-[-0.03em]">{t('reports.title')}</h1>
         <Button

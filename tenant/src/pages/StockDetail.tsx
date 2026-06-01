@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   Smartphone,
   Tablet,
+  Upload,
   Watch,
 } from 'lucide-react';
 
@@ -31,6 +32,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { QrStickerIcon } from '@/components/icons';
+import AttachmentUploader from '@/components/AttachmentUploader';
+import { AttachmentTimeline } from '@/components/AttachmentTimeline';
+import { listDeviceTimeline, type AttachmentOut } from '@/api/attachments';
 import {
   getDevice,
   getDeviceQrPng,
@@ -143,6 +147,20 @@ export default function StockDetail() {
   });
   const photoUrls = photosQuery.data ?? [];
 
+  // Unified attachments timeline — pulls everything linked to this device
+  // (its own photos + purchase seller docs + sale buyer docs + post-sale
+  // receipts/warranty) in one request. The local mirror lets us patch the
+  // list optimistically on upload/delete without a refetch round-trip.
+  const attachmentsQuery = useQuery({
+    queryKey: ['attachments', 'device', Number(id)],
+    queryFn: () => listDeviceTimeline(Number(id!)),
+    enabled: Boolean(id),
+  });
+  const [attachments, setAttachments] = useState<AttachmentOut[]>([]);
+  useEffect(() => {
+    if (attachmentsQuery.data) setAttachments(attachmentsQuery.data);
+  }, [attachmentsQuery.data]);
+
   // Purchase price for the hero facts. Same queryKey as DeviceTimeline → the
   // two share one network request via React Query's cache.
   const purchaseQuery = useQuery({
@@ -225,7 +243,7 @@ export default function StockDetail() {
   const priceUzs = purchaseQuery.data?.price_uzs ?? null;
 
   return (
-    <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       {BackLink}
 
       {/* Hero */}
@@ -267,10 +285,10 @@ export default function StockDetail() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant={STATUS_VARIANT[d.status]} size="sm">
+            <Badge dot variant={STATUS_VARIANT[d.status]} size="sm">
               {t(`status.${d.status}`)}
             </Badge>
-            <Badge variant={CONDITION_VARIANT[d.condition]} size="sm">
+            <Badge dot variant={CONDITION_VARIANT[d.condition]} size="sm">
               {t(`condition.${d.condition}`)}
             </Badge>
             {/* Category is descriptive metadata, not a state — quieter
@@ -320,15 +338,65 @@ export default function StockDetail() {
         {hasBattery && <BatteryTile label={t('specs.battery_health')} pct={batteryPct} />}
       </div>
 
-      {/* Photos */}
-      {photos.length > 0 && (
-        <PhotoGallery
-          urls={photoUrls}
-          loading={photosQuery.isLoading}
-          count={photos.length}
-          label={`${d.brand} ${d.model}`}
+      {/* Files & history — unified attachments view, split into two
+          distinct cards so the user reads them as separate purposes:
+          one is «add a new file» (action), the other is «browse the
+          whole story» (read). Without the visual break they read as a
+          single mashed panel, which the partner flagged as confusing
+          («тут стиль странный, не получается загрузить»). */}
+      <section className="flex flex-col gap-3">
+        <header>
+          <h2 className="text-body-lg font-bold tracking-tight">
+            {t('stock.detail_files_title')}
+          </h2>
+          <p className="text-caption text-text-muted">
+            {t('stock.detail_files_subtitle')}
+          </p>
+        </header>
+
+        {/* Upload panel — its own card with a heading so the action
+            surface is unmistakable. Accepts any file type (photos, PDF
+            scans, .heic from iOS) — the «only photos» implication of the
+            previous dashed-tile-only layout was a false constraint. */}
+        <div className="card flex flex-col gap-3 p-4">
+          <div className="flex items-center gap-2 text-label font-semibold text-text-dim">
+            <span
+              aria-hidden
+              className="flex h-6 w-6 items-center justify-center rounded-md bg-accent-faded text-accent"
+            >
+              <Upload size={13} strokeWidth={2.2} />
+            </span>
+            {t('stock.detail_files_upload_title')}
+          </div>
+          <AttachmentUploader
+            ownerType="device"
+            ownerId={d.id}
+            items={attachments.filter((a) => a.owner_type === 'device')}
+            onChange={(deviceFiles) => {
+              // Patch only the device-owner slice; keep purchase/sale
+              // rows untouched so the timeline still aggregates the full
+              // device story.
+              setAttachments((prev) => [
+                ...prev.filter((a) => a.owner_type !== 'device'),
+                ...deviceFiles,
+              ]);
+            }}
+            kind="other"
+            alwaysShowAdd
+          />
+          <p className="text-caption text-text-muted">
+            {t('stock.detail_files_upload_hint')}
+          </p>
+        </div>
+
+        {/* Read panel — chronological timeline of files across this
+            device + its purchase + its sale. Distinct card so «история»
+            reads as a history, not a continuation of the uploader. */}
+        <AttachmentTimeline
+          items={attachments}
+          onChange={setAttachments}
         />
-      )}
+      </section>
 
       {/* Specs */}
       {specs.length > 0 && (
@@ -407,70 +475,6 @@ export default function StockDetail() {
           </Dialog>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Photo gallery ─────────────────────────────────────────────────────
-
-function PhotoGallery({
-  urls,
-  loading,
-  count,
-  label,
-}: {
-  urls: string[];
-  loading: boolean;
-  count: number;
-  label: string;
-}) {
-  const { t } = useTranslation();
-  const [active, setActive] = useState<number | null>(null);
-  // Bullet fallback for the rare 404 — keeps the thumb slot visible (so the
-  // grid doesn't reflow on partial failures) without the browser glyph.
-  const thumbFallback = (
-    <span className="text-caption font-semibold text-text-muted">—</span>
-  );
-  return (
-    <div className="card flex flex-col gap-3 p-5">
-      <h2 className="text-body-lg font-bold tracking-tight">
-        {t('stock.detail_photos')} · {count}
-      </h2>
-      <div className="flex flex-wrap gap-2">
-        {loading
-          ? Array.from({ length: count }).map((_, i) => (
-              <Skeleton key={i} className="h-24 w-24 rounded-xl" />
-            ))
-          : urls.map((u, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setActive(i)}
-                className="h-24 w-24 cursor-pointer overflow-hidden rounded-xl border border-border bg-bg3 transition-all hover:border-border-strong active:scale-[0.98] flex items-center justify-center"
-              >
-                <DevicePhoto
-                  src={u}
-                  alt={`${label} — ${t('stock.detail_photos')} ${i + 1}`}
-                  fallback={thumbFallback}
-                  className="h-full w-full object-cover"
-                />
-              </button>
-            ))}
-      </div>
-      <Dialog open={active !== null} onOpenChange={(o) => !o && setActive(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('stock.detail_photos')}</DialogTitle>
-          </DialogHeader>
-          {active !== null && urls[active] && (
-            <img
-              src={urls[active]}
-              alt={`${label} — ${t('stock.detail_photos')} ${active + 1}`}
-              className="max-h-[70vh] w-full rounded-xl bg-bg3 object-contain"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -751,7 +755,7 @@ function TimelineRow({ e }: { e: TimelineEvent }) {
 
 function DetailSkeleton() {
   return (
-    <div className="flex max-w-2xl animate-fade-up flex-col gap-5">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       <Skeleton className="h-4 w-20" />
       <div className="card flex gap-5 p-5">
         <Skeleton className="size-32 rounded-xl" />

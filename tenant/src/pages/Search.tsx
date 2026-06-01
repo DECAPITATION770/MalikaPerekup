@@ -105,7 +105,11 @@ export default function SearchPage() {
   const nothing = enabled && !loading && devices.length === 0 && cps.length === 0;
 
   return (
-    <div className="flex flex-col gap-5 animate-fade-up max-w-2xl">
+    // Full-width to match the rest of the app. Search page is a
+    // deep-link surface — the primary search entry is the Cmd+K palette
+    // from the header. Keep it full-width so it doesn't look cramped
+    // when the user lands here via bookmark on a 1920px monitor.
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       <h1 className="text-title font-bold tracking-tight">{t('search.title')}</h1>
 
       <Command shouldFilter={false} className="card border-border">
@@ -163,7 +167,7 @@ export default function SearchPage() {
                             : t('stock.no_imei')}
                       </div>
                     </div>
-                    <Badge variant={STATUS_VARIANT[d.status]} size="sm">
+                    <Badge dot variant={STATUS_VARIANT[d.status]} size="sm">
                       {t(`status.${d.status}`)}
                     </Badge>
                   </CommandItem>

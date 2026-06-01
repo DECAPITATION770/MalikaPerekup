@@ -58,7 +58,7 @@ export default function Purchases() {
   const isFiltered = Boolean(from || to);
 
   return (
-    <div className="flex flex-col gap-5 animate-fade-up">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       {/* Header — compact inline title+count on mobile, full hero on desktop
           (matches Sales/Stock/Catalog list-page idiom). */}
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 md:hidden">

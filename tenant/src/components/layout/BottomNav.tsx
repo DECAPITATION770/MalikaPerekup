@@ -99,29 +99,37 @@ function TabItem({
         )
       }
     >
-      {({ isActive }) => (
-        <>
-          <div
-            className={cn(
-              'relative flex items-center justify-center',
-              tone && 'h-9 w-9 rounded-xl transition-colors',
-              // Inactive money tabs keep a coloured icon (identity) but no chip
-              // fill — only the active tab gets a solid chip, so the bar isn't
-              // permanently "lit" in two places.
-              tone === 'accent' && isActive && 'bg-accent text-[rgb(var(--c-on-accent))]',
-              tone === 'success' && isActive && 'bg-success text-bg',
-            )}
-          >
-            <Icon size={tone ? 18 : 20} strokeWidth={isActive ? 2.2 : 1.9} />
-            {!!badge && badge > 0 && (
-              <span className="absolute -right-2 -top-1.5 h-[16px] min-w-[16px] rounded-full bg-danger px-1 text-center text-[10px] font-bold tabular-nums leading-[16px] text-white">
-                {badge > 99 ? '99+' : badge}
-              </span>
-            )}
-          </div>
-          <span className="text-micro font-semibold tracking-tight">{label}</span>
-        </>
-      )}
+      {({ isActive }) => {
+        // Both money tabs and active nav tabs now wear a 9×9 chip. The chip
+        // makes "where am I" read at a glance — previously inactive nav-tab
+        // and active nav-tab differed by colour only, which lost against the
+        // money tabs' permanently-coloured icons. Money keeps a solid brand
+        // fill when active; non-money active gets the same shape with the
+        // faded accent so it's clearly «here» without competing with the
+        // money CTAs in saturation.
+        const showChip = Boolean(tone) || isActive;
+        return (
+          <>
+            <div
+              className={cn(
+                'relative flex items-center justify-center transition-[background-color,color] duration-150',
+                showChip && 'h-9 w-9 rounded-xl',
+                tone === 'accent' && isActive && 'bg-accent text-[rgb(var(--c-on-accent))]',
+                tone === 'success' && isActive && 'bg-success text-bg',
+                !tone && isActive && 'bg-accent-faded',
+              )}
+            >
+              <Icon size={showChip ? 18 : 20} strokeWidth={isActive ? 2.2 : 1.9} />
+              {!!badge && badge > 0 && (
+                <span className="absolute -right-2 -top-1.5 h-[16px] min-w-[16px] rounded-full bg-danger px-1 text-center text-[10px] font-bold tabular-nums leading-[16px] text-white">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+            </div>
+            <span className="text-micro font-semibold tracking-tight">{label}</span>
+          </>
+        );
+      }}
     </NavLink>
   );
 }

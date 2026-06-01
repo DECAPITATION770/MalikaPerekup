@@ -113,6 +113,12 @@
        system fonts in production. Per-element `tabular-nums` (Tailwind) stays
        opt-in for money columns. */
     overscroll-behavior-y: none;
+    /* Drop the legacy 300 ms double-tap delay across the app. The cost is
+       losing native double-tap-to-zoom on body text, which is fine — Mini App
+       lives at a single zoom level and the Telegram client owns its own
+       gesture set. Per-input overrides aren't needed: only zoomable surfaces
+       (PhotoView, future map) should opt back in. */
+    touch-action: manipulation;
   }
 
   ::selection {
@@ -129,6 +135,56 @@
   html.light input[type='time'],
   html.light input[type='datetime-local'] {
     color-scheme: light;
+  }
+
+  /* Tame the native calendar picker indicator on date/time inputs.
+     Browser default ships a black-on-white icon that visually breaks
+     the rest of the input chrome (especially on dark theme). Inverting
+     + lowering opacity lets it blend with `text-text-muted` so the field
+     reads as one tokenised control instead of a browser widget pasted
+     into the form. Full replacement would need a custom DatePicker
+     (Radix Popover + react-day-picker) — out of scope for this pass. */
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator,
+  input[type='datetime-local']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.55;
+    filter: invert(0.45);
+  }
+  input[type='date']::-webkit-calendar-picker-indicator:hover,
+  input[type='time']::-webkit-calendar-picker-indicator:hover,
+  input[type='datetime-local']::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.85;
+  }
+  html.light input[type='date']::-webkit-calendar-picker-indicator,
+  html.light input[type='time']::-webkit-calendar-picker-indicator,
+  html.light input[type='datetime-local']::-webkit-calendar-picker-indicator {
+    filter: none;
+    opacity: 0.45;
+  }
+  /* Placeholder text in the date display fields ("дд.мм.гггг"). Browser
+     paints these regardless of CSS `placeholder`. Match the muted tone of
+     our regular text-input placeholders so the empty state doesn't shout. */
+  input[type='date']::-webkit-datetime-edit-text,
+  input[type='time']::-webkit-datetime-edit-text,
+  input[type='datetime-local']::-webkit-datetime-edit-text {
+    color: rgb(var(--c-text-muted));
+    padding: 0 1px;
+  }
+  input[type='date']::-webkit-datetime-edit-year-field,
+  input[type='date']::-webkit-datetime-edit-month-field,
+  input[type='date']::-webkit-datetime-edit-day-field,
+  input[type='time']::-webkit-datetime-edit-hour-field,
+  input[type='time']::-webkit-datetime-edit-minute-field {
+    color: rgb(var(--c-text));
+  }
+  /* When the value is empty the year/month/day fields render placeholder
+     glyphs in the browser's default colour — push them to text-muted so
+     they don't pop louder than the rest of the form when the user hasn't
+     picked a date yet. :focus override re-asserts the focused field. */
+  input[type='date']:not(:focus):placeholder-shown::-webkit-datetime-edit,
+  input[type='time']:not(:focus):placeholder-shown::-webkit-datetime-edit {
+    color: rgb(var(--c-text-muted));
   }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }

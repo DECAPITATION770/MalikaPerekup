@@ -48,6 +48,7 @@ class CounterpartyOut(BaseModel):
     doc_photos: list[str]
     tg_username: str | None
     comment: str | None
+    is_pinned: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -75,3 +76,57 @@ class CounterpartyDealsOut(BaseModel):
     counterparty: CounterpartyOut
     purchases: list[PurchaseOut]
     sales: list[SaleOut]
+
+
+CounterpartyNoteKindLiteral = Literal[
+    "call", "meeting", "message", "payment", "system", "other"
+]
+
+
+class CounterpartyNoteCreate(BaseModel):
+    """User-typed interaction log entry. Body is required; ``kind`` defaults
+    to ``other`` for the «just a comment» case."""
+
+    body: str = Field(min_length=1, max_length=2000)
+    kind: CounterpartyNoteKindLiteral = "other"
+
+
+class CounterpartyNoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    counterparty_id: int
+    kind: CounterpartyNoteKindLiteral
+    body: str
+    created_at: datetime
+    created_by: int
+
+
+class CounterpartyPin(BaseModel):
+    """Body for PATCH /counterparties/{id}/pin — single boolean field so
+    the route is a clear toggle, not a generic patch shape."""
+
+    is_pinned: bool
+
+
+class CounterpartyStats(BaseModel):
+    """Lifetime money + count rollups for one counterparty.
+
+    Drives the «brought 12.5M · spent 4M · 2 active plans» strip at the top
+    of CounterpartyDetail. UZS sums are Decimal-on-wire-as-string (CLAUDE.md §9).
+    """
+
+    purchases_total_uzs: Decimal = Field(default_factory=lambda: Decimal(0))
+    """Sum of all ``purchases.price_uzs`` where this person was the seller."""
+    purchases_count: int = 0
+
+    sales_total_uzs: Decimal = Field(default_factory=lambda: Decimal(0))
+    """Sum of all ``sales.price_uzs`` where this person was the buyer."""
+    sales_count: int = 0
+
+    active_nasiya_count: int = 0
+    """Active installment plans the person currently owes money on."""
+
+    last_contact_at: datetime | None = None
+    """Newest of (last purchase, last sale, last note). Drives the
+    «не общались N дней» banner — None means we never interacted."""

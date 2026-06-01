@@ -49,6 +49,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { NoInstallmentsIllustration } from '@/components/illustrations';
 import { ReceiveTodayCard } from '@/components/ReceiveTodayCard';
 
@@ -75,11 +80,15 @@ type Filter = PlanStatus | 'all';
 // with no filter still land on the «работающие» list.
 const TAB_KEYS: Filter[] = ['overdue', 'active', 'completed', 'all'];
 
-const STATUS_VARIANT: Record<PlanStatus, 'danger' | 'success' | 'muted' | 'accent'> = {
+// «Активна» → success (зелёный), не accent (амбер). На light-теме амбер
+// уходит в #8a5c0c (коричневый) ради WCAG, и «Активна» читается как
+// плохой статус. Зелёный однозначен, а Прибыль-как-главный-amber на
+// странице не конкурирует с status-pill за внимание.
+const STATUS_VARIANT: Record<PlanStatus, 'danger' | 'success' | 'muted'> = {
   overdue: 'danger',
   completed: 'success',
   cancelled: 'muted',
-  active: 'accent',
+  active: 'success',
 };
 
 /** Add ``step`` periods to ``start`` — mirrors backend schedule._next_due_date
@@ -233,6 +242,117 @@ function PaymentDialog({
   );
 }
 
+// ── Contact sheet (popover) ───────────────────────────────────────────
+
+/**
+ * Compact contact trigger that opens a menu with «Позвонить / TG / Copy».
+ *
+ * Replaces the old two-button row (Call link + Copy icon). The previous
+ * layout broke twice on desktop: tel: was a no-op (browser quirk), and
+ * the Copy toast appeared in the top corner — far from the click site,
+ * so it read as «nothing happened». A single trigger that always opens
+ * a Popover never feels broken, and the inline ✓ feedback on Copy keeps
+ * the perceived response under 200 ms.
+ */
+function ContactSheet({ plan }: { plan: PlanOut }) {
+  const { t } = useTranslation();
+  const haptic = useTgHaptic();
+  const [copied, setCopied] = useState(false);
+
+  const phone = plan.buyer_phone ?? '';
+  const tg = plan.buyer_tg_username ?? '';
+
+  const onCopy = async () => {
+    if (!phone) return;
+    try {
+      await navigator.clipboard.writeText(phone);
+    } catch {
+      // Some private-mode browsers block clipboard. Fallback: select + execCommand
+      // is also gated nowadays, so the best we can do is surface the number.
+    }
+    haptic.tap('light');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="focus-ring flex h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-bg3 px-3.5 text-left transition-all hover:border-border-strong active:scale-[0.99]"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Phone size={16} className="shrink-0 text-success" />
+            {phone ? (
+              <span className="truncate font-mono text-label tabular-nums text-text">
+                {phone}
+              </span>
+            ) : (
+              <span className="text-label font-bold text-text">
+                @{tg}
+              </span>
+            )}
+          </span>
+          <span className="shrink-0 text-hint font-semibold text-text-muted">
+            {t('installments.contact')}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-1.5">
+        <div className="flex flex-col gap-0.5">
+          {phone && (
+            <>
+              {/* tel: works on phones and on Mac (FaceTime / Continuity);
+                  on stock desktop Chrome it's a no-op but harmless. */}
+              <a
+                href={`tel:${phone}`}
+                onClick={() => haptic.tap('light')}
+                className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-label font-medium text-text transition-colors hover:bg-bg2"
+              >
+                <Phone size={15} className="text-success" />
+                {t('installments.call')}
+              </a>
+              <button
+                type="button"
+                onClick={onCopy}
+                className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-label font-medium text-text transition-colors hover:bg-bg2"
+              >
+                {copied ? (
+                  <>
+                    <Check size={15} className="text-success" />
+                    <span className="text-success">
+                      {t('installments.phone_copied')}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={15} className="text-text-dim" />
+                    {t('installments.copy_phone')}
+                  </>
+                )}
+              </button>
+            </>
+          )}
+          {tg && (
+            <a
+              href={`https://t.me/${tg}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => haptic.tap('light')}
+              className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-label font-medium text-text transition-colors hover:bg-bg2"
+            >
+              <Send size={15} className="text-accent" />
+              {t('installments.write_tg')}
+              <span className="ml-auto text-hint text-text-muted">@{tg}</span>
+            </a>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ── Plan card ─────────────────────────────────────────────────────────
 
 function PlanCard({ plan }: { plan: PlanOut }) {
@@ -243,8 +363,6 @@ function PlanCard({ plan }: { plan: PlanOut }) {
   const hasContact = Boolean(plan.buyer_phone || plan.buyer_tg_username);
   const canRecord = plan.status === 'active' || plan.status === 'overdue';
   const isOverdue = plan.status === 'overdue';
-  const isComplete = plan.status === 'completed';
-
   const total = moneyToNumber(plan.total_amount);
   const paid = moneyToNumber(plan.paid_amount ?? '0');
   const remaining = Math.max(0, total - paid);
@@ -265,13 +383,6 @@ function PlanCard({ plan }: { plan: PlanOut }) {
       toast.error(t('installments.payoff_failed'));
     },
   });
-
-  const copyPhone = async () => {
-    if (!plan.buyer_phone) return;
-    await navigator.clipboard.writeText(plan.buyer_phone);
-    haptic.tap('light');
-    toast.success(t('installments.phone_copied'));
-  };
 
   return (
     <div className={cn('card flex flex-col gap-3 p-4', isOverdue && 'border-danger/30')}>
@@ -323,11 +434,16 @@ function PlanCard({ plan }: { plan: PlanOut }) {
         <div className="text-caption tabular-nums text-text-muted">
           {t('installments.of_total', { total: `${fmtUzs(total)} UZS` })}
         </div>
+        {/* Progress fill on light theme is amber #8a5c0c by default — reads
+            as a brown stripe instead of progress. Override to success for
+            normal flow, keep danger for overdue. Completed already had
+            success; active now uses success too so the colour story is
+            consistent across the status badge and the bar. */}
         <Progress
           value={pct}
           className={cn(
             'mt-2',
-            isComplete && '[&>div]:bg-success',
+            !isOverdue && '[&>div]:bg-success',
             isOverdue && '[&>div]:bg-danger',
           )}
         />
@@ -350,42 +466,14 @@ function PlanCard({ plan }: { plan: PlanOut }) {
         )
       )}
 
-      {/* One-tap contact — stacks on narrow screens for fat-finger taps */}
+      {/* Contact popover — a single button that always opens a menu
+          regardless of platform. On mobile «Позвонить» triggers the dialer
+          via tel:; on desktop the dialer is no-op (browser quirk, not a
+          bug), so the same sheet offers «Скопировать» and «Написать в TG»
+          as fallbacks. Showing the actual phone number on the trigger
+          itself lets the user dial it manually as a last resort. */}
       {hasContact ? (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {plan.buyer_phone && (
-            <div className="flex flex-1 gap-2">
-              <a
-                href={`tel:${plan.buyer_phone}`}
-                onClick={() => haptic.tap('light')}
-                className="focus-ring flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-bg3 text-label font-bold transition-all hover:border-border-strong active:scale-[0.98]"
-              >
-                <Phone size={16} className="text-success" />
-                {t('installments.call')}
-              </a>
-              <button
-                type="button"
-                onClick={copyPhone}
-                aria-label={t('installments.copy_phone')}
-                className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg3 text-text-dim transition-all hover:border-border-strong hover:text-text active:scale-[0.98]"
-              >
-                <Copy size={16} />
-              </button>
-            </div>
-          )}
-          {plan.buyer_tg_username && (
-            <a
-              href={`https://t.me/${plan.buyer_tg_username}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => haptic.tap('light')}
-              className="focus-ring flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent-faded text-label font-bold text-accent transition-all hover:bg-accent/20 active:scale-[0.98]"
-            >
-              <Send size={15} />
-              {t('installments.write_tg')}
-            </a>
-          )}
-        </div>
+        <ContactSheet plan={plan} />
       ) : (
         <div className="py-1 text-center text-caption text-text-muted">
           {t('installments.no_contact')}
@@ -489,7 +577,7 @@ export default function Installments() {
   const items = data?.items ?? [];
 
   return (
-    <div className="flex animate-fade-up flex-col gap-4">
+    <div className="flex w-full animate-fade-up flex-col gap-4">
       <h1 className="font-display text-title font-semibold tracking-[-0.03em]">
         {t('installments.title')}
       </h1>
@@ -563,7 +651,14 @@ export default function Installments() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
+        // Auto-fit grid — columns multiply on wider monitors. PlanCard
+        // packs a progress bar + remaining-amount headline + a row of
+        // CTAs, so a 360px floor keeps the «Получил оплату» button from
+        // crashing into «Закрыть досрочно» on the same line.
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}
+        >
           {items.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}

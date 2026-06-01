@@ -333,7 +333,7 @@ function AccountSection() {
 export default function Settings() {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col gap-4 max-w-2xl animate-fade-up">
+    <div className="flex w-full flex-col gap-4 animate-fade-up">
       <h1 className="text-title font-bold tracking-tight">{t('settings.title')}</h1>
       <ShopSection />
       <AppearanceSection />

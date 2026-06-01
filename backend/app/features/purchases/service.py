@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.dates import now_utc
 from app.common.money import Currency, quantize, to_uzs
 from app.features.catalog import service as catalog_service
+from app.features.counterparties import notes_service as cp_notes
 from app.features.counterparties import service as counterparty_service
 from app.features.devices import service as device_service
 from app.features.devices.models import Device
@@ -146,7 +147,27 @@ async def create_purchase(
         comment=comment,
         created_by=user_id,
     )
-    return await repo.add(db, purchase), device
+    stored = await repo.add(db, purchase)
+
+    # Auto-system-note on the seller's counterparty so the directory shows
+    # «Куплено Apple iPhone 14 Pro 256GB за 8 500 000 UZS» without anyone
+    # typing. Lives in the same transaction; if the parent rolls back so
+    # does the note. Catch & swallow note errors — a flaky note is never
+    # worth blocking a real purchase from being recorded.
+    try:
+        await cp_notes.auto_note_purchase(
+            db,
+            shop_id=shop_id,
+            user_id=user_id,
+            counterparty_id=counterparty.id,
+            device_brand=device_in.brand,
+            device_model=device_in.model,
+            price_uzs=price_uzs,
+        )
+    except Exception:  # noqa: BLE001 — note write is best-effort
+        pass
+
+    return stored, device
 
 
 # ─── Read / mutate ─────────────────────────────────────────────────────

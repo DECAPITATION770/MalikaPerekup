@@ -34,10 +34,29 @@ const badgeVariants = cva(
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  /**
+   * Prepend a 6 px filled circle in the badge's tone. Meets WCAG 1.4.1
+   * "don't convey by colour alone" — daltonic users see two `success` and
+   * `warning` pills as identical otherwise. The dot uses `currentColor`
+   * so it always matches the badge's variant without a separate prop.
+   * Opt-in (not default) so plain info-pills don't grow extra chrome.
+   */
+  dot?: boolean;
+}
 
-function Badge({ className, variant, size, ...rest }: BadgeProps) {
-  return <span className={cn(badgeVariants({ variant, size }), className)} {...rest} />;
+function Badge({ className, variant, size, dot, children, ...rest }: BadgeProps) {
+  return (
+    <span className={cn(badgeVariants({ variant, size }), className)} {...rest}>
+      {dot && (
+        <span
+          aria-hidden
+          className="inline-block size-1.5 shrink-0 rounded-full bg-current"
+        />
+      )}
+      {children}
+    </span>
+  );
 }
 
 export { Badge, badgeVariants };

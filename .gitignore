@@ -263,3 +263,12 @@ __marimo__/
 !tenant/src/lib/**
 
 
+.superpowers/
+
+# ── Local-only audit & dev artifacts (CLAUDE sessions, audit notes, ad-hoc previews) ──
+.claude/
+/audit-screenshots/
+/design-screenshots/
+/DESIGN_AUDIT.md
+/UX_AUDIT.md
+/dev.html

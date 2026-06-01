@@ -57,7 +57,14 @@ const MENU_ARCHIVE = [
 /** Top bar — slim on mobile (brand + lang/theme/search/menu drawer), and on
  *  desktop a compact strip with just lang/theme/avatar-dropdown that lives
  *  next to the sidebar (sidebar already owns the brand + navigation). */
-export function AppHeader() {
+interface AppHeaderProps {
+  /** Open the Cmd+K palette. Wired in AppLayout so a single instance of
+   *  the palette lives at the shell level. Optional so the component
+   *  still renders if mounted outside the shell (e.g. in Storybook). */
+  onOpenSearch?: () => void;
+}
+
+export function AppHeader({ onOpenSearch }: AppHeaderProps = {}) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const haptic = useTgHaptic();
@@ -121,12 +128,17 @@ export function AppHeader() {
               <span translate="no">{i18n.language === 'ru' ? 'RU' : 'UZ'}</span>
             </button>
             <ThemeIconButton />
-            {/* Search + overflow menu — mobile only (sidebar covers them on desktop). */}
+            {/* Desktop search trigger was here — removed because Sidebar
+                already carries one. On desktop the Sidebar is always
+                visible, so two adjacent «Поиск» buttons just confused
+                the eye. Mobile keeps its icon-only button below since
+                there's no sidebar on small screens. */}
             <button
               type="button"
               onClick={() => {
                 haptic.tap('light');
-                navigate('/search');
+                if (onOpenSearch) onOpenSearch();
+                else navigate('/search');
               }}
               aria-label={t('nav.search')}
               className="flex h-10 w-10 items-center justify-center rounded-xl text-text-dim transition-colors hover:text-text active:bg-bg3 md:hidden"

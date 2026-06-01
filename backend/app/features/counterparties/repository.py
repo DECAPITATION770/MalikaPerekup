@@ -11,6 +11,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.counterparties.models import Counterparty
+from app.features.counterparties.notes_model import CounterpartyNote
 from app.features.installments.models import (
     InstallmentPayment,
     InstallmentPlan,
@@ -97,6 +98,96 @@ async def create(db: AsyncSession, **fields) -> Counterparty:
     db.add(counterparty)
     await db.flush()
     return counterparty
+
+
+async def stats_for_counterparty(
+    db: AsyncSession,
+    *,
+    shop_id: int,
+    counterparty_id: int,
+) -> dict[str, int | Decimal]:
+    """Lifetime money + count rollups for one counterparty.
+
+    Returns purchases/sales totals (in UZS) plus deal counts plus the number
+    of active nasiya plans tied to this person. Single query per rollup —
+    Postgres aggregates a few rows so even for a clumsy directory the
+    response is sub-millisecond.
+
+    The shop_id appears in every WHERE so a counterparty row leaking into
+    another shop's aggregate is impossible (CLAUDE.md §6 invariant).
+    """
+    purchases_total_q = select(
+        func.coalesce(func.sum(Purchase.price_uzs), 0),
+        func.count(Purchase.id),
+    ).where(
+        Purchase.shop_id == shop_id,
+        Purchase.counterparty_id == counterparty_id,
+    )
+    # `Sale.sale_price_uzs` is the column name — `price_uzs` is the
+    # *purchase*-side name. The aggregate stays in UZS regardless of
+    # the original currency (sale_price_uzs is denormalised at write).
+    sales_total_q = select(
+        func.coalesce(func.sum(Sale.sale_price_uzs), 0),
+        func.count(Sale.id),
+    ).where(
+        Sale.shop_id == shop_id,
+        Sale.counterparty_id == counterparty_id,
+    )
+    nasiya_active_q = (
+        select(func.count(InstallmentPlan.id))
+        .select_from(InstallmentPlan)
+        .join(Sale, Sale.id == InstallmentPlan.sale_id)
+        .where(
+            InstallmentPlan.shop_id == shop_id,
+            InstallmentPlan.status == PlanStatus.ACTIVE.value,
+            Sale.counterparty_id == counterparty_id,
+        )
+    )
+
+    # Last contact = newest of (last purchase, last sale, last note). Used
+    # by the «не общались N дней» banner on CounterpartyDetail. A
+    # counterparty with zero deals but a note from today still reads as
+    # fresh; one with a year-old sale and no notes reads as stale.
+    last_contact_q = (
+        select(
+            func.greatest(
+                select(func.max(Purchase.created_at))
+                .where(
+                    Purchase.shop_id == shop_id,
+                    Purchase.counterparty_id == counterparty_id,
+                )
+                .scalar_subquery(),
+                select(func.max(Sale.created_at))
+                .where(
+                    Sale.shop_id == shop_id,
+                    Sale.counterparty_id == counterparty_id,
+                )
+                .scalar_subquery(),
+                select(func.max(CounterpartyNote.created_at))
+                .where(
+                    CounterpartyNote.shop_id == shop_id,
+                    CounterpartyNote.counterparty_id == counterparty_id,
+                )
+                .scalar_subquery(),
+            )
+        )
+    )
+
+    purchases_sum, purchases_count = (
+        await db.execute(purchases_total_q)
+    ).one()
+    sales_sum, sales_count = (await db.execute(sales_total_q)).one()
+    active_nasiya = (await db.execute(nasiya_active_q)).scalar_one()
+    last_contact = (await db.execute(last_contact_q)).scalar_one_or_none()
+
+    return {
+        "purchases_total_uzs": Decimal(purchases_sum or 0),
+        "purchases_count": int(purchases_count or 0),
+        "sales_total_uzs": Decimal(sales_sum or 0),
+        "sales_count": int(sales_count or 0),
+        "active_nasiya_count": int(active_nasiya or 0),
+        "last_contact_at": last_contact,
+    }
 
 
 async def search_with_aggregates(
@@ -206,7 +297,14 @@ async def search_with_aggregates(
         .outerjoin(purch_agg, purch_agg.c.cp_id == Counterparty.id)
         .outerjoin(debt_agg, debt_agg.c.cp_id == Counterparty.id)
         .where(*base_filters)
-        .order_by(Counterparty.updated_at.desc())
+        # Pinned-first is a DB-level ordering so paginated lists stay
+        # consistent across pages. Within pinned/unpinned groups the
+        # frontend re-sorts by debt/recency (priorities the DB doesn't
+        # know about — debt depends on the joined aggregate).
+        .order_by(
+            Counterparty.is_pinned.desc(),
+            Counterparty.updated_at.desc(),
+        )
         .limit(limit)
         .offset(offset)
     )

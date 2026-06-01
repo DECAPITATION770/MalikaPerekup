@@ -726,7 +726,7 @@ function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highligh
         {specs || <span className="text-text-muted">—</span>}
       </TableCell>
       <TableCell>
-        <Badge variant={CONDITION_VARIANT[d.condition]} size="sm">
+        <Badge dot variant={CONDITION_VARIANT[d.condition]} size="sm">
           {t(`condition.${d.condition}`)}
         </Badge>
       </TableCell>
@@ -741,9 +741,16 @@ function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highligh
         {d.days_in_stock != null ? t('stock.days_n', { n: d.days_in_stock }) : '—'}
       </TableCell>
       <TableCell>
-        <Badge variant={STATUS_VARIANT[d.status]} size="sm">
-          {t(`status.${d.status}`)}
-        </Badge>
+        {/* Skip the «in_stock» pill — when the default filter is on, every row
+            renders the same green chip and the column becomes wallpaper.
+            Only non-default statuses earn the pill. */}
+        {d.status !== 'in_stock' ? (
+          <Badge dot variant={STATUS_VARIANT[d.status]} size="sm">
+            {t(`status.${d.status}`)}
+          </Badge>
+        ) : (
+          <span className="text-caption text-text-muted">—</span>
+        )}
       </TableCell>
       <TableCell className="text-right">
         <Link
@@ -803,13 +810,18 @@ function DeviceRowMobile({
               <BrandBadge brand={d.brand} size="sm" />
               <h3 className="truncate text-body font-bold tracking-tight">{d.model}</h3>
             </div>
-            <Badge variant={STATUS_VARIANT[d.status]} size="sm">
-              {t(`status.${d.status}`)}
-            </Badge>
+            {/* Status pill suppressed for the default in_stock filter — every
+                row would carry an identical green chip and the right column
+                turns into wallpaper. Non-default statuses still earn it. */}
+            {d.status !== 'in_stock' && (
+              <Badge dot variant={STATUS_VARIANT[d.status]} size="sm">
+                {t(`status.${d.status}`)}
+              </Badge>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-caption">
             {specs && <span className="text-text-dim">{specs}</span>}
-            <Badge variant={CONDITION_VARIANT[d.condition]} size="sm">
+            <Badge dot variant={CONDITION_VARIANT[d.condition]} size="sm">
               {t(`condition.${d.condition}`)}
             </Badge>
             {d.days_in_stock != null && (

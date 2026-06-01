@@ -247,10 +247,10 @@ function DeviceDetailDialog({
             <Badge variant="neutral" size="sm">
               {t(`category.${device.category}`)}
             </Badge>
-            <Badge variant={CONDITION_VARIANT[device.condition]} size="sm">
+            <Badge dot variant={CONDITION_VARIANT[device.condition]} size="sm">
               {t(`condition.${device.condition}`)}
             </Badge>
-            <Badge variant={STATUS_VARIANT[device.status]} size="sm">
+            <Badge dot variant={STATUS_VARIANT[device.status]} size="sm">
               {t(`status.${device.status}`)}
             </Badge>
           </div>

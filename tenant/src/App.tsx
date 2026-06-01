@@ -36,6 +36,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { OfflineSync } from '@/components/OfflineSync';
 import { SessionExpiredToast } from '@/components/SessionExpiredToast';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ScrollRestoration } from '@/lib/useScrollRestoration';
 
 import { TelegramProvider } from '@/lib/telegram';
 import { ThemeProvider, useTheme } from '@/lib/theme';
@@ -87,6 +88,7 @@ function RequireAuth() {
 function ThemedShell() {
   return (
     <ThemeProvider>
+      <ScrollRestoration />
       <OfflineBanner />
       <OfflineSync />
       <SessionExpiredToast />

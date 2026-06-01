@@ -36,6 +36,13 @@ interface Props {
   hint?: string;
   icon?: React.ReactNode;
   tone?: Tone;
+  /**
+   * Visual density. `default` keeps the original Today/Reports tile; `compact`
+   * (used by the secondary KPI pair under the Today hero) shrinks padding +
+   * value type and removes the icon-glow halo so two of them clear the fold
+   * next to a hero block above.
+   */
+  size?: 'default' | 'compact';
   loading?: boolean;
   /** Mount-time stagger, ms. */
   delay?: number;
@@ -57,6 +64,7 @@ export function KpiCard({
   hint,
   icon,
   tone = 'neutral',
+  size = 'default',
   loading,
   delay = 0,
   delta,
@@ -71,33 +79,47 @@ export function KpiCard({
         ? ArrowDown
         : Minus
     : null;
+  const compact = size === 'compact';
 
   return (
     <div
-      className="card group animate-fade-up p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-border-strong hover:bg-bg3 md:p-6"
+      className={cn(
+        'card group animate-fade-up transition-[background-color,border-color,box-shadow] duration-150 hover:border-border-strong hover:bg-bg3',
+        compact ? 'p-3.5 md:p-4' : 'p-5 md:p-6',
+      )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div
+        className={cn(
+          'flex items-start justify-between gap-2',
+          compact ? 'mb-2' : 'mb-4',
+        )}
+      >
         {/* Sentence-case label — caps + tracking-wider read like a 2003 admin
             theme on a fintech surface. Tone colour already carries identity. */}
-        <div className="text-label font-semibold tracking-tight text-text-dim">
+        <div
+          className={cn(
+            'font-semibold tracking-tight text-text-dim',
+            compact ? 'text-hint' : 'text-label',
+          )}
+        >
           {label}
         </div>
         {icon && (
           <div className={cn('relative shrink-0', t.text)}>
-            {/* Glow gated to dark theme — on a near-white surface
-                `blur-xl bg-current opacity-25` painted as grey dust under
-                the tile rather than as ambient light. We toggle off in
-                light via `[.light_&]:hidden` because the project uses an
-                explicit `.light` class on <html> (dark is the default,
-                so Tailwind's `dark:` modifier doesn't fit the model). */}
-            <span
-              aria-hidden
-              className="absolute inset-0 scale-125 rounded-full bg-current opacity-25 blur-xl transition-opacity group-hover:opacity-40 [.light_&]:hidden"
-            />
+            {/* Glow gated to dark theme + non-compact — on the small pair
+                under the hero the halo competes with the hero's amber and
+                reads as visual noise, so compact drops the blur layer. */}
+            {!compact && (
+              <span
+                aria-hidden
+                className="absolute inset-0 scale-125 rounded-full bg-current opacity-25 blur-xl transition-opacity group-hover:opacity-40 [.light_&]:hidden"
+              />
+            )}
             <div
               className={cn(
-                'relative flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition-transform duration-200 group-hover:scale-110',
+                'relative flex items-center justify-center rounded-xl ring-1 transition-transform duration-200 group-hover:scale-110',
+                compact ? 'h-7 w-7' : 'h-9 w-9',
                 t.bg,
                 t.text,
                 t.ring,
@@ -111,7 +133,7 @@ export function KpiCard({
 
       <div className="flex items-baseline gap-2">
         {loading ? (
-          <Skeleton className="h-9 w-32" />
+          <Skeleton className={cn(compact ? 'h-7 w-20' : 'h-9 w-32')} />
         ) : (
           <>
             {/* Tighter tracking + tabular-nums for stable money columns;
@@ -119,17 +141,38 @@ export function KpiCard({
                 `text-display` token (34 px) — visually indistinguishable
                 but discoverable in the type scale. The display family
                 (Geist Variable, loaded in index.css) carries the numerals
-                — body text keeps the system font for crisp first paint. */}
-            <span className="font-display text-title-lg font-semibold leading-none tracking-[-0.025em] tabular-nums md:text-display">
+                — body text keeps the system font for crisp first paint.
+                Compact halves the value-type size so two compact cards
+                read clearly as secondary next to a hero block above. */}
+            <span
+              className={cn(
+                'font-display font-semibold leading-none tracking-[-0.025em] tabular-nums',
+                compact ? 'text-title-sm' : 'text-title-lg md:text-display',
+              )}
+            >
               {format(animated)}
             </span>
-            {unit && <span className="text-body font-semibold text-text-muted">{unit}</span>}
+            {unit && (
+              <span
+                className={cn(
+                  'font-semibold text-text-muted',
+                  compact ? 'text-hint' : 'text-body',
+                )}
+              >
+                {unit}
+              </span>
+            )}
           </>
         )}
       </div>
 
       {(delta || hint) && !loading && (
-        <div className="mt-2.5 flex items-center gap-2 text-hint">
+        <div
+          className={cn(
+            'flex items-center gap-2 text-hint',
+            compact ? 'mt-1.5' : 'mt-2.5',
+          )}
+        >
           {delta && DeltaIcon && (
             <span
               className={cn(
@@ -147,7 +190,7 @@ export function KpiCard({
         </div>
       )}
 
-      {footer && !loading && <div className="mt-3">{footer}</div>}
+      {footer && !loading && <div className={cn(compact ? 'mt-2' : 'mt-3')}>{footer}</div>}
     </div>
   );
 }

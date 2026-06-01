@@ -152,12 +152,19 @@ export default function DocumentUploader({
               <Upload size={18} />
               <span className="text-micro font-semibold">{t('common.add_file')}</span>
             </button>
+            {/* `hidden` (the HTML attribute = display:none) is silently ignored
+                by Telegram WebView and old iOS Safari when you call .click()
+                programmatically — the picker never opens. `sr-only` keeps the
+                node in the layout (zero size, absolute, clipped) so the click
+                is treated as a real user gesture. */}
             <input
               ref={inputRef}
               type="file"
               accept={accept}
               multiple
-              hidden
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden
               onChange={(e) => handleFiles(e.target.files)}
             />
           </>

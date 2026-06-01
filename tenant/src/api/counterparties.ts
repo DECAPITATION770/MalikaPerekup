@@ -13,8 +13,37 @@ export interface CounterpartyOut {
   doc_photos: string[];
   tg_username: string | null;
   comment: string | null;
+  is_pinned: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export type CounterpartyNoteKind =
+  | 'call'
+  | 'meeting'
+  | 'message'
+  | 'payment'
+  | 'system'
+  | 'other';
+
+export interface CounterpartyNoteOut {
+  id: number;
+  counterparty_id: number;
+  kind: CounterpartyNoteKind;
+  body: string;
+  created_at: string;
+  created_by: number;
+}
+
+export interface CounterpartyStats {
+  purchases_total_uzs: string;
+  purchases_count: number;
+  sales_total_uzs: string;
+  sales_count: number;
+  active_nasiya_count: number;
+  /** Newest of (last purchase, last sale, last note). `null` for fresh
+   *  counterparties we've never interacted with. */
+  last_contact_at: string | null;
 }
 
 export interface CounterpartiesQuery {
@@ -96,5 +125,49 @@ export interface CounterpartyDealsOut {
 
 export async function getCounterpartyDeals(id: number): Promise<CounterpartyDealsOut> {
   const { data } = await api.get<CounterpartyDealsOut>(`/counterparties/${id}/deals`);
+  return data;
+}
+
+export async function getCounterpartyStats(id: number): Promise<CounterpartyStats> {
+  const { data } = await api.get<CounterpartyStats>(`/counterparties/${id}/stats`);
+  return data;
+}
+
+export async function listCounterpartyNotes(
+  id: number,
+): Promise<CounterpartyNoteOut[]> {
+  const { data } = await api.get<CounterpartyNoteOut[]>(
+    `/counterparties/${id}/notes`,
+  );
+  return data;
+}
+
+export async function createCounterpartyNote(
+  id: number,
+  body: string,
+  kind: CounterpartyNoteKind = 'other',
+): Promise<CounterpartyNoteOut> {
+  const { data } = await api.post<CounterpartyNoteOut>(
+    `/counterparties/${id}/notes`,
+    { body, kind },
+  );
+  return data;
+}
+
+export async function deleteCounterpartyNote(
+  counterpartyId: number,
+  noteId: number,
+): Promise<void> {
+  await api.delete(`/counterparties/${counterpartyId}/notes/${noteId}`);
+}
+
+export async function pinCounterparty(
+  id: number,
+  isPinned: boolean,
+): Promise<CounterpartyOut> {
+  const { data } = await api.patch<CounterpartyOut>(
+    `/counterparties/${id}/pin`,
+    { is_pinned: isPinned },
+  );
   return data;
 }
