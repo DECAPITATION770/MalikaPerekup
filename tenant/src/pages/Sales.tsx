@@ -5,7 +5,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BadgeDollarSign, Calendar, ChevronRight } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -190,6 +190,7 @@ export default function Sales() {
 
 function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const deviceLabel =
     s.device_brand || s.device_model
       ? `${s.device_brand ?? ''} ${s.device_model ?? ''}`.trim()
@@ -221,7 +222,22 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
             </span>
           </div>
           <div className="text-caption text-text-muted truncate">
-            <span className="text-text-dim">{s.buyer_name}</span>
+            {s.counterparty_id ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  // Stop the outer card-link from also navigating to /stock.
+                  e.stopPropagation();
+                  e.preventDefault();
+                  navigate(`/counterparties/${s.counterparty_id}`);
+                }}
+                className="cursor-pointer text-text-dim underline-offset-2 hover:text-text hover:underline"
+              >
+                {s.buyer_name}
+              </button>
+            ) : (
+              <span className="text-text-dim">{s.buyer_name}</span>
+            )}
             {s.device_imei && <span className="font-mono"> · IMEI {s.device_imei}</span>}
           </div>
         </div>

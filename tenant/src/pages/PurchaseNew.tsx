@@ -304,7 +304,7 @@ export default function PurchaseNew() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl animate-fade-up flex-col gap-5 lg:max-w-5xl">
+    <div className="flex w-full animate-fade-up flex-col gap-5">
       <header className="flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}

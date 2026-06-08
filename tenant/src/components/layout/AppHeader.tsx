@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import {
   BadgeDollarSign,
   BarChart3,
-  BookMarked,
   Globe,
   LogOut,
   MoreHorizontal,
@@ -43,7 +42,6 @@ import { useAuth } from '@/store/auth';
 /** Items that don't earn a bottom-nav slot but must stay reachable. Grouped
  *  the same way as the desktop sidebar: live destinations, then «Архив». */
 const MENU_PRIMARY = [
-  { to: '/catalog', icon: BookMarked, key: 'nav.catalog' },
   { to: '/counterparties', icon: Users, key: 'nav.counterparties' },
   { to: '/reports', icon: BarChart3, key: 'nav.reports' },
   { to: '/settings', icon: SettingsIcon, key: 'nav.settings' },

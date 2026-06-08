@@ -34,16 +34,13 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Badge } from '@/components/ui/badge';
+import { RoleBadge } from '@/components/CounterpartyRoleBadge';
 import {
   listDevices,
   type DeviceCategory,
   type DeviceStatus,
 } from '@/api/devices';
-import {
-  listCounterparties,
-  type CounterpartyType,
-} from '@/api/counterparties';
+import { listCounterparties } from '@/api/counterparties';
 import { useDebounced } from '@/lib/useDebounced';
 import { useTgHaptic } from '@/lib/telegram';
 
@@ -67,12 +64,6 @@ const STATUS_VARIANT: Record<
   sold: 'muted',
   returned: 'danger',
   written_off: 'neutral',
-};
-
-const CP_VARIANT: Record<CounterpartyType, 'accent' | 'success' | 'neutral'> = {
-  seller: 'accent',
-  buyer: 'success',
-  both: 'neutral',
 };
 
 interface Props {
@@ -254,9 +245,7 @@ export function GlobalSearch({ open, onOpenChange }: Props) {
                     <span className="truncate text-body font-bold tracking-tight">
                       {cp.full_name}
                     </span>
-                    <Badge dot variant={CP_VARIANT[cp.type]} size="sm">
-                      {t(`counterparties.type_${cp.type}`)}
-                    </Badge>
+                    <RoleBadge type={cp.type} />
                   </div>
                   {cp.phone && (
                     <div className="mt-0.5 flex items-center gap-1.5 text-caption text-text-muted">

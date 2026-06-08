@@ -209,7 +209,6 @@ export default function StepSaleDeal({
           <CounterpartySearch
             disabled={selectedBuyerId !== null}
             onPick={onPickBuyer}
-            type="buyer"
             placeholderKey="sale.buyer_search"
           />
           {selectedBuyerId !== null ? (

@@ -4,15 +4,18 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, X, ArrowLeft } from 'lucide-react';
 import { listCounterparties, type CounterpartyOut, type CounterpartyType } from '@/api/counterparties';
 import { useDebounced } from '@/lib/useDebounced';
+import { RoleBadge } from '@/components/CounterpartyRoleBadge';
 
 // ─── Counterparty autocomplete (works for both seller in purchase and
 //     buyer in sale; pass `type` to scope the search). ──────────────────
 
 export function SellerSearch({
-  disabled, onPick, type = 'seller', placeholderKey = 'purchase.seller_search_placeholder',
+  disabled, onPick, type, placeholderKey = 'purchase.seller_search_placeholder',
 }: {
   disabled: boolean;
   onPick: (cp: CounterpartyOut) => void;
+  /** Optional role hint — leave undefined to show all counterparties (a past
+   *  seller can be today's buyer and vice versa). */
   type?: CounterpartyType;
   placeholderKey?: string;
 }) {
@@ -87,8 +90,11 @@ export function SellerSearch({
                     onClick={() => { onPick(cp); setOpen(false); setQ(''); }}
                     className="w-full text-left px-4 py-2.5 hover:bg-bg3 flex items-center justify-between gap-3 cursor-pointer transition-colors"
                   >
-                    <div className="min-w-0">
-                      <div className="text-body font-semibold tracking-tight truncate">{cp.full_name}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-body font-semibold tracking-tight truncate">{cp.full_name}</div>
+                        <RoleBadge type={cp.type} />
+                      </div>
                       <div className="text-caption text-text-muted font-mono truncate">
                         {cp.phone ?? '—'}
                       </div>

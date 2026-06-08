@@ -43,6 +43,7 @@ import {
 import { useDebounced } from '@/lib/useDebounced';
 import { compactUnits, fmtUzsCompact } from '@/lib/fmt';
 import { brandTextColor, brandTint } from '@/lib/brand';
+import { RoleBadge } from '@/components/CounterpartyRoleBadge';
 import { useTgHaptic } from '@/lib/telegram';
 import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
@@ -78,12 +79,6 @@ function relativeTime(
   if (days < 365) return t('counterparties.months_ago', { count: Math.floor(days / 30) });
   return t('counterparties.year_plus');
 }
-
-const TYPE_LABEL: Record<CounterpartyType, string> = {
-  seller: 'counterparties.role_seller',
-  buyer: 'counterparties.role_buyer',
-  both: 'counterparties.role_both',
-};
 
 function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
   const { t } = useTranslation();
@@ -154,21 +149,19 @@ function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
           <span className="truncate text-body-lg font-bold tracking-tight">
             {cp.full_name}
           </span>
-          <span className="hidden text-hint text-text-muted md:inline">
-            · {t(TYPE_LABEL[cp.type])}
-          </span>
+          <RoleBadge type={cp.type} className="hidden md:inline-flex" />
         </div>
         {cp.comment ? (
           <p className="line-clamp-1 text-caption italic text-text-muted">
             «{cp.comment}»
           </p>
         ) : (
-          // Mobile shows role inline with name; on md+ role is shown after
-          // the name and this slot stays empty. Keep a meta-line on mobile
-          // so the card height stays consistent.
-          <p className="text-hint text-text-muted md:hidden">
-            {t(TYPE_LABEL[cp.type])}
-          </p>
+          // Mobile shows role inline below the name; on md+ role is shown
+          // inline with the name and this slot stays empty. Keep a meta-line
+          // on mobile so the card height stays consistent.
+          <div className="md:hidden">
+            <RoleBadge type={cp.type} />
+          </div>
         )}
       </div>
 
