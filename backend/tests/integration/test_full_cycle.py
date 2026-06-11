@@ -232,11 +232,20 @@ async def test_multi_tenant_isolation(db):
     seen_from_b = await device_repo.get_by_id(db, device_a.id, shop_id=shop_b.id)
     assert seen_from_b is None
 
-    # And by token — same answer (no cross-shop QR access).
-    seen_by_token = await device_repo.get_by_token(db, device_a.qr_token)
-    assert seen_by_token is not None  # bare lookup returns the row
-    assert seen_by_token.shop_id == shop_a.id
-    # The service-level helper is what enforces isolation:
+    # And by token — same answer (no cross-shop QR access). The repo now
+    # filters by shop_id at the SQL layer (defence-in-depth, CLAUDE.md §6):
+    # querying for shop A's token under shop B returns None.
+    seen_from_a = await device_repo.get_by_token(
+        db, device_a.qr_token, shop_id=shop_a.id
+    )
+    assert seen_from_a is not None
+    assert seen_from_a.id == device_a.id
+    seen_by_token_b = await device_repo.get_by_token(
+        db, device_a.qr_token, shop_id=shop_b.id
+    )
+    assert seen_by_token_b is None
+    # The service-level helper additionally raises a clean DeviceNotFound
+    # so router code can map straight to 404 without dealing with `None`.
     from app.features.devices import service as device_service
     from app.features.devices.service import DeviceNotFound
 

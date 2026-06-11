@@ -19,10 +19,8 @@ dashboards.
 
 from __future__ import annotations
 
-from typing import Annotated
-
 import redis.asyncio as aioredis
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 
 from app.core.config import get_settings
 from app.core.logging import logger
@@ -87,7 +85,10 @@ def login_rate_limit(
     effective. Tighten per-route if a stricter policy is warranted.
     """
 
-    async def _dep(request: Annotated[Request, Depends()]) -> None:
+    # `Request` is a FastAPI sentinel type — wrapping it in `Depends()`
+    # would make FastAPI treat the parameter as a request-body field,
+    # which is what broke /auth/login with a 422 "Field required: scope".
+    async def _dep(request: Request) -> None:
         ip = _client_ip(request)
         await _check(scope, ip, per_ip_limit, per_ip_window)
 
