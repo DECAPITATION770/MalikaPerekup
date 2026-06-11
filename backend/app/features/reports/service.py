@@ -10,6 +10,7 @@ as ``returns_count``.
 
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,8 @@ from app.features.installments.models import (
 )
 from app.features.purchases.models import Purchase
 from app.features.reports.schemas import (
+    BreakdownReport,
+    BreakdownRow,
     DayProfit,
     InventoryValueReport,
     PeriodReport,
@@ -316,6 +319,116 @@ async def period_report(
         top_models=top_models,
         avg_days_in_stock=avg_days,
         profit_by_day=profit_by_day,
+    )
+
+
+# ─── Report builder: breakdown by dimension ────────────────────────────
+
+GroupBy = Literal["brand", "category", "model", "sale_type", "buyer"]
+
+
+def _margin_pct(profit: Decimal, revenue: Decimal) -> float:
+    """profit / revenue as a percentage, 1 dp. 0.0 when revenue is 0 so the
+    table never shows NaN / divide-by-zero."""
+    if revenue == 0:
+        return 0.0
+    return round(float(profit / revenue * 100), 1)
+
+
+async def breakdown(
+    db: AsyncSession,
+    *,
+    shop_id: int,
+    date_from: date,
+    date_to: date,
+    group_by: GroupBy,
+    category: str | None = None,
+    brand: str | None = None,
+    condition: str | None = None,
+    sale_type: str | None = None,
+) -> BreakdownReport:
+    """Group active sales in a period by one dimension, sorted by profit desc.
+
+    Filters (all optional) narrow the underlying sale set before grouping.
+    Shop-scoped, active sales only (returns/cancellations don't count as
+    earnings — consistent with ``period_report``).
+    """
+    # Grouping columns per dimension. ``model`` groups on brand+model and
+    # builds a combined label so "iPhone 13" rows don't collapse across brands.
+    if group_by == "brand":
+        group_cols, key_col, label_expr = [Device.brand], Device.brand, Device.brand
+    elif group_by == "category":
+        group_cols, key_col, label_expr = [Device.category], Device.category, Device.category
+    elif group_by == "model":
+        group_cols = [Device.brand, Device.model]
+        key_col = func.concat(Device.brand, " ", Device.model)
+        label_expr = key_col
+    elif group_by == "sale_type":
+        group_cols, key_col, label_expr = [Sale.sale_type], Sale.sale_type, Sale.sale_type
+    else:  # buyer
+        group_cols, key_col, label_expr = [Sale.buyer_name], Sale.buyer_name, Sale.buyer_name
+
+    conditions = [
+        Sale.shop_id == shop_id,
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to,
+        Sale.status == SaleStatus.ACTIVE.value,
+    ]
+    if category:
+        conditions.append(Device.category == category)
+    if brand:
+        conditions.append(Device.brand == brand)
+    if condition:
+        conditions.append(Device.condition == condition)
+    if sale_type:
+        conditions.append(Sale.sale_type == sale_type)
+
+    rows = (
+        await db.execute(
+            select(
+                key_col.label("key"),
+                label_expr.label("label"),
+                func.count(Sale.id).label("units"),
+                func.coalesce(func.sum(Sale.sale_price_uzs), 0).label("revenue"),
+                func.coalesce(func.sum(Sale.profit_uzs), 0).label("profit"),
+            )
+            .select_from(Sale)
+            .join(Device, Device.id == Sale.device_id)
+            .where(*conditions)
+            .group_by(*group_cols)
+            .order_by(func.sum(Sale.profit_uzs).desc())
+        )
+    ).all()
+
+    out_rows: list[BreakdownRow] = []
+    total_units = 0
+    total_revenue = ZERO
+    total_profit = ZERO
+    for row in rows:
+        revenue = _coalesce(row.revenue)
+        profit = _coalesce(row.profit)
+        total_units += int(row.units)
+        total_revenue += revenue
+        total_profit += profit
+        out_rows.append(
+            BreakdownRow(
+                key=str(row.key),
+                label=str(row.label),
+                units_sold=int(row.units),
+                revenue_uzs=revenue,
+                profit_uzs=profit,
+                margin_pct=_margin_pct(profit, revenue),
+            )
+        )
+
+    return BreakdownReport(
+        group_by=group_by,
+        date_from=date_from,
+        date_to=date_to,
+        rows=out_rows,
+        total_units=total_units,
+        total_revenue_uzs=quantize(total_revenue, Currency.UZS),
+        total_profit_uzs=quantize(total_profit, Currency.UZS),
     )
 
 

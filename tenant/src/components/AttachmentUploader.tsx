@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, FileText, Loader2, Upload, X } from 'lucide-react';
+import { AlertCircle, FileText, Loader2, X } from 'lucide-react';
 import axios from 'axios';
 
 import {
@@ -22,7 +22,7 @@ import {
   deleteAttachment as apiDelete,
   requestUpload,
 } from '@/api/attachments';
-import { cn } from '@/lib/utils';
+import { FilePicker } from '@/components/FilePicker';
 
 interface Props {
   ownerType: AttachmentOwnerType;
@@ -67,7 +67,6 @@ export default function AttachmentUploader({
   alwaysShowAdd,
 }: Props) {
   const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<PendingMeta[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -147,7 +146,6 @@ export default function AttachmentUploader({
     for (const p of stagedPreviews) {
       if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
     }
-    if (inputRef.current) inputRef.current.value = '';
   };
 
   const remove = async (id: number) => {
@@ -221,32 +219,7 @@ export default function AttachmentUploader({
         ))}
 
         {(canAdd || alwaysShowAdd) && (
-          <>
-            <button
-              type="button"
-              disabled={!canAdd}
-              onClick={() => inputRef.current?.click()}
-              className={cn(
-                'flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-text-dim transition-all hover:border-border-strong hover:text-text active:scale-[0.98]',
-                !canAdd && 'cursor-not-allowed opacity-50',
-              )}
-            >
-              <Upload size={18} />
-              <span className="text-micro font-semibold">{t('common.add_file')}</span>
-            </button>
-            {/* `sr-only` instead of HTML `hidden` — `display:none` blocks
-                programmatic .click() in Telegram WebView and old iOS Safari. */}
-            <input
-              ref={inputRef}
-              type="file"
-              accept={accept}
-              multiple
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-          </>
+          <FilePicker onPick={handleFiles} disabled={!canAdd} accept={accept} />
         )}
       </div>
       {err && (

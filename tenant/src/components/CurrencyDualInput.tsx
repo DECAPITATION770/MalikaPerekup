@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeftRight, Pencil, Check } from 'lucide-react';
 import { fmtMoneyInput, parseMoneyInput, moneyToNumber, fmtAmount } from '@/lib/money';
 import type { ExchangeRateHint } from '@/api/reports';
@@ -34,6 +35,7 @@ export default function CurrencyDualInput({
   priceError,
   rateError,
 }: Props) {
+  const { t } = useTranslation();
   const [active, setActive] = useState<Currency>(defaultCurrency);
   const [uzs, setUzs] = useState(defaultCurrency === 'UZS' ? defaultPrice : '');
   const [usd, setUsd] = useState(defaultCurrency === 'USD' ? defaultPrice : '');
@@ -189,7 +191,7 @@ export default function CurrencyDualInput({
             onClick={() => { setEditingRate(true); setRateInput(rate); }}
             className="flex items-center gap-1 text-caption text-text-muted hover:text-text-dim transition-colors whitespace-nowrap rounded-md px-1 -mx-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
           >
-            {rate ? `${fmtAmount(rateNum)} UZS/$` : 'курс?'}
+            {rate ? `${fmtAmount(rateNum)} UZS/$` : t('common.rate_q')}
             <Pencil size={9} />
           </button>
         )}
@@ -203,7 +205,7 @@ export default function CurrencyDualInput({
             onClick={() => commitRate(lastHint.rate)}
             className="text-caption px-2.5 py-1 rounded-lg border border-border bg-bg2 text-text-muted hover:border-border-strong hover:text-text transition-all"
           >
-            Прошлый: {fmtAmount(parseFloat(lastHint.rate))}
+            {t('common.rate_last')}: {fmtAmount(parseFloat(lastHint.rate))}
           </button>
         </div>
       )}

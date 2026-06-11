@@ -22,11 +22,14 @@ class TelegramChannel(Channel):
     async def send(
         self, notification: Notification, user: User, text: str
     ) -> None:
-        if user.tg_id is None:
+        # Owner can redirect reminders to a separate chat (shared shop group,
+        # second account) via ``notify_tg_chat_id``; default is their own DM.
+        chat_id = user.notify_tg_chat_id or user.tg_id
+        if chat_id is None:
             raise ChannelError("user has no Telegram chat id")
         try:
             await self._bot.send_message(
-                chat_id=user.tg_id,
+                chat_id=chat_id,
                 text=text,
                 # Plain text is safer than Markdown — no escape headaches.
                 parse_mode=None,

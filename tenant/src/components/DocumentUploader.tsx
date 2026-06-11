@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, X, Loader2, AlertCircle, FileText } from 'lucide-react';
+import { X, Loader2, AlertCircle, FileText } from 'lucide-react';
 import axios from 'axios';
+
+import { FilePicker } from '@/components/FilePicker';
 
 interface Props {
   value: string[];                                     // current S3 keys
@@ -33,7 +35,6 @@ export default function DocumentUploader({
   value, onChange, requestUploadUrl, label, max = 6, accept,
 }: Props) {
   const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [meta, setMeta] = useState<Record<string, FileMeta>>({});
@@ -79,7 +80,6 @@ export default function DocumentUploader({
         setBusy((n) => n - 1);
       }
     }
-    if (inputRef.current) inputRef.current.value = '';
   };
 
   const remove = (i: number) => {
@@ -142,33 +142,7 @@ export default function DocumentUploader({
           </div>
         ))}
 
-        {canAdd && (
-          <>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="w-20 h-20 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-1 text-text-dim hover:text-text hover:border-border-strong active:scale-[0.98] transition-all cursor-pointer shrink-0"
-            >
-              <Upload size={18} />
-              <span className="text-micro font-semibold">{t('common.add_file')}</span>
-            </button>
-            {/* `hidden` (the HTML attribute = display:none) is silently ignored
-                by Telegram WebView and old iOS Safari when you call .click()
-                programmatically — the picker never opens. `sr-only` keeps the
-                node in the layout (zero size, absolute, clipped) so the click
-                is treated as a real user gesture. */}
-            <input
-              ref={inputRef}
-              type="file"
-              accept={accept}
-              multiple
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-          </>
-        )}
+        {canAdd && <FilePicker onPick={handleFiles} accept={accept} />}
       </div>
       {err && (
         <span className="text-hint text-danger flex items-center gap-1">

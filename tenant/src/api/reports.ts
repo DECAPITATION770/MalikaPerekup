@@ -105,3 +105,77 @@ export async function getInventoryValue(): Promise<InventoryValue> {
   const { data } = await api.get<InventoryValue>('/reports/inventory-value');
   return data;
 }
+
+// ─── Report builder (Конструктор) ──────────────────────────────────────
+
+export type BreakdownGroupBy = 'brand' | 'category' | 'model' | 'sale_type' | 'buyer';
+
+export interface BreakdownRow {
+  key: string;
+  label: string;
+  units_sold: number;
+  revenue_uzs: string;
+  profit_uzs: string;
+  margin_pct: number;
+}
+
+export interface BreakdownReport {
+  group_by: BreakdownGroupBy;
+  date_from: string;
+  date_to: string;
+  rows: BreakdownRow[];
+  total_units: number;
+  total_revenue_uzs: string;
+  total_profit_uzs: string;
+}
+
+export interface BreakdownFilters {
+  category?: string;
+  brand?: string;
+  condition?: string;
+  sale_type?: string;
+}
+
+// ─── Table export (выгрузка в Excel) ───────────────────────────────────
+
+export type ExportEntity = 'sales' | 'devices' | 'purchases';
+
+export interface ExportColumn {
+  key: string;
+  label: string;
+  type: string;
+}
+
+/** Available columns for an entity's table export (ordered key/label/type). */
+export async function getExportColumns(entity: ExportEntity): Promise<ExportColumn[]> {
+  const { data } = await api.get<ExportColumn[]>('/reports/export/columns', {
+    params: { entity },
+  });
+  return data;
+}
+
+/** Flat .xlsx of an entity with only the chosen columns (server-generated). */
+export async function getExportXlsx(
+  entity: ExportEntity,
+  columns: string[],
+  range?: { from: string; to: string },
+): Promise<Blob> {
+  const { data } = await api.get<Blob>('/reports/export.xlsx', {
+    params: { entity, columns: columns.join(','), ...(range ?? {}) },
+    responseType: 'blob',
+  });
+  return data;
+}
+
+/** Group active sales by one dimension over a period, with optional filters. */
+export async function getBreakdown(
+  from: string,
+  to: string,
+  groupBy: BreakdownGroupBy,
+  filters: BreakdownFilters = {},
+): Promise<BreakdownReport> {
+  const { data } = await api.get<BreakdownReport>('/reports/breakdown', {
+    params: { from, to, group_by: groupBy, ...filters },
+  });
+  return data;
+}

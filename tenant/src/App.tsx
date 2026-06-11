@@ -63,11 +63,9 @@ const CounterpartyDetail = lazy(() => import('@/pages/CounterpartyDetail'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const SearchPage = lazy(() => import('@/pages/Search'));
 const DeviceByToken = lazy(() => import('@/pages/DeviceByToken'));
+const Scan = lazy(() => import('@/pages/Scan'));
 const Purchases = lazy(() => import('@/pages/Purchases'));
 const Sales = lazy(() => import('@/pages/Sales'));
-const Showcase = lazy(() =>
-  import('@/pages/_dev/Showcase').then((m) => ({ default: m.Showcase })),
-);
 
 const SentryErrorBoundary = Sentry.ErrorBoundary;
 
@@ -95,7 +93,6 @@ function ThemedShell() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/_dev/showcase" element={<Showcase />} />
 
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
@@ -103,6 +100,7 @@ function ThemedShell() {
               <Route path="/stock" element={<Stock />} />
               <Route path="/stock/:id" element={<StockDetail />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/scan" element={<Scan />} />
               <Route path="/d/:token" element={<DeviceByToken />} />
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/purchase/new" element={<PurchaseNew />} />

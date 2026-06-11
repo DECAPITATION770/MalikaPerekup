@@ -6,7 +6,7 @@
  * AreaChart + BarChart (responsive, with tooltips), shadcn Tabs for
  * presets, shadcn Card/Button.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -38,10 +38,38 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getInventoryValue, getPeriodReport, getPeriodReportXlsx } from '@/api/reports';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import {
+  getBreakdown,
+  getExportColumns,
+  getExportXlsx,
+  getInventoryValue,
+  getPeriodReport,
+  getPeriodReportXlsx,
+  type BreakdownGroupBy,
+  type BreakdownRow,
+  type ExportEntity,
+} from '@/api/reports';
 import { compactUnits, fmtUzs, fmtUzsCompact } from '@/lib/fmt';
 import { useTgHaptic } from '@/lib/telegram';
 import { track } from '@/lib/analytics';
+import { cn } from '@/lib/utils';
 
 function todayStr() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
@@ -372,7 +400,323 @@ export default function Reports() {
           )}
         </>
       )}
+
+      {/* Конструктор разрезов — group active sales by any dimension over the
+          same period selected above, with optional filters. */}
+      {from && to && from <= to && <BreakdownBuilder from={from} to={to} />}
+
+      {/* Выгрузка в Excel — flat table, pick entity + columns. */}
+      <ExportTable from={from} to={to} />
     </div>
+  );
+}
+
+const EXPORT_ENTITIES: ExportEntity[] = ['sales', 'devices', 'purchases'];
+
+function ExportTable({ from, to }: { from: string; to: string }) {
+  const { t } = useTranslation();
+  const haptic = useTgHaptic();
+  const [entity, setEntity] = useState<ExportEntity>('sales');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [periodOnly, setPeriodOnly] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const { data: columns } = useQuery({
+    queryKey: ['export-columns', entity],
+    queryFn: () => getExportColumns(entity),
+  });
+
+  // Default to all columns selected whenever the entity's column set loads.
+  useEffect(() => {
+    if (columns) setSelected(new Set(columns.map((c) => c.key)));
+  }, [columns]);
+
+  const toggle = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const download = async () => {
+    if (!columns || selected.size === 0 || busy) return;
+    setBusy(true);
+    haptic.tap('light');
+    try {
+      // Preserve registry order, not click order.
+      const ordered = columns.map((c) => c.key).filter((k) => selected.has(k));
+      const blob = await getExportXlsx(
+        entity,
+        ordered,
+        periodOnly ? { from, to } : undefined,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `malika-${entity}-${from}_${to}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      track('report_exported', { preset: `table:${entity}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-2 text-text-dim">
+          <Download size={14} />
+          <span className="text-caption font-semibold tracking-tight">
+            {t('reports.export_table_title')}
+          </span>
+        </div>
+        <span className="text-caption text-text-muted">{t('reports.export_table_hint')}</span>
+      </div>
+
+      {/* Entity */}
+      <div className="flex flex-col gap-1">
+        <Label className="text-micro text-text-muted">{t('reports.export_entity')}</Label>
+        <Select value={entity} onValueChange={(v) => setEntity(v as ExportEntity)}>
+          <SelectTrigger className="h-10">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EXPORT_ENTITIES.map((e) => (
+              <SelectItem key={e} value={e}>
+                {t(`reports.ent_${e}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Columns — toggle chips */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-micro text-text-muted">{t('reports.export_columns')}</Label>
+          <div className="flex gap-2 text-caption">
+            <button
+              type="button"
+              className="font-semibold text-accent hover:underline"
+              onClick={() => columns && setSelected(new Set(columns.map((c) => c.key)))}
+            >
+              {t('reports.export_select_all')}
+            </button>
+            <span className="text-text-muted">·</span>
+            <button
+              type="button"
+              className="font-semibold text-text-muted hover:text-text"
+              onClick={() => setSelected(new Set())}
+            >
+              {t('reports.export_clear')}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {(columns ?? []).map((c) => {
+            const on = selected.has(c.key);
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => toggle(c.key)}
+                className={cn(
+                  'rounded-lg border px-2.5 py-1 text-caption font-medium transition-colors',
+                  on
+                    ? 'border-accent bg-accent-faded text-accent'
+                    : 'border-border bg-bg2 text-text-muted hover:text-text',
+                )}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Period toggle + download */}
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex cursor-pointer items-center gap-2 text-caption text-text-dim">
+          <Switch checked={periodOnly} onCheckedChange={setPeriodOnly} />
+          {t('reports.export_period_only')}
+        </label>
+        <Button
+          size="sm"
+          onClick={download}
+          loading={busy}
+          disabled={busy || selected.size === 0}
+        >
+          <Download className="size-4" />
+          {t('reports.export_download')}
+        </Button>
+      </div>
+      {selected.size === 0 && (
+        <span className="text-hint text-text-muted">{t('reports.export_no_columns')}</span>
+      )}
+    </Card>
+  );
+}
+
+const GROUP_OPTIONS: { value: BreakdownGroupBy; key: string }[] = [
+  { value: 'brand', key: 'reports.gb_brand' },
+  { value: 'category', key: 'reports.gb_category' },
+  { value: 'model', key: 'reports.gb_model' },
+  { value: 'sale_type', key: 'reports.gb_sale_type' },
+  { value: 'buyer', key: 'reports.gb_buyer' },
+];
+const CATEGORY_OPTIONS = ['phone', 'tablet', 'laptop', 'smartwatch', 'accessory', 'other'];
+
+function BreakdownBuilder({ from, to }: { from: string; to: string }) {
+  const { t } = useTranslation();
+  const [groupBy, setGroupBy] = useState<BreakdownGroupBy>('brand');
+  const [category, setCategory] = useState('all');
+  const [saleType, setSaleType] = useState('all');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['reports-breakdown', from, to, groupBy, category, saleType],
+    queryFn: () =>
+      getBreakdown(from, to, groupBy, {
+        category: category === 'all' ? undefined : category,
+        sale_type: saleType === 'all' ? undefined : saleType,
+      }),
+    enabled: !!from && !!to && from <= to,
+  });
+
+  // Localise the label for dimensions whose keys we have translations for;
+  // brand / model / buyer are free-text data so we show them verbatim.
+  const labelFor = (row: BreakdownRow): string => {
+    if (groupBy === 'category') return t(`category.${row.key}`, row.label);
+    if (groupBy === 'sale_type') return t(`sale.${row.key}`, row.label);
+    return row.label;
+  };
+
+  return (
+    <Card className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-2 text-text-dim">
+          <BarChart2 size={14} />
+          <span className="text-caption font-semibold tracking-tight">
+            {t('reports.breakdown_title')}
+          </span>
+        </div>
+        <span className="text-caption text-text-muted">{t('reports.breakdown_hint')}</span>
+      </div>
+
+      {/* Filter bar: разрез + фильтры */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="flex flex-col gap-1">
+          <Label className="text-micro text-text-muted">{t('reports.group_by')}</Label>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as BreakdownGroupBy)}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GROUP_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {t(o.key)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-micro text-text-muted">{t('reports.filter_category')}</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('reports.filter_all')}</SelectItem>
+              {CATEGORY_OPTIONS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {t(`category.${c}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-micro text-text-muted">{t('reports.filter_payment')}</Label>
+          <Select value={saleType} onValueChange={setSaleType}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('reports.filter_all')}</SelectItem>
+              <SelectItem value="cash">{t('sale.cash')}</SelectItem>
+              <SelectItem value="nasiya">{t('sale.nasiya')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-40" />
+      ) : !data || data.rows.length === 0 ? (
+        <div className="py-6 text-center text-caption text-text-muted">
+          {t('reports.breakdown_empty')}
+        </div>
+      ) : (
+        <div className="-mx-1 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t(GROUP_OPTIONS.find((o) => o.value === groupBy)!.key)}</TableHead>
+                <TableHead className="text-right">{t('reports.col_units')}</TableHead>
+                <TableHead className="text-right">{t('reports.col_revenue')}</TableHead>
+                <TableHead className="text-right">{t('reports.col_profit')}</TableHead>
+                <TableHead className="text-right">{t('reports.col_margin')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.rows.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell className="max-w-[40vw] truncate font-medium text-text">
+                    {labelFor(row)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-text-dim">
+                    {row.units_sold}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-text-dim">
+                    {fmtUzs(row.revenue_uzs)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums text-success">
+                    {fmtUzs(row.profit_uzs)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-text-muted">
+                    {row.margin_pct.toFixed(1)}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-semibold text-text">{t('reports.total')}</TableCell>
+                <TableCell className="text-right font-semibold tabular-nums text-text">
+                  {data.total_units}
+                </TableCell>
+                <TableCell className="text-right font-semibold tabular-nums text-text">
+                  {fmtUzs(data.total_revenue_uzs)}
+                </TableCell>
+                <TableCell className="text-right font-bold tabular-nums text-success">
+                  {fmtUzs(data.total_profit_uzs)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-text-muted">
+                  {Number(data.total_revenue_uzs) > 0
+                    ? ((Number(data.total_profit_uzs) / Number(data.total_revenue_uzs)) * 100).toFixed(1)
+                    : '0.0'}
+                  %
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -459,6 +803,7 @@ function ChartTooltip({
   label?: string;
   unit: string;
 }) {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
   const p = payload[0];
   return (
@@ -468,7 +813,9 @@ function ChartTooltip({
         {fmtUzs(p.value)} {unit}
       </div>
       {p.payload.units !== undefined && (
-        <div className="tabular-nums text-text-muted">{p.payload.units} шт</div>
+        <div className="tabular-nums text-text-muted">
+          {p.payload.units} {t('reports.units_short')}
+        </div>
       )}
     </div>
   );

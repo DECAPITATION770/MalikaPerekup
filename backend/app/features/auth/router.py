@@ -2,13 +2,14 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.common.ratelimit import login_rate_limit
+from app.common.ratelimit import enforce_account_limit, login_rate_limit
 from app.core.deps import CurrentUserId, DbSession
 from app.features.auth import repository as user_repo
 from app.features.auth import service
 from app.features.auth.models import User
 from app.features.auth.schemas import (
     LoginRequest,
+    NotificationPrefsRequest,
     SetupPasswordRequest,
     TelegramAuthRequest,
     TokenResponse,
@@ -31,6 +32,9 @@ def _user_out(user: User) -> UserOut:
         tg_username=user.tg_username,
         phone=user.phone,
         has_password=user.has_password,
+        notifications_enabled="telegram" in (user.notification_channels or []),
+        tg_connected=user.tg_id is not None,
+        notify_tg_chat_id=user.notify_tg_chat_id,
     )
 
 
@@ -59,6 +63,11 @@ async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenRe
 )
 async def login_via_password(req: LoginRequest, db: DbSession) -> TokenResponse:
     """Fallback auth used when Telegram is unavailable."""
+    # Per-account window (complements the per-IP dependency above): 8 failed
+    # tries per login per 15 min slows a distributed, IP-rotating brute-force.
+    await enforce_account_limit(
+        "auth.login.acct", req.login, limit=8, window_seconds=900
+    )
     try:
         user, token = await service.login_via_password(db, req.login, req.password)
     except service.AuthError as exc:
@@ -84,4 +93,21 @@ async def me(user_id: CurrentUserId, db: DbSession) -> UserOut:
     user = await user_repo.get_by_id(db, user_id)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "user not found")
+    return _user_out(user)
+
+
+@router.patch("/me/notifications", response_model=UserOut)
+async def update_notifications(
+    req: NotificationPrefsRequest, user_id: CurrentUserId, db: DbSession
+) -> UserOut:
+    """Settings → Уведомления: toggle Telegram reminders + set override chat."""
+    try:
+        user = await service.update_notification_prefs(
+            db,
+            user_id,
+            enabled=req.enabled,
+            notify_tg_chat_id=req.notify_tg_chat_id,
+        )
+    except service.AuthError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     return _user_out(user)

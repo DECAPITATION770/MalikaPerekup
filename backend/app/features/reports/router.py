@@ -1,16 +1,18 @@
 """HTTP endpoints for reports — dashboard tiles and period summaries."""
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
+from pydantic import BaseModel
 
 from app.core.deps import CurrentShop, DbSession
 from app.features.exchange import service as exchange_service
 from app.features.exchange.schemas import ExchangeRateHint
-from app.features.reports import service
+from app.features.reports import export_table, service
 from app.features.reports.export import build_period_xlsx
 from app.features.reports.schemas import (
+    BreakdownReport,
     InventoryValueReport,
     PeriodReport,
     TodayDashboard,
@@ -73,6 +75,95 @@ async def period_xlsx(
     )
     content = build_period_xlsx(report, lang=shop.language_default)
     name = f"malika-report-{date_from.isoformat()}_{date_to.isoformat()}.xlsx"
+    return Response(
+        content=content,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+@router.get("/breakdown", response_model=BreakdownReport)
+async def breakdown(
+    shop: CurrentShop,
+    db: DbSession,
+    date_from: Annotated[date, Query(alias="from")],
+    date_to: Annotated[date, Query(alias="to")],
+    group_by: Annotated[
+        Literal["brand", "category", "model", "sale_type", "buyer"],
+        Query(),
+    ],
+    category: Annotated[str | None, Query(max_length=32)] = None,
+    brand: Annotated[str | None, Query(max_length=64)] = None,
+    condition: Annotated[str | None, Query(max_length=32)] = None,
+    sale_type: Annotated[str | None, Query(max_length=32)] = None,
+) -> BreakdownReport:
+    """Report builder: group active sales by one dimension over a period,
+    with optional filters. Rows sorted by profit descending."""
+    if date_from > date_to:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "'from' must be <= 'to'"
+        )
+    return await service.breakdown(
+        db,
+        shop_id=shop.id,
+        date_from=date_from,
+        date_to=date_to,
+        group_by=group_by,
+        category=category,
+        brand=brand,
+        condition=condition,
+        sale_type=sale_type,
+    )
+
+
+_ExportEntity = Literal["sales", "devices", "purchases"]
+
+
+class _ColumnMeta(BaseModel):
+    key: str
+    label: str
+    type: str
+
+
+@router.get("/export/columns", response_model=list[_ColumnMeta])
+async def export_columns(
+    shop: CurrentShop,
+    entity: Annotated[_ExportEntity, Query()],
+) -> list[_ColumnMeta]:
+    """Available columns for the table-export picker (key/label/type, ordered).
+
+    Shop dep keeps it authenticated; the registry itself is static."""
+    return [
+        _ColumnMeta(**c)
+        for c in export_table.columns_for(entity, lang=shop.language_default)
+    ]
+
+
+@router.get(
+    "/export.xlsx",
+    responses={200: {"content": {_XLSX_MEDIA: {}}}},
+    response_class=Response,
+)
+async def export_xlsx(
+    shop: CurrentShop,
+    db: DbSession,
+    entity: Annotated[_ExportEntity, Query()],
+    columns: Annotated[str, Query(description="comma-separated column keys, in order")] = "",
+    date_from: Annotated[date | None, Query(alias="from")] = None,
+    date_to: Annotated[date | None, Query(alias="to")] = None,
+) -> Response:
+    """Flat tabular export — only the chosen columns, in order. Empty/garbage
+    ``columns`` falls back to all columns for the entity."""
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "'from' must be <= 'to'")
+    selected = [c.strip() for c in columns.split(",") if c.strip()]
+    rows = await export_table.fetch(
+        db, shop_id=shop.id, entity=entity, date_from=date_from, date_to=date_to
+    )
+    content = export_table.build_xlsx(
+        entity, rows, selected, lang=shop.language_default
+    )
+    name = f"malika-{entity}-{date.today().isoformat()}.xlsx"
     return Response(
         content=content,
         media_type=_XLSX_MEDIA,

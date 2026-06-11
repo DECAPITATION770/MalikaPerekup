@@ -20,6 +20,7 @@ import {
   backButton,
   mainButton,
   hapticFeedback,
+  qrScanner,
   themeParams,
   viewport,
   miniApp,
@@ -240,6 +241,44 @@ export function useTgMainButton(opts: MainButtonOpts | null) {
     opts?.textColor,
     opts?.onClick,
   ]);
+}
+
+// ── Native QR scanner ───────────────────────────────────────────────────────
+
+/**
+ * Telegram's native camera QR scanner (Mini Apps v6.4+). `scan()` opens the
+ * full-screen camera, resolves with the first scanned QR string, and
+ * auto-closes; resolves `null` if the user dismisses it or the scanner isn't
+ * available (Telegram Desktop without a camera, or running outside Telegram).
+ * Callers fall back to manual token entry when `isSupported` is false.
+ */
+export function useTgQrScanner() {
+  return useMemo(
+    () => ({
+      isSupported(): boolean {
+        try {
+          return qrScanner.open.isAvailable();
+        } catch {
+          return false;
+        }
+      },
+      async scan(text: string): Promise<string | null> {
+        if (!qrScanner.open.isAvailable()) return null;
+        try {
+          // `capture: () => true` → grab the first QR and let the SDK close
+          // the camera. Returns undefined if the user closed it manually.
+          const result = await qrScanner.open({ text, capture: () => true });
+          return result ?? null;
+        } catch {
+          return null;
+        }
+      },
+      close(): void {
+        if (qrScanner.close.isAvailable()) qrScanner.close();
+      },
+    }),
+    [],
+  );
 }
 
 // ── Haptic feedback ────────────────────────────────────────────────────────

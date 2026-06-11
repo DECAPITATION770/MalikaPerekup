@@ -51,6 +51,12 @@ class User(Base):
         JSON, nullable=False, default=lambda: ["telegram"], server_default='["telegram"]'
     )
 
+    # Optional override for *where* Telegram notifications land. NULL means
+    # "send to the same chat the user logs in from" (``tg_id``). Set this to a
+    # group/channel chat id when the owner wants reminders in a separate chat
+    # (e.g. a shared shop group) instead of their personal DM with the bot.
+    notify_tg_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
     # ── Login bookkeeping (visible to platform admin) ──
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

@@ -69,7 +69,7 @@ export function ReceiveTodayCard({ hideOnEmpty = true, delay = 0, className }: P
           {t('today.receive_today_title')}
         </h2>
         <span className="shrink-0 text-caption tabular-nums text-text-muted">
-          {total} {total > LIMIT ? `· топ ${LIMIT}` : ''}
+          {total} {total > LIMIT ? `· ${t('common.top_n', { n: LIMIT })}` : ''}
         </span>
       </header>
       <p className="-mt-1.5 text-hint text-text-dim">{t('today.receive_today_body')}</p>

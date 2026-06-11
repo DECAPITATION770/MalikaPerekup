@@ -62,6 +62,20 @@ async def _check(scope: str, identifier: str, limit: int, window_seconds: int) -
         )
 
 
+async def enforce_account_limit(
+    scope: str, login: str, *, limit: int, window_seconds: int
+) -> None:
+    """Throttle password-login attempts per *account*, independent of IP.
+
+    The per-IP dependency stops a single host hammering the endpoint; this
+    second window stops a distributed attack that rotates IPs against one
+    username (the module docstring's "slow per-account guessing"). Keyed by
+    the normalised login so ``Admin`` and ``admin`` share one counter.
+    Fails OPEN on Redis errors, same as ``_check``.
+    """
+    await _check(scope, login.strip().lower(), limit, window_seconds)
+
+
 def _client_ip(request: Request) -> str:
     """Best-effort client IP — trusts the first hop of `X-Forwarded-For`
     when present (we run behind a reverse proxy in prod). Falls back to

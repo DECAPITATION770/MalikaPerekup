@@ -8,6 +8,7 @@ import {
   Globe,
   LogOut,
   MoreHorizontal,
+  ScanLine,
   Search,
   Settings as SettingsIcon,
   ShoppingCart,
@@ -131,6 +132,19 @@ export function AppHeader({ onOpenSearch }: AppHeaderProps = {}) {
                 visible, so two adjacent «Поиск» buttons just confused
                 the eye. Mobile keeps its icon-only button below since
                 there's no sidebar on small screens. */}
+            {/* Scan QR — quick path from anywhere to a device card by its
+                printed sticker. Mobile only; the camera lives on the phone. */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic.tap('light');
+                navigate('/scan');
+              }}
+              aria-label={t('nav.scan')}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-text-dim transition-colors hover:text-text active:bg-bg3 md:hidden"
+            >
+              <ScanLine size={20} />
+            </button>
             <button
               type="button"
               onClick={() => {

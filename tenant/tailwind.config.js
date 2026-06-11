@@ -186,12 +186,12 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
       boxShadow: {
-        'glow-accent':
-          '0 0 0 1px rgb(var(--c-accent)/0.3),  0 8px 32px -8px rgb(var(--c-accent)/0.4)',
-        'glow-success':
-          '0 0 0 1px rgb(var(--c-success)/0.25), 0 8px 32px -8px rgb(var(--c-success)/0.35)',
-        'glow-danger':
-          '0 0 0 1px rgb(var(--c-danger)/0.25),  0 8px 32px -8px rgb(var(--c-danger)/0.35)',
+        // Flat by request — no coloured halo/glow. Kept under the same names
+        // so existing `shadow-glow-*` call sites stay valid; they now render a
+        // subtle neutral elevation that reads as "raised", not "glowing".
+        'glow-accent': '0 1px 2px 0 rgb(0 0 0 / 0.22)',
+        'glow-success': '0 1px 2px 0 rgb(0 0 0 / 0.22)',
+        'glow-danger': '0 1px 2px 0 rgb(0 0 0 / 0.22)',
       },
     },
   },

@@ -30,7 +30,12 @@ export default {
         info: 'hsl(var(--info) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        // System stack for first-paint + dense data tables (matches tenant).
+        // Inter (Google-CDN) dropped — removes an external runtime dependency.
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Segoe UI"', 'Roboto', 'system-ui', 'sans-serif'],
+        // Self-hosted Geist for page titles + KPI numerals — same display face
+        // as the tenant Mini App so platform + owner share one identity.
+        display: ['"Geist Variable"', '-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'system-ui', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       fontSize: {

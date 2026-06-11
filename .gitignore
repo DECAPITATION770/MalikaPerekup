@@ -152,6 +152,10 @@ activemq-data/
 
 # Environments
 .env
+.env.prod
+.env.bak.*
+deploy/.env.prod
+deploy/certbot/
 .envrc
 .venv
 env/

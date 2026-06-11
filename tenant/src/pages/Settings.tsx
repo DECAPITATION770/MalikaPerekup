@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { LogOut } from 'lucide-react';
+import { Bell, BellOff, CalendarClock, CircleAlert, LogOut, Wallet } from 'lucide-react';
 
 import {
   AlertDialog,
@@ -29,8 +29,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
-import { setupPassword, updateShop } from '@/api/auth';
+import { getMe, setupPassword, updateNotificationPrefs, updateShop } from '@/api/auth';
 import { getShopMe } from '@/api/reports';
 import { useAuth } from '@/store/auth';
 import { useTgHaptic } from '@/lib/telegram';
@@ -330,6 +331,129 @@ function AccountSection() {
 
 // ── Page ──────────────────────────────────────────────────────────────
 
+// ── Notifications section ─────────────────────────────────────────────
+
+function NotificationsSection() {
+  const { t } = useTranslation();
+  const haptic = useTgHaptic();
+  const qc = useQueryClient();
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
+
+  const [enabled, setEnabled] = useState(true);
+  const [chatId, setChatId] = useState('');
+  const [chatErr, setChatErr] = useState<string | null>(null);
+
+  // Hydrate local state once the user row loads.
+  useEffect(() => {
+    if (me) {
+      setEnabled(me.notifications_enabled);
+      setChatId(me.notify_tg_chat_id != null ? String(me.notify_tg_chat_id) : '');
+    }
+  }, [me]);
+
+  const save = useMutation({
+    mutationFn: () => {
+      const trimmed = chatId.trim();
+      const parsed = trimmed === '' ? null : Number(trimmed);
+      return updateNotificationPrefs({ enabled, notify_tg_chat_id: parsed });
+    },
+    onSuccess: (updated) => {
+      haptic.notify('success');
+      toast.success(t('settings.notif_saved'));
+      qc.setQueryData(['me'], updated);
+    },
+    onError: () => {
+      haptic.notify('error');
+      toast.error(t('settings.save_failed'));
+    },
+  });
+
+  const onSave = () => {
+    const trimmed = chatId.trim();
+    // Allow blank (→ personal DM) or an integer chat id (groups are negative).
+    if (trimmed !== '' && !/^-?\d+$/.test(trimmed)) {
+      setChatErr(t('settings.notif_chat_invalid'));
+      return;
+    }
+    setChatErr(null);
+    save.mutate();
+  };
+
+  const types = [
+    { icon: Wallet, key: 'settings.notif_type_due' },
+    { icon: CircleAlert, key: 'settings.notif_type_overdue' },
+    { icon: CalendarClock, key: 'settings.notif_type_daily' },
+  ] as const;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.notifications_section')}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {/* Enable toggle */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            {enabled ? (
+              <Bell size={18} className="text-accent" />
+            ) : (
+              <BellOff size={18} className="text-text-muted" />
+            )}
+            <div className="flex flex-col">
+              <span className="text-label font-semibold text-text">
+                {t('settings.notif_enabled_label')}
+              </span>
+              <span className="text-hint text-text-muted">{t('settings.notif_enabled_hint')}</span>
+            </div>
+          </div>
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
+        </div>
+
+        {/* What the user gets — makes the feature concrete (was invisible). */}
+        {enabled && (
+          <ul className="flex flex-col gap-2 rounded-xl bg-bg3 p-3">
+            {types.map(({ icon: Icon, key }) => (
+              <li key={key} className="flex items-center gap-2.5 text-caption text-text-dim">
+                <Icon size={15} className="shrink-0 text-text-muted" />
+                {t(key)}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Bot-not-connected warning — reminders silently fail otherwise. */}
+        {enabled && me && !me.tg_connected && (
+          <div className="flex items-start gap-2 rounded-xl bg-warning-faded/40 p-3 text-caption text-warning">
+            <CircleAlert size={15} className="mt-0.5 shrink-0" />
+            {t('settings.notif_not_connected')}
+          </div>
+        )}
+
+        {/* Optional override chat (advanced) */}
+        {enabled && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="notif-chat">{t('settings.notif_chat_label')}</Label>
+            <Input
+              id="notif-chat"
+              inputMode="numeric"
+              value={chatId}
+              onChange={(e) => setChatId(e.target.value)}
+              placeholder={t('settings.notif_chat_placeholder')}
+              autoComplete="off"
+            />
+            <span className="text-hint text-text-muted">{t('settings.notif_chat_hint')}</span>
+            {chatErr && <span className="text-hint text-danger">{chatErr}</span>}
+          </div>
+        )}
+
+        <Button onClick={onSave} loading={save.isPending} disabled={save.isPending} className="self-start">
+          {t('settings.save')}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Settings() {
   const { t } = useTranslation();
   return (
@@ -337,6 +461,7 @@ export default function Settings() {
       <h1 className="text-title font-bold tracking-tight">{t('settings.title')}</h1>
       <ShopSection />
       <AppearanceSection />
+      <NotificationsSection />
       <PlanSection />
       <PasswordSection />
       <AccountSection />

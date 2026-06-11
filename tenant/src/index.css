@@ -23,66 +23,66 @@
    RGB triplets (space-separated) so Tailwind opacity modifiers work:
    bg-accent/50 → rgb(var(--c-accent) / 0.5)
 
-   Dark is default (Deep Navy + warm Amber #E89A2E).
+   Dark is default (Warm Charcoal + Brass #C89B3C).
    `.light` class on <html> swaps the palette for daylight reading.
    Triggered by ThemeBridge subscribed to Telegram themeParams.
    ────────────────────────────────────────────────────────────────────────── */
 :root {
-  --c-bg:             11  15  25;
-  --c-bg2:            18  23  38;
-  --c-bg3:            28  34  52;
-  --c-border:         40  48  68;
-  --c-border-strong:  58  67  92;
-  --c-text:          235 238 245;
-  --c-text-dim:      158 166 186;
-  --c-text-muted:    130 138 158;   /* brightened to clear WCAG AA 4.5:1 on dark bg */
-  --c-accent:        232 154  46;   /* #E89A2E — warm muted amber */
-  --c-accent-hover:  212 134  30;
-  --c-accent-faded:   58  35  10;
-  --c-on-accent:      16  24  40;   /* dark text on amber — WCAG AA */
+  --c-bg:             21  18  14;   /* warm charcoal — not flat near-black */
+  --c-bg2:            29  24  16;
+  --c-bg3:            39  32  19;
+  --c-border:         50  44  32;
+  --c-border-strong:  69  63  46;
+  --c-text:          243 236 224;
+  --c-text-dim:      199 189 169;
+  --c-text-muted:    150 139 120;   /* clears WCAG AA 4.5:1 on warm charcoal */
+  --c-accent:        200 155  60;   /* #C89B3C — brass */
+  --c-accent-hover:  178 134  40;
+  --c-accent-faded:   46  35  12;
+  --c-on-accent:      26  20   7;   /* warm-dark ink on brass — WCAG AA */
   --c-danger:        242 110  94;
-  --c-danger-faded:   61  20  20;
-  --c-success:        61 220 151;
-  --c-success-faded:  15  46  34;
-  --c-warning:       242 197  82;
-  --c-warning-faded:  58  45   8;
+  --c-danger-faded:   61  24  18;
+  --c-success:       143 191  90;   /* warm leaf-green, sits with the brass */
+  --c-success-faded:  30  44  17;
+  --c-warning:       232 150  56;   /* orange-amber — distinct from brass accent */
+  --c-warning-faded:  58  40  12;
   /* Foreground glyph for brand-coloured avatars (BrandBadge). The vivid
      brand hex sits behind it, so on dark theme a near-black ink reads as
      crisp identity ink; on light it stays the same for consistency since
      light-theme avatar tiles use a paler tint where dark ink still clears
      AA. Tokenised so palette edits stay in one place. */
-  --c-on-brand:       11  15  25;
+  --c-on-brand:       26  20   7;
 
   /* shadcn / tailwindcss-animate convention */
   --radius: 16px;
 }
 
 .light {
-  --c-bg:            250 251 253;
-  --c-bg2:           244 246 250;
-  --c-bg3:           236 240 246;
-  --c-border:        220 225 233;
-  --c-border-strong: 200 207 218;
-  --c-text:           18  24  38;
-  --c-text-dim:       74  84 104;
-  --c-text-muted:     96 106 126;   /* darkened to clear WCAG AA 4.5:1 on light bg */
+  --c-bg:            245 239 227;   /* warm paper — not cold white */
+  --c-bg2:           255 253 249;
+  --c-bg3:           236 227 210;
+  --c-border:        224 215 197;
+  --c-border-strong: 208 196 170;
+  --c-text:           35  28  16;
+  --c-text-dim:       91  83  64;
+  --c-text-muted:    110 100  80;   /* darkened to clear WCAG AA 4.5:1 on paper */
   /* Tones darkened for light theme so they clear WCAG AA both as text on
      their -faded tints (badges) and as solid fills with light text. A mid
-     amber can't be both a vibrant fill with dark text AND readable small
-     text, so light accent goes dark with white on-accent. */
-  --c-accent:        138  92  12;   /* #8a5c0c */
-  --c-accent-hover:  112  74   8;
-  --c-accent-faded:  255 240 215;
-  --c-on-accent:     250 251 253;   /* white text on the darker amber fill */
+     brass can't be both a vibrant fill with dark text AND readable small
+     text, so light accent goes deep with white on-accent. */
+  --c-accent:        154 107  18;   /* #9a6b12 — deep brass */
+  --c-accent-hover:  126  86  12;
+  --c-accent-faded:  244 232 206;
+  --c-on-accent:     255 253 249;   /* near-white text on the deep brass fill */
   --c-danger:        192  57  43;   /* #c0392b */
   --c-danger-faded:  253 235 232;
-  --c-success:         8 122  74;   /* #087a4a */
-  --c-success-faded: 220 244 233;
-  --c-warning:       133  96   0;   /* #856000 */
-  --c-warning-faded: 250 242 214;
+  --c-success:        79 122  46;   /* #4f7a2e */
+  --c-success-faded: 222 240 210;
+  --c-warning:       168  83  10;   /* burnt orange — distinct from brass accent */
+  --c-warning-faded: 247 233 210;
   /* Avatar ink stays near-black in light too — paler brand tints under it
      keep the AA budget. */
-  --c-on-brand:       11  15  25;
+  --c-on-brand:       26  20   7;
 }
 
 @layer base {
@@ -268,12 +268,9 @@
       inset 0 1px 0 0 rgb(255 255 255 / 0.7);
   }
 
-  /* Ambient mesh behind hero — barely-there amber wash so the top has air. */
-  .hero-mesh {
-    background-image:
-      radial-gradient(60% 90% at 0% 0%, rgb(var(--c-accent) / 0.07), transparent 62%),
-      radial-gradient(55% 80% at 100% 0%, rgb(var(--c-success) / 0.045), transparent 60%);
-  }
+  /* Hero is flat by request (no ambient glow). Class kept as a no-op so call
+     sites don't need touching; reintroduce a wash here if ever wanted. */
+  .hero-mesh {}
 
   .skeleton {
     background: linear-gradient(

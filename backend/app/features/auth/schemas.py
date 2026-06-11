@@ -38,3 +38,22 @@ class UserOut(BaseModel):
     tg_username: str | None = None
     phone: str | None = None
     has_password: bool
+
+    # ── Notification preferences (Settings → Уведомления) ──
+    notifications_enabled: bool = True
+    """True when the Telegram channel is in ``notification_channels``."""
+    tg_connected: bool = False
+    """True when the user has a ``tg_id`` — i.e. they /start-ed the bot, so
+    reminders to their personal DM can actually be delivered."""
+    notify_tg_chat_id: int | None = None
+    """Optional override chat for reminders; NULL = personal DM (``tg_id``)."""
+
+
+class NotificationPrefsRequest(BaseModel):
+    """Update Telegram reminder preferences for the authenticated user."""
+
+    enabled: bool
+    notify_tg_chat_id: int | None = Field(
+        default=None,
+        description="Override chat id for reminders; null = personal DM.",
+    )

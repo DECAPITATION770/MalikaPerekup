@@ -79,6 +79,33 @@ class PeriodReport(BaseModel):
     frontend can draw a continuous profit sparkline."""
 
 
+class BreakdownRow(BaseModel):
+    """One group in a report-builder breakdown (a brand, a category, …)."""
+
+    key: str
+    """Stable machine key for the group (e.g. ``"phone"``, ``"Apple"``)."""
+    label: str
+    """Human label shown in the table (e.g. ``"Apple iPhone 13"`` for models)."""
+    units_sold: int
+    revenue_uzs: Decimal
+    profit_uzs: Decimal
+    margin_pct: float
+    """``profit / revenue * 100`` rounded to 1 dp; 0.0 when revenue is 0."""
+
+
+class BreakdownReport(BaseModel):
+    """Grouped active-sales aggregates over a period — powers the report
+    builder ("Конструктор"). Rows are sorted by profit descending."""
+
+    group_by: str
+    date_from: date
+    date_to: date
+    rows: list[BreakdownRow]
+    total_units: int
+    total_revenue_uzs: Decimal
+    total_profit_uzs: Decimal
+
+
 class InventoryValueReport(BaseModel):
     """Detail behind the "Заморожено" tile on the dashboard."""
 

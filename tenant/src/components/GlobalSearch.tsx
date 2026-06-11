@@ -34,6 +34,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
 import { RoleBadge } from '@/components/CounterpartyRoleBadge';
 import {
   listDevices,

@@ -15,7 +15,8 @@
     "counterparties": "Kontragentlar",
     "settings": "Sozlamalar",
     "purchases": "Qabullar",
-    "sales": "Sotuvlar"
+    "sales": "Sotuvlar",
+    "scan": "Skanerlash"
   },
   "catalog": {
     "title": "Nomenklatura",
@@ -89,7 +90,10 @@
     "yesterday": "Kecha",
     "page_n_of_m": "{{current}} / {{total}}-bet",
     "prev": "Orqaga",
-    "next": "Oldinga"
+    "next": "Oldinga",
+    "rate_q": "kurs?",
+    "rate_last": "Oxirgi",
+    "top_n": "top {{n}}"
   },
   "login": {
     "title": "Malika",
@@ -538,7 +542,38 @@
     "no_data": "—",
     "export": "Eksport",
     "profit_by_day": "Kunlik foyda",
-    "vs_prev_period": "o'tgan davrga nisbatan"
+    "vs_prev_period": "o'tgan davrga nisbatan",
+    "breakdown_title": "Kesimlar konstruktori",
+    "breakdown_hint": "Kesim va filtrlarni tanlang — hisobot yuqoridagi davr bo‘yicha",
+    "group_by": "Kesim",
+    "gb_brand": "Brend bo‘yicha",
+    "gb_category": "Toifa bo‘yicha",
+    "gb_model": "Model bo‘yicha",
+    "gb_sale_type": "To‘lov bo‘yicha",
+    "gb_buyer": "Xaridor bo‘yicha",
+    "filters": "Filtrlar",
+    "filter_category": "Toifa",
+    "filter_payment": "To‘lov",
+    "filter_all": "Barchasi",
+    "col_units": "Dona",
+    "col_revenue": "Aylanma",
+    "col_profit": "Foyda",
+    "col_margin": "Marja",
+    "total": "Jami",
+    "breakdown_empty": "Tanlangan davrda sotuv yo‘q",
+    "units_short": "dona",
+    "export_table_title": "Excelga yuklab olish",
+    "export_table_hint": "Ma'lumot va ustunlarni tanlang — toza jadval yuklanadi",
+    "export_entity": "Ma'lumot",
+    "ent_sales": "Sotuvlar",
+    "ent_devices": "Qurilmalar",
+    "ent_purchases": "Qabullar",
+    "export_columns": "Ustunlar",
+    "export_select_all": "Hammasi",
+    "export_clear": "Tozalash",
+    "export_period_only": "Faqat davr uchun (yuqorida)",
+    "export_download": "Excel yuklash",
+    "export_no_columns": "Kamida bitta ustun tanlang"
   },
   "sale": {
     "title": "Sotuv",
@@ -663,7 +698,7 @@
     "payment_recorded": "To'lov yozildi",
     "payment_failed": "To'lovni yozib bo'lmadi",
     "plan_total": "Umumiy summa",
-    "payment_queued": "To'lov oflayn saqlandi — aloqa paydo bo'lганda yuboriladi",
+    "payment_queued": "To'lov oflayn saqlandi — aloqa paydo bo'lganda yuboriladi",
     "synced_n": "Sinxronlangan to'lovlar: {{count}}",
     "next_payment": "Keyingi to'lov: {{date}}",
     "overdue_days": "{{count}} kun kechikkan",
@@ -711,7 +746,20 @@
     "password_ok": "Parol yangilandi",
     "password_failed": "Parolni saqlash muvaffaqiyatsiz",
     "account_section": "Hisob",
-    "logout": "Hisobdan chiqish"
+    "logout": "Hisobdan chiqish",
+    "notifications_section": "Bildirishnomalar",
+    "notif_enabled_label": "Telegram’da bildirishnoma olish",
+    "notif_enabled_hint": "Bot eslatmalarni Telegram’ga yuboradi",
+    "notif_type_due": "Nasiya to‘lovi eslatmasi",
+    "notif_type_overdue": "Muddati o‘tgan to‘lov",
+    "notif_type_daily": "Kunlik xulosa (ertalab)",
+    "notif_not_connected": "Botni oching va /start bosing — aks holda bildirishnoma kelmaydi",
+    "notif_chat_label": "Bildirishnomalar uchun alohida chat",
+    "notif_chat_hint": "Chat yoki guruh ID’si. Bo‘sh — botning shaxsiy xabarlari.",
+    "notif_chat_placeholder": "masalan, -1001234567890",
+    "notif_chat_invalid": "Chat ID raqamini kiriting",
+    "notif_saved": "Bildirishnoma sozlamalari saqlandi",
+    "save_failed": "Saqlab bo‘lmadi"
   },
   "search": {
     "title": "Qidiruv",
@@ -744,5 +792,21 @@
     "boundary_title": "Nimadir xato ketdi",
     "boundary_body": "Xatolik yuz berdi. Sahifani qayta yuklang — ma'lumotlar yo'qolmaydi.",
     "boundary_reload": "Qayta yuklash"
+  },
+  "scan": {
+    "title": "QR skanerlash",
+    "instruction": "Kamerani qurilma QR-stikeriga qarating",
+    "cta": "Kamerani ochish",
+    "resolving": "Qurilma qidirilmoqda…",
+    "not_found_title": "Qurilma topilmadi",
+    "not_found_body": "Bu QR sizning do‘koningizga tegishli emas yoki qurilma o‘chirilgan.",
+    "invalid_title": "QR tanilmadi",
+    "invalid_body": "Bu Malika qurilmasining QR-stikeri emas. Qayta urinib ko‘ring.",
+    "manual_label": "Yoki stikerdagi kodni kiriting",
+    "manual_placeholder": "Qurilma kodi",
+    "manual_submit": "Topish",
+    "unsupported": "Bu qurilmada kamera mavjud emas — stikerdagi kodni qo‘lda kiriting.",
+    "back": "Orqaga",
+    "rescan": "Qayta skanerlash"
   }
 }

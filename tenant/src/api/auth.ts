@@ -7,6 +7,9 @@ export interface UserOut {
   tg_username: string | null;
   phone: string | null;
   has_password: boolean;
+  notifications_enabled: boolean;
+  tg_connected: boolean;
+  notify_tg_chat_id: number | null;
 }
 
 export interface TokenResponse {
@@ -35,4 +38,13 @@ export async function setupPassword(login: string, password: string): Promise<vo
 
 export async function updateShop(patch: { name?: string; language_default?: 'ru' | 'uz' }): Promise<void> {
   await api.patch('/shops/me', patch);
+}
+
+/** Settings → Уведомления: toggle Telegram reminders + optional override chat. */
+export async function updateNotificationPrefs(prefs: {
+  enabled: boolean;
+  notify_tg_chat_id: number | null;
+}): Promise<UserOut> {
+  const { data } = await api.patch<UserOut>('/auth/me/notifications', prefs);
+  return data;
 }

@@ -107,15 +107,8 @@ export function KpiCard({
         </div>
         {icon && (
           <div className={cn('relative shrink-0', t.text)}>
-            {/* Glow gated to dark theme + non-compact — on the small pair
-                under the hero the halo competes with the hero's amber and
-                reads as visual noise, so compact drops the blur layer. */}
-            {!compact && (
-              <span
-                aria-hidden
-                className="absolute inset-0 scale-125 rounded-full bg-current opacity-25 blur-xl transition-opacity group-hover:opacity-40 [.light_&]:hidden"
-              />
-            )}
+            {/* Flat by request — the icon sits on a faded-tone tile with a
+                hairline ring, no blur halo behind it. */}
             <div
               className={cn(
                 'relative flex items-center justify-center rounded-xl ring-1 transition-transform duration-200 group-hover:scale-110',

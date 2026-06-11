@@ -29,6 +29,30 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # ─── Test database (only with `--profile test`) ─────────────────────
+  # Dedicated throwaway Postgres for `cd backend && uv run pytest`. The
+  # test suite drops & recreates the public schema, so it MUST stay
+  # separate from the dev `postgres` above. See backend/tests/conftest.py.
+  #   docker compose --profile test up -d postgres_test
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: malika_postgres_test
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: malika
+      POSTGRES_PASSWORD: malika
+      POSTGRES_DB: malika_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U malika"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: malika_redis

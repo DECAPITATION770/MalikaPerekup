@@ -126,3 +126,24 @@ async def setup_password(
     user.login = login
     user.password_hash = hash_password(password)
     return user
+
+
+async def update_notification_prefs(
+    db: AsyncSession,
+    user_id: int,
+    *,
+    enabled: bool,
+    notify_tg_chat_id: int | None,
+) -> User:
+    """Toggle Telegram reminders on/off and set the optional override chat.
+
+    ``enabled`` flips the ``telegram`` channel in ``notification_channels``;
+    an empty list means the dispatcher enqueues nothing for this user.
+    """
+    user = await user_repo.get_by_id(db, user_id)
+    if user is None:
+        raise AuthError("user not found")
+
+    user.notification_channels = ["telegram"] if enabled else []
+    user.notify_tg_chat_id = notify_tg_chat_id
+    return user

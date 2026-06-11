@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.dates import today_tashkent
 from app.common.pagination import Page, PageParams
-from app.common.ratelimit import login_rate_limit
+from app.common.ratelimit import enforce_account_limit, login_rate_limit
 from app.core.deps import DbSession
 from app.features.admin import repository as admin_repo
 from app.features.admin import service
@@ -129,6 +129,12 @@ async def login_via_telegram(
 async def login_via_password(
     payload: AdminLoginRequest, db: DbSession
 ) -> AdminTokenResponse:
+    # Per-account window on top of the per-IP dependency. Admin is the
+    # highest-value account on the platform, so it's tighter than tenant
+    # login: 5 tries per login per 15 min.
+    await enforce_account_limit(
+        "admin.login.acct", payload.login, limit=5, window_seconds=900
+    )
     try:
         admin, token = await service.login_admin_via_password(
             db, payload.login, payload.password

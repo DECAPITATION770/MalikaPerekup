@@ -1,5 +1,14 @@
-/* Inter — covers Latin + Cyrillic for RU/UZ-Latn */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Geist Variable — self-hosted (no external CDN). Same face the tenant Mini
+   App ships, so platform + owner read as one product. OFL © Vercel/Basement.
+   Single variable woff2 covers 100-900; system stack is the first-paint
+   fallback. Refresh: copy from tenant/public/fonts/Geist-Variable.woff2. */
+@font-face {
+  font-family: 'Geist Variable';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -8,59 +17,62 @@
 /* ───────────────────────────────────────────────────────────────────────────
    Design tokens. HSL triplets (no wrapping hsl(...)) so Tailwind's
    `hsl(var(--token) / <alpha-value>)` syntax works with opacity modifiers.
+
+   Palette: Warm Charcoal + Brass — same identity as the tenant Mini App
+   (tenant uses RGB triplets; values converted to HSL here). No glow.
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* Dark — default (theme-class set on <html>) */
 :root,
 html.dark {
-  --bg:            222 47% 6%;     /* near-black slate */
-  --bg2:           222 32% 10%;
-  --bg3:           222 22% 14%;
-  --border:        222 22% 20%;
-  --border-strong: 222 18% 28%;
+  --bg:            36 20% 7%;      /* warm charcoal — not slate/near-black */
+  --bg2:           36 29% 9%;
+  --bg3:           38 34% 11%;
+  --border:        40 22% 16%;
+  --border-strong: 42 20% 23%;
 
-  --text:          210 30% 96%;
-  --text-dim:      220 14% 65%;
-  --text-muted:    220 12% 45%;
+  --text:          36 40% 92%;
+  --text-dim:      38 24% 72%;
+  --text-muted:    36 16% 54%;
 
-  --accent:        198 84% 55%;    /* Telegram blue, platform-level */
-  --accent-hover:  199 78% 48%;
-  --accent-faded:  200 56% 14%;
-  --accent-fg:     0 0% 100%;
+  --accent:        39 58% 51%;     /* brass #C89B3C */
+  --accent-hover:  41 63% 43%;
+  --accent-faded:  38 59% 11%;
+  --accent-fg:     36 55% 8%;      /* warm-dark ink on brass */
 
   --danger:        4 86% 65%;
-  --danger-faded:  4 50% 18%;
-  --success:       158 67% 55%;
-  --success-faded: 158 38% 14%;
-  --warning:       46 86% 64%;
-  --warning-faded: 38 60% 18%;
-  --info:          210 80% 60%;
+  --danger-faded:  6 45% 17%;
+  --success:       90 42% 55%;     /* warm leaf-green #8FBF5A */
+  --success-faded: 92 45% 12%;
+  --warning:       31 80% 56%;     /* orange — distinct from brass */
+  --warning-faded: 34 55% 14%;
+  --info:          39 58% 51%;
 }
 
-/* Light */
+/* Light — warm paper */
 html.light {
-  --bg:            0 0% 100%;
-  --bg2:           220 33% 98%;
-  --bg3:           220 22% 95%;
-  --border:        220 16% 88%;
-  --border-strong: 220 14% 78%;
+  --bg:            37 43% 93%;     /* paper #F5EFE3 */
+  --bg2:           40 60% 99%;
+  --bg3:           37 38% 87%;
+  --border:        40 30% 83%;
+  --border-strong: 41 32% 74%;
 
-  --text:          222 47% 12%;
-  --text-dim:      220 14% 38%;
-  --text-muted:    220 12% 56%;
+  --text:          35 37% 10%;
+  --text-dim:      40 17% 30%;
+  --text-muted:    40 16% 37%;
 
-  --accent:        198 84% 47%;
-  --accent-hover:  198 84% 40%;
-  --accent-faded:  198 84% 94%;
-  --accent-fg:     0 0% 100%;
+  --accent:        39 79% 34%;     /* deep brass #9A6B12 */
+  --accent-hover:  39 83% 27%;
+  --accent-faded:  38 60% 88%;
+  --accent-fg:     40 60% 99%;
 
   --danger:        2 78% 55%;
   --danger-faded:  2 78% 94%;
-  --success:       158 65% 38%;
-  --success-faded: 158 60% 92%;
-  --warning:       32 92% 48%;
-  --warning-faded: 32 90% 92%;
-  --info:          210 80% 50%;
+  --success:       93 45% 33%;     /* forest #4F7A2E */
+  --success-faded: 93 45% 90%;
+  --warning:       28 89% 35%;     /* burnt orange */
+  --warning-faded: 30 80% 90%;
+  --info:          39 79% 34%;
 }
 
 @layer base {
@@ -70,7 +82,6 @@ html.light {
   body {
     @apply bg-bg text-text font-sans antialiased;
     margin: 0;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
