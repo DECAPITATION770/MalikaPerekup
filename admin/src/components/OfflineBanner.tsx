@@ -30,8 +30,11 @@ export default function OfflineBanner() {
   if (!offline) return null;
 
   return (
-    <div role="status" className="bg-[#3F2F0A] border-b border-[#7A5C18] text-warning text-sm font-semibold px-4 py-2 flex items-center justify-center gap-2 fia">
-      <WifiOff size={14} />
+    <div
+      role="status"
+      className="fia flex items-center justify-center gap-2 border-b border-warning/30 bg-warning-faded px-4 py-2 text-label font-semibold text-warning"
+    >
+      <WifiOff size={14} aria-hidden />
       {t('common.offline_banner')}
     </div>
   );

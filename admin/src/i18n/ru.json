@@ -4,7 +4,7 @@
     "shops": "Магазины",
     "create_shop": "Новый магазин",
     "auth_log": "Лог доступа",
-    "debts": "Долги Nasiya",
+    "debts": "Долги Рассрочка",
     "stats": "Статистика",
     "users": "Пользователи"
   },
@@ -44,7 +44,7 @@
     "shops_total": "Всего магазинов",
     "shops_active": "Активных",
     "shops_frozen": "Заморожено",
-    "nasiya_overdue": "Просрочено Nasiya",
+    "nasiya_overdue": "Просрочено Рассрочка",
     "failed_today": "Неудачных входов",
     "failed_logins_today": "ошибок входа сегодня",
     "active_plans": "Активных планов",
@@ -55,7 +55,7 @@
     "quick_actions": "Быстрые действия",
     "create_shop": "Создать магазин",
     "view_log": "Лог доступа",
-    "view_debts": "Долги Nasiya",
+    "view_debts": "Долги Рассрочка",
     "security": "Безопасность"
   },
   "shops": {
@@ -154,7 +154,12 @@
     "error_generic": "Ошибка создания магазина",
     "auth_required": "Укажите Telegram ID или логин",
     "password_required_with_login": "Укажите пароль для логина",
-    "login_required_with_password": "Логин обязателен с паролем"
+    "login_required_with_password": "Логин обязателен с паролем",
+    "required": "Обязательное поле",
+    "min_2_chars": "Минимум 2 символа",
+    "min_3_chars": "Минимум 3 символа",
+    "min_8_chars": "Минимум 8 символов",
+    "login_chars": "Только буквы, цифры, _ . -"
   },
   "auth_log": {
     "title": "Лог доступа",
@@ -180,7 +185,7 @@
     "copy_ip_aria": "Скопировать IP {{ip}}"
   },
   "debts": {
-    "title": "Долги Nasiya",
+    "title": "Долги Рассрочка",
     "tab_overdue": "Просроченные",
     "tab_active": "Активные",
     "col_shop": "Магазин",
@@ -214,7 +219,7 @@
     "nasiya_debt": "Общий долг",
     "failed_today": "Неудачных входов сегодня",
     "section_shops": "Магазины",
-    "section_nasiya": "Nasiya",
+    "section_nasiya": "Рассрочка",
     "section_security": "Безопасность",
     "open_link": "Открыть",
     "updated_at": "Обновлено {{time}}"

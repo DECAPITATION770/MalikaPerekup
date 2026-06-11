@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
+
 import { AuthProvider } from './store/auth';
-import { ToastProvider } from './components/ui/Toast';
+import { ThemeProvider, useTheme } from './lib/theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import SessionExpiredToast from './components/SessionExpiredToast';
 import AppLayout from './components/layout/AppLayout';
@@ -31,30 +33,45 @@ const qc = new QueryClient({
   },
 });
 
+/** Sonner Toaster styled to follow the current theme. */
+function ThemedToaster() {
+  const { resolved } = useTheme();
+  return (
+    <Toaster
+      theme={resolved}
+      position="top-right"
+      richColors
+      closeButton
+      duration={3500}
+    />
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={qc}>
-        <AuthProvider>
-          <ToastProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ThemedToaster />
             <SessionExpiredToast />
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route element={<AppLayout />}>
-                  <Route path="/"        element={<Dashboard />} />
-                  <Route path="/shops"   element={<Shops />} />
+                  <Route path="/"          element={<Dashboard />} />
+                  <Route path="/shops"     element={<Shops />} />
                   <Route path="/shops/:id" element={<ShopDetail />} />
-                  <Route path="/create"  element={<CreateShop />} />
-                  <Route path="/users"   element={<Users />} />
-                  <Route path="/log"     element={<AuthLog />} />
-                  <Route path="/debts"   element={<Debts />} />
-                  <Route path="/stats"   element={<Stats />} />
+                  <Route path="/create"    element={<CreateShop />} />
+                  <Route path="/users"     element={<Users />} />
+                  <Route path="/log"       element={<AuthLog />} />
+                  <Route path="/debts"     element={<Debts />} />
+                  <Route path="/stats"     element={<Stats />} />
                 </Route>
               </Routes>
             </BrowserRouter>
-          </ToastProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

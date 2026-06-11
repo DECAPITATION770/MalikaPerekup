@@ -4,7 +4,7 @@
     "shops": "Do'konlar",
     "create_shop": "Yangi do'kon",
     "auth_log": "Kirish jurnali",
-    "debts": "Nasiya qarzdorlik",
+    "debts": "Bo'lib to'lash qarzdorlik",
     "stats": "Statistika",
     "users": "Foydalanuvchilar"
   },
@@ -44,7 +44,7 @@
     "shops_total": "Jami do'konlar",
     "shops_active": "Faol",
     "shops_frozen": "Muzlatilgan",
-    "nasiya_overdue": "Nasiya muddati o'tgan",
+    "nasiya_overdue": "Bo'lib to'lash muddati o'tgan",
     "failed_today": "Muvaffaqiyatsiz kirishlar",
     "failed_logins_today": "bugun muvaffaqiyatsiz kirishlar",
     "active_plans": "Faol rejalar",
@@ -55,7 +55,7 @@
     "quick_actions": "Tezkor amallar",
     "create_shop": "Do'kon yaratish",
     "view_log": "Kirish jurnali",
-    "view_debts": "Nasiya qarzdorlik",
+    "view_debts": "Bo'lib to'lash qarzdorlik",
     "security": "Xavfsizlik"
   },
   "shops": {
@@ -106,7 +106,7 @@
     "sales_total": "Jami savdolar",
     "profit_total": "Foyda",
     "nasiya_plans": "Bo'lib to'lash rejalari",
-    "nasiya_debt": "Nasiya qarzi",
+    "nasiya_debt": "Bo'lib to'lash qarzi",
     "freeze_btn": "Muzlatish",
     "unfreeze_btn": "Muzlatishni bekor qilish",
     "change_plan_btn": "Tarifni o'zgartirish",
@@ -154,7 +154,12 @@
     "error_generic": "Do'kon yaratishda xato",
     "auth_required": "Telegram ID yoki login ko'rsating",
     "password_required_with_login": "Login uchun parol ko'rsating",
-    "login_required_with_password": "Parol bilan login majburiy"
+    "login_required_with_password": "Parol bilan login majburiy",
+    "required": "Majburiy maydon",
+    "min_2_chars": "Kamida 2 ta belgi",
+    "min_3_chars": "Kamida 3 ta belgi",
+    "min_8_chars": "Kamida 8 ta belgi",
+    "login_chars": "Faqat harflar, raqamlar, _ . -"
   },
   "auth_log": {
     "title": "Kirish jurnali",
@@ -180,7 +185,7 @@
     "copy_ip_aria": "{{ip}} IP'ni nusxa olish"
   },
   "debts": {
-    "title": "Nasiya qarzdorligi",
+    "title": "Bo'lib to'lash qarzdorligi",
     "tab_overdue": "Muddati o'tgan",
     "tab_active": "Faol",
     "col_shop": "Do'kon",
@@ -214,7 +219,7 @@
     "nasiya_debt": "Umumiy qarz",
     "failed_today": "Bugun muvaffaqiyatsiz kirishlar",
     "section_shops": "Do'konlar",
-    "section_nasiya": "Nasiya",
+    "section_nasiya": "Bo'lib to'lash",
     "section_security": "Xavfsizlik",
     "open_link": "Ochish",
     "updated_at": "{{time}} da yangilandi"

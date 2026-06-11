@@ -3,8 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A0E16" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF" />
     <title>Malika Admin</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232AABEE'/><text x='16' y='22' text-anchor='middle' font-family='system-ui,sans-serif' font-size='18' font-weight='700' fill='white'>M</text></svg>" />
+    <script>
+      // Pre-paint theme: read saved pref or fall back to OS scheme so the
+      // first frame paints in the correct theme (no dark-flash on light load).
+      (function () {
+        try {
+          var saved = localStorage.getItem('admin_theme');
+          var dark = saved === 'dark' ||
+            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (!dark) document.documentElement.classList.add('light');
+        } catch (_) { /* private mode */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

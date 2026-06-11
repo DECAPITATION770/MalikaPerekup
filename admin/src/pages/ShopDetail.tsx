@@ -1,21 +1,49 @@
+/**
+ * Single shop page — admin view with stats, owner info, and 3 admin
+ * actions (change plan, set credentials, freeze / unfreeze). The shop
+ * id comes from the URL.
+ *
+ * Modals use the shared `Modal` adapter (Dialog under the hood) so all
+ * three flows share the dismiss-confirm behaviour when the user has
+ * typed something.
+ */
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { getShop, freezeShop, unfreezeShop, updateShop, setOwnerCredentials } from '../api';
-import Badge from '../components/ui/Badge';
-import Button from '../components/ui/Button';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import QueryError from '../components/ui/QueryError';
+import {
+  ArrowLeft,
+  Bot,
+  HelpCircle,
+  Key,
+  Lock,
+  RefreshCw,
+  Send,
+  Shield,
+  Snowflake,
+  Sun,
+} from 'lucide-react';
+
+import {
+  freezeShop,
+  getShop,
+  setOwnerCredentials,
+  unfreezeShop,
+  updateShop,
+} from '../api';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
-import Input from '../components/ui/Input';
-import { fmtUZS, fmtDate, fmtRelative, planLabel } from '../lib/fmt';
-import { useNow } from '../lib/useNow';
+import QueryError from '../components/ui/QueryError';
+import { CardSkeleton } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
-import { ArrowLeft, Snowflake, Sun, RefreshCw, Key, Send, Lock, Bot, Shield, HelpCircle } from 'lucide-react';
+import { fmtDate, fmtRelative, fmtUZS, planLabel } from '../lib/fmt';
+import { useNow } from '../lib/useNow';
+import { cn } from '@/lib/utils';
 
 const SOURCE_KEYS = ['telegram', 'password', 'bot_start', 'admin'] as const;
-type SourceKey = typeof SOURCE_KEYS[number];
+type SourceKey = (typeof SOURCE_KEYS)[number];
 
 const SOURCE_ICONS: Record<SourceKey, { Icon: typeof Send; color: string }> = {
   telegram: { Icon: Send, color: 'text-accent' },
@@ -26,19 +54,44 @@ const SOURCE_ICONS: Record<SourceKey, { Icon: typeof Send; color: string }> = {
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0 gap-3">
-      <span className="text-sm text-text-dim shrink-0">{label}</span>
-      <span className="text-sm font-semibold text-right truncate">{value ?? '—'}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0">
+      <span className="shrink-0 text-label text-text-dim">{label}</span>
+      <span className="truncate text-right text-label font-semibold">
+        {value ?? '—'}
+      </span>
     </div>
   );
 }
 
-function StatCard({ label, value, kind }: { label: string; value: string; kind?: 'green' | 'red' | 'yellow' | 'blue' | 'default' }) {
-  const colors = { green: 'text-success', red: 'text-danger', yellow: 'text-warning', blue: 'text-accent', default: 'text-text' };
+function StatCard({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'success' | 'danger' | 'warning' | 'accent';
+}) {
+  const toneClass = {
+    default: 'text-text',
+    success: 'text-success',
+    danger: 'text-danger',
+    warning: 'text-warning',
+    accent: 'text-accent',
+  }[tone];
   return (
-    <div className="bg-bg3 rounded-2xl border border-border p-4">
-      <div className="text-[11px] text-text-muted font-bold uppercase tracking-[0.6px] mb-2">{label}</div>
-      <div className={`text-xl font-bold tracking-tight tabular-nums ${colors[kind || 'default']}`}>{value}</div>
+    <div className="card p-4">
+      <div className="text-caption font-medium tracking-tight text-text-muted">
+        {label}
+      </div>
+      <div
+        className={cn(
+          'mt-1.5 text-title-sm font-bold tabular-nums tracking-tight',
+          toneClass,
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -62,7 +115,13 @@ export default function ShopDetail() {
 
   const shopId = Number(id);
 
-  const { data: shop, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: shop,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['shop', shopId],
     queryFn: () => getShop(shopId),
     enabled: !!shopId,
@@ -80,144 +139,251 @@ export default function ShopDetail() {
     },
     onError: () => toast.error(t('shop_detail.toast_freeze_failed')),
   });
-
   const unfreezeMut = useMutation({
     mutationFn: () => unfreezeShop(shopId),
-    onSuccess: () => { invalidate(); toast.success(t('shop_detail.toast_unfrozen')); },
+    onSuccess: () => {
+      invalidate();
+      toast.success(t('shop_detail.toast_unfrozen'));
+    },
     onError: () => toast.error(t('shop_detail.toast_unfreeze_failed')),
   });
-
   const planMut = useMutation({
-    // plan_until: send null when empty so backend clears the field instead of receiving "" → 422
-    mutationFn: () => updateShop(shopId, {
-      plan: newPlan || undefined,
-      plan_until: newPlanUntil ? newPlanUntil : null,
-    }),
-    onSuccess: () => { setPlanModal(false); invalidate(); toast.success(t('shop_detail.toast_plan_updated')); },
+    mutationFn: () =>
+      updateShop(shopId, {
+        plan: newPlan || undefined,
+        plan_until: newPlanUntil ? newPlanUntil : null,
+      }),
+    onSuccess: () => {
+      setPlanModal(false);
+      invalidate();
+      toast.success(t('shop_detail.toast_plan_updated'));
+    },
     onError: () => toast.error(t('shop_detail.toast_plan_failed')),
   });
-
   const credsMut = useMutation({
-    mutationFn: () => setOwnerCredentials(shopId, {
-      login: newLogin.trim() || undefined,
-      password: newPassword || undefined,
-    }),
-    onSuccess: () => { setCredsModal(false); invalidate(); toast.success(t('shop_detail.toast_creds_updated')); },
+    mutationFn: () =>
+      setOwnerCredentials(shopId, {
+        login: newLogin.trim() || undefined,
+        password: newPassword || undefined,
+      }),
+    onSuccess: () => {
+      setCredsModal(false);
+      invalidate();
+      toast.success(t('shop_detail.toast_creds_updated'));
+    },
     onError: () => toast.error(t('shop_detail.toast_creds_failed')),
   });
 
-  const credsCanSave = newLogin.trim().length > 0 || newPassword.length > 0;
+  // A single dirty flag is enough — `credsCanSave` was a duplicate.
   const credsDirty = newLogin.trim().length > 0 || newPassword.length > 0;
   const freezeDirty = freezeReason.length > 0;
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-          {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+      <div className="flex flex-col gap-4 p-6 md:p-8">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CardSkeleton /><CardSkeleton />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       </div>
     );
   }
-  if (isError) return <div className="p-6 max-w-4xl mx-auto"><QueryError onRetry={() => refetch()} error={error} /></div>;
-  if (!shop) return <div className="p-6 text-text-dim">{t('shop_detail.not_found')}</div>;
+  if (isError) {
+    return (
+      <div className="p-6 md:p-8">
+        <QueryError onRetry={() => refetch()} error={error} />
+      </div>
+    );
+  }
+  if (!shop) {
+    return <div className="p-6 text-text-dim">{t('shop_detail.not_found')}</div>;
+  }
 
-  const sourceKey = (shop.owner.last_login_source && SOURCE_KEYS.includes(shop.owner.last_login_source as SourceKey))
-    ? shop.owner.last_login_source as SourceKey
-    : null;
+  const sourceKey =
+    shop.owner.last_login_source &&
+    SOURCE_KEYS.includes(shop.owner.last_login_source as SourceKey)
+      ? (shop.owner.last_login_source as SourceKey)
+      : null;
   const sourceIcon = sourceKey ? SOURCE_ICONS[sourceKey] : null;
   const sourceLabel = sourceKey
     ? t(`shop_detail.source_${sourceKey}` as const)
-    : (shop.owner.last_login_source ? t('shop_detail.source_unknown') : null);
+    : shop.owner.last_login_source
+      ? t('shop_detail.source_unknown')
+      : null;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6 p-6 md:p-8">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6 fia">
+      <header className="fia flex items-center gap-3">
         <button
+          type="button"
           onClick={() => navigate('/shops')}
           aria-label={t('shop_detail.back')}
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-text-dim hover:text-text hover:bg-bg3 transition-colors border border-border shrink-0 cursor-pointer"
+          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border bg-bg2 text-text-dim transition-colors hover:bg-bg3 hover:text-text"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={18} aria-hidden />
         </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold tracking-tight truncate">{shop.name}</h1>
-          <div className="text-sm text-text-dim">#{shop.id} · {t('shop_detail.created_at_short')} {fmtDate(shop.created_at)}</div>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-subhead font-bold tracking-tight">
+            {shop.name}
+          </h1>
+          <div className="text-hint text-text-dim">
+            #{shop.id} · {t('shop_detail.created_at_short')} {fmtDate(shop.created_at)}
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge kind={shop.is_frozen ? 'red' : 'green'} dot>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={shop.is_frozen ? 'danger' : 'success'} dot>
             {shop.is_frozen ? t('shops.frozen') : t('shops.active')}
           </Badge>
-          <Badge kind="blue">{planLabel(shop.plan)}</Badge>
+          <Badge variant="accent">{planLabel(shop.plan)}</Badge>
         </div>
-      </div>
+      </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 fia fia-1">
-        <StatCard label={t('shop_detail.devices_in_stock')} value={String(shop.stats.devices_in_stock)} kind="blue" />
-        <StatCard label={t('shop_detail.sales_total')} value={fmtUZS(shop.stats.sales_total_uzs)} kind="green" />
-        <StatCard label={t('shop_detail.profit_total')} value={fmtUZS(shop.stats.profit_total_uzs)} kind="green" />
-        <StatCard label={t('shop_detail.inventory_value')} value={fmtUZS(shop.stats.inventory_value_uzs)} />
-        <StatCard label={t('shop_detail.nasiya_plans')} value={String(shop.stats.nasiya_active_plans)} />
-        <StatCard label={t('shop_detail.nasiya_debt')} value={fmtUZS(shop.stats.nasiya_debt_uzs)} kind={Number(shop.stats.nasiya_debt_uzs) > 0 ? 'yellow' : 'default'} />
+      <div className="fia fia-1 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          label={t('shop_detail.devices_in_stock')}
+          value={String(shop.stats.devices_in_stock)}
+          tone="accent"
+        />
+        <StatCard
+          label={t('shop_detail.sales_total')}
+          value={fmtUZS(shop.stats.sales_total_uzs)}
+          tone="success"
+        />
+        <StatCard
+          label={t('shop_detail.profit_total')}
+          value={fmtUZS(shop.stats.profit_total_uzs)}
+          tone="success"
+        />
+        <StatCard
+          label={t('shop_detail.inventory_value')}
+          value={fmtUZS(shop.stats.inventory_value_uzs)}
+        />
+        <StatCard
+          label={t('shop_detail.nasiya_plans')}
+          value={String(shop.stats.nasiya_active_plans)}
+        />
+        <StatCard
+          label={t('shop_detail.nasiya_debt')}
+          value={fmtUZS(shop.stats.nasiya_debt_uzs)}
+          tone={Number(shop.stats.nasiya_debt_uzs) > 0 ? 'warning' : 'default'}
+        />
       </div>
 
       {/* Info cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 fia fia-2">
-        <div className="bg-bg3 rounded-2xl border border-border px-5 pt-4 pb-2">
-          <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-3">{t('shop_detail.shop_section')}</div>
-          <Row label={t('shop_detail.plan_label')} value={<Badge kind="blue" size="sm">{planLabel(shop.plan)}</Badge>} />
-          <Row label={t('shop_detail.plan_until')} value={shop.plan_until ? fmtDate(shop.plan_until) : '—'} />
+      <div className="fia fia-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section className="card px-5 pb-3 pt-4">
+          <div className="mb-3 text-hint font-semibold tracking-tight text-text-dim">
+            {t('shop_detail.shop_section')}
+          </div>
+          <Row
+            label={t('shop_detail.plan_label')}
+            value={
+              <Badge variant="accent" size="sm">
+                {planLabel(shop.plan)}
+              </Badge>
+            }
+          />
+          <Row
+            label={t('shop_detail.plan_until')}
+            value={shop.plan_until ? fmtDate(shop.plan_until) : '—'}
+          />
           {shop.is_frozen && (
             <>
-              <Row label={t('shop_detail.frozen_at')} value={shop.frozen_at ? fmtRelative(shop.frozen_at) : '—'} />
-              <Row label={t('shop_detail.freeze_reason_label')} value={<span className="text-danger">{shop.frozen_reason || '—'}</span>} />
+              <Row
+                label={t('shop_detail.frozen_at')}
+                value={shop.frozen_at ? fmtRelative(shop.frozen_at) : '—'}
+              />
+              <Row
+                label={t('shop_detail.freeze_reason_label')}
+                value={<span className="text-danger">{shop.frozen_reason || '—'}</span>}
+              />
             </>
           )}
-        </div>
+        </section>
 
-        <div className="bg-bg3 rounded-2xl border border-border px-5 pt-4 pb-2">
-          <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted mb-3">{t('shop_detail.owner_label')}</div>
-          <Row label={t('shop_detail.owner_label') === 'Egasi' ? 'F.I.O.' : 'ФИО'} value={shop.owner.full_name} />
-          <Row label={t('shop_detail.tg_username')} value={shop.owner.tg_username ? `@${shop.owner.tg_username}` : '—'} />
+        <section className="card px-5 pb-3 pt-4">
+          <div className="mb-3 text-hint font-semibold tracking-tight text-text-dim">
+            {t('shop_detail.owner_label')}
+          </div>
+          <Row label={t('create_shop.owner_name')} value={shop.owner.full_name} />
+          <Row
+            label={t('shop_detail.tg_username')}
+            value={shop.owner.tg_username ? `@${shop.owner.tg_username}` : '—'}
+          />
           <Row label={t('shop_detail.phone')} value={shop.owner.phone} />
           <Row label={t('shop_detail.login')} value={shop.owner.login} />
-          <Row label={t('shop_detail.has_password')} value={
-            <Badge kind={shop.owner.has_password ? 'green' : 'gray'} size="sm">
-              {shop.owner.has_password ? t('common.yes') : t('common.no')}
-            </Badge>
-          } />
-          <Row label={t('shop_detail.last_login')} value={
-            <span className="flex items-center gap-1.5 justify-end">
-              {sourceIcon ? <sourceIcon.Icon size={12} className={sourceIcon.color} /> : sourceLabel ? <HelpCircle size={12} className="text-text-muted" /> : null}
-              {fmtRelative(shop.owner.last_login_at)}
-              {sourceLabel && <span className="text-text-muted text-xs">({sourceLabel})</span>}
-            </span>
-          } />
-        </div>
+          <Row
+            label={t('shop_detail.has_password')}
+            value={
+              <Badge variant={shop.owner.has_password ? 'success' : 'neutral'} size="sm">
+                {shop.owner.has_password ? t('common.yes') : t('common.no')}
+              </Badge>
+            }
+          />
+          <Row
+            label={t('shop_detail.last_login')}
+            value={
+              <span className="flex items-center justify-end gap-1.5">
+                {sourceIcon ? (
+                  <sourceIcon.Icon size={12} className={sourceIcon.color} aria-hidden />
+                ) : sourceLabel ? (
+                  <HelpCircle size={12} className="text-text-muted" aria-hidden />
+                ) : null}
+                {fmtRelative(shop.owner.last_login_at)}
+                {sourceLabel && (
+                  <span className="text-caption text-text-muted">({sourceLabel})</span>
+                )}
+              </span>
+            }
+          />
+        </section>
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2 fia fia-3">
+      <div className="fia fia-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={() => { setNewPlan(shop.plan); setNewPlanUntil(shop.plan_until ?? ''); setPlanModal(true); }}>
-            <RefreshCw size={15} /> {t('shop_detail.change_plan_btn')}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setNewPlan(shop.plan);
+              setNewPlanUntil(shop.plan_until ?? '');
+              setPlanModal(true);
+            }}
+          >
+            <RefreshCw size={15} aria-hidden /> {t('shop_detail.change_plan_btn')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => { setNewLogin(shop.owner.login ?? ''); setNewPassword(''); setCredsModal(true); }}>
-            <Key size={15} /> {t('shop_detail.set_creds_btn')}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setNewLogin(shop.owner.login ?? '');
+              setNewPassword('');
+              setCredsModal(true);
+            }}
+          >
+            <Key size={15} aria-hidden /> {t('shop_detail.set_creds_btn')}
           </Button>
         </div>
         {shop.is_frozen ? (
-          <Button variant="secondary" size="sm" loading={unfreezeMut.isPending} onClick={() => unfreezeMut.mutate()}>
-            <Sun size={15} /> {t('shop_detail.unfreeze_btn')}
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={unfreezeMut.isPending}
+            onClick={() => unfreezeMut.mutate()}
+          >
+            <Sun size={15} aria-hidden /> {t('shop_detail.unfreeze_btn')}
           </Button>
         ) : (
           <Button variant="danger" size="sm" onClick={() => setFreezeModal(true)}>
-            <Snowflake size={15} /> {t('shop_detail.freeze_btn')}
+            <Snowflake size={15} aria-hidden /> {t('shop_detail.freeze_btn')}
           </Button>
         )}
       </div>
@@ -225,24 +391,34 @@ export default function ShopDetail() {
       {/* Freeze modal */}
       <Modal
         open={freezeModal}
-        onClose={() => { setFreezeModal(false); setFreezeReason(''); }}
+        onClose={() => {
+          setFreezeModal(false);
+          setFreezeReason('');
+        }}
         title={t('shop_detail.confirm_freeze')}
         dirty={freezeDirty}
         footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" full onClick={() => setFreezeModal(false)}>{t('common.cancel')}</Button>
-            <Button variant="danger" full loading={freezeMut.isPending} onClick={() => freezeMut.mutate()}>
-              <Snowflake size={15} /> {t('shop_detail.freeze_btn')}
+          <>
+            <Button variant="secondary" full onClick={() => setFreezeModal(false)}>
+              {t('common.cancel')}
             </Button>
-          </div>
+            <Button
+              variant="danger"
+              full
+              loading={freezeMut.isPending}
+              onClick={() => freezeMut.mutate()}
+            >
+              <Snowflake size={15} aria-hidden /> {t('shop_detail.freeze_btn')}
+            </Button>
+          </>
         }
       >
-        <p className="text-xs text-text-muted mb-3">{t('shop_detail.freeze_warning')}</p>
+        <p className="mb-3 text-hint text-text-muted">{t('shop_detail.freeze_warning')}</p>
         <Input
           label={t('shop_detail.freeze_reason_label')}
           placeholder={t('shop_detail.freeze_placeholder')}
           value={freezeReason}
-          onChange={e => setFreezeReason(e.target.value)}
+          onChange={(e) => setFreezeReason(e.target.value)}
         />
       </Modal>
 
@@ -253,23 +429,33 @@ export default function ShopDetail() {
         title={t('shop_detail.change_plan_btn')}
         dirty={!!shop && (newPlan !== shop.plan || newPlanUntil !== (shop.plan_until ?? ''))}
         footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" full onClick={() => setPlanModal(false)}>{t('common.cancel')}</Button>
-            <Button full loading={planMut.isPending} onClick={() => planMut.mutate()}>{t('common.save')}</Button>
-          </div>
+          <>
+            <Button variant="secondary" full onClick={() => setPlanModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button full loading={planMut.isPending} onClick={() => planMut.mutate()}>
+              {t('common.save')}
+            </Button>
+          </>
         }
       >
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] text-text-dim font-medium">{t('shop_detail.plan_label')}</label>
-            <div className="flex rounded-xl overflow-hidden border border-border bg-bg2 h-12">
-              {['trial', 'basic', 'business'].map(p => (
+            <label className="text-hint font-medium tracking-tight text-text-dim">
+              {t('shop_detail.plan_label')}
+            </label>
+            <div className="flex h-11 overflow-hidden rounded-lg border border-border bg-bg2">
+              {['trial', 'basic', 'business'].map((p) => (
                 <button
+                  type="button"
                   key={p}
                   onClick={() => setNewPlan(p)}
-                  className={`flex-1 border-none text-sm font-bold transition-colors cursor-pointer ${
-                    newPlan === p ? 'bg-accent text-white' : 'bg-transparent text-text-dim hover:text-text'
-                  }`}
+                  className={cn(
+                    'flex-1 cursor-pointer text-label font-bold transition-colors',
+                    newPlan === p
+                      ? 'bg-accent text-accent-fg'
+                      : 'bg-transparent text-text-dim hover:text-text',
+                  )}
                 >
                   {planLabel(p)}
                 </button>
@@ -280,7 +466,7 @@ export default function ShopDetail() {
             label={t('shop_detail.plan_until')}
             type="date"
             value={newPlanUntil}
-            onChange={e => setNewPlanUntil(e.target.value)}
+            onChange={(e) => setNewPlanUntil(e.target.value)}
             hint={t('shop_detail.plan_until_hint')}
           />
         </div>
@@ -289,17 +475,40 @@ export default function ShopDetail() {
       {/* Credentials modal */}
       <Modal
         open={credsModal}
-        onClose={() => { setCredsModal(false); setNewLogin(''); setNewPassword(''); }}
+        onClose={() => {
+          setCredsModal(false);
+          setNewLogin('');
+          setNewPassword('');
+        }}
         title={t('shop_detail.set_creds_btn')}
         dirty={credsDirty}
         footer={
-          <div className="flex flex-col gap-2">
-            {!credsCanSave && (
-              <p className="text-xs text-text-muted text-center">{t('common.required_at_least_one')}</p>
+          <div className="flex w-full flex-col gap-2">
+            {!credsDirty && (
+              <p className="text-center text-caption text-text-muted">
+                {t('common.required_at_least_one')}
+              </p>
             )}
             <div className="flex gap-2">
-              <Button variant="secondary" full onClick={() => { setCredsModal(false); setNewLogin(''); setNewPassword(''); }}>{t('common.cancel')}</Button>
-              <Button full loading={credsMut.isPending} disabled={!credsCanSave} onClick={() => credsMut.mutate()}>{t('common.save')}</Button>
+              <Button
+                variant="secondary"
+                full
+                onClick={() => {
+                  setCredsModal(false);
+                  setNewLogin('');
+                  setNewPassword('');
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                full
+                loading={credsMut.isPending}
+                disabled={!credsDirty}
+                onClick={() => credsMut.mutate()}
+              >
+                {t('common.save')}
+              </Button>
             </div>
           </div>
         }
@@ -308,18 +517,18 @@ export default function ShopDetail() {
           <Input
             label={t('shop_detail.login')}
             placeholder="owner_login"
-            value={newLogin}
-            onChange={e => setNewLogin(e.target.value)}
             autoComplete="off"
+            value={newLogin}
+            onChange={(e) => setNewLogin(e.target.value)}
           />
           <Input
             label={t('shop_detail.password_new')}
             type="password"
             placeholder="••••••••"
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            hint={t('shop_detail.password_hint')}
             autoComplete="new-password"
+            hint={t('shop_detail.password_hint')}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
           />
         </div>
       </Modal>

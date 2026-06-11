@@ -1,33 +1,77 @@
-type Kind = 'green' | 'red' | 'yellow' | 'blue' | 'gray';
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
-const styles: Record<Kind, string> = {
-  green:  'bg-[#0F3F2A] text-[#3DDC97] border border-[#1F6E48]',
-  red:    'bg-[#3D1414] text-[#F26E5E] border border-[#7A2828]',
-  yellow: 'bg-[#3F2F0A] text-[#F2C552] border border-[#7A5C18]',
-  blue:   'bg-[#0E2A4A] text-[#5AB0FF] border border-[#1F4F86]',
-  gray:   'bg-[#222428] text-[#9AA0A8] border border-[#3A3D43]',
+// Badge base — sentence-case pill. Caps + `tracking-wider` previously gave
+// every status row a 2003-admin-theme feel; with `font-semibold` and tight
+// tracking the chip carries weight without screaming. `rounded-full` unifies
+// with BrandBadge + the handmade chips so list rows stop mixing three radii.
+// `whitespace-nowrap` is preserved — multi-line status labels still double row
+// height in tight lists.
+const badgeVariants = cva(
+  'inline-flex items-center gap-1 font-semibold tracking-tight whitespace-nowrap rounded-full ring-1',
+  {
+    variants: {
+      variant: {
+        success: 'bg-success-faded text-success ring-success/30',
+        warning: 'bg-warning-faded text-warning ring-warning/30',
+        danger: 'bg-danger-faded text-danger ring-danger/30',
+        accent: 'bg-accent-faded text-accent ring-accent/30',
+        neutral: 'bg-bg3 text-text-dim ring-border',
+        muted: 'bg-bg3/60 text-text-muted ring-border',
+        outline: 'bg-transparent text-text-dim ring-border-strong',
+      },
+      size: {
+        // Pill needs a touch more horizontal padding than the old `rounded-md`
+        // shape to keep the text optically centred between the arcs.
+        sm: 'px-2 py-0.5 text-micro',
+        md: 'px-2.5 py-0.5 text-caption',
+      },
+    },
+    defaultVariants: { variant: 'neutral', size: 'md' },
+  },
+);
+
+/** Legacy admin colour keys mapped to the shadcn variant set. Old pages use
+ *  `<Badge kind="red">` etc. — translating here keeps them working without
+ *  per-page rewrites. */
+type LegacyKind = 'green' | 'red' | 'yellow' | 'blue' | 'gray';
+const KIND_TO_VARIANT: Record<LegacyKind, NonNullable<VariantProps<typeof badgeVariants>['variant']>> = {
+  green: 'success',
+  red: 'danger',
+  yellow: 'warning',
+  blue: 'accent',
+  gray: 'neutral',
 };
 
-interface Props {
-  kind?: Kind;
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {
+  /**
+   * Prepend a 6 px filled circle in the badge's tone. Meets WCAG 1.4.1
+   * "don't convey by colour alone" — daltonic users see two `success` and
+   * `warning` pills as identical otherwise. Uses `currentColor` so it
+   * matches the badge's variant. Opt-in (not default).
+   */
   dot?: boolean;
-  children: React.ReactNode;
-  size?: 'sm' | 'md';
+  /** Legacy alias for `variant` — accepts green/red/yellow/blue/gray. */
+  kind?: LegacyKind;
 }
 
-export default function Badge({ kind = 'gray', dot, children, size = 'md' }: Props) {
-  const dotColor: Record<Kind, string> = {
-    green: '#22C28E', red: '#DC4F3F', yellow: '#E0AA2F', blue: '#3B8FE0', gray: '#6A6F77',
-  };
+function Badge({ className, variant, kind, size, dot, children, ...rest }: BadgeProps) {
+  const resolved = variant ?? (kind ? KIND_TO_VARIANT[kind] : undefined);
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap ${styles[kind]} ${size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-[13px]'}`}>
+    <span className={cn(badgeVariants({ variant: resolved, size }), className)} {...rest}>
       {dot && (
         <span
-          className="rounded-full animate-pulse-dot"
-          style={{ width: 7, height: 7, background: dotColor[kind], flexShrink: 0 }}
+          aria-hidden
+          className="inline-block size-1.5 shrink-0 rounded-full bg-current"
         />
       )}
       {children}
     </span>
   );
 }
+
+export { Badge, badgeVariants };
+export default Badge;

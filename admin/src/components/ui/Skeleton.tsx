@@ -1,29 +1,41 @@
-interface Props {
-  className?: string;
-  rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+/**
+ * Skeleton primitives used during loading states.
+ *
+ * - `Skeleton`     : bare animated div, use for one-off placeholders
+ * - `CardSkeleton` : card-shaped block (KPI tiles, stat cards)
+ * - `TableRowSkeleton` : row inside a list/table-like layout
+ *
+ * Animation lives in index.css `.sk` utility.
+ */
+import { cn } from '@/lib/utils';
+
+function Skeleton({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('sk rounded-md', className)} {...rest} />;
 }
 
-export function Skeleton({ className = '', rounded = 'md' }: Props) {
-  const r = { sm: 'rounded', md: 'rounded-lg', lg: 'rounded-xl', xl: 'rounded-2xl', full: 'rounded-full' }[rounded];
-  return <div className={`sk ${r} ${className}`} />;
-}
-
-export function TableRowSkeleton({ cols = 5 }: { cols?: number }) {
+function CardSkeleton({ className }: { className?: string }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border last:border-0">
-      <Skeleton className="w-9 h-9" rounded="lg" />
-      {Array.from({ length: cols - 1 }).map((_, i) => (
-        <Skeleton key={i} className={`h-4 ${i === 0 ? 'flex-1' : 'w-20'}`} rounded="sm" />
+    <div className={cn('rounded-card border border-border bg-bg2 p-5', className)}>
+      <div className="sk mb-3 h-3 w-24 rounded" />
+      <div className="sk h-8 w-32 rounded" />
+    </div>
+  );
+}
+
+function TableRowSkeleton({ cols = 3 }: { cols?: number }) {
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5">
+      <div className="sk h-9 w-9 shrink-0 rounded-lg" />
+      <div className="flex flex-1 flex-col gap-1.5">
+        <div className="sk h-3 w-1/3 rounded" />
+        <div className="sk h-2.5 w-1/4 rounded" />
+      </div>
+      {Array.from({ length: Math.max(0, cols - 2) }).map((_, i) => (
+        <div key={i} className="sk h-3 w-16 shrink-0 rounded" />
       ))}
     </div>
   );
 }
 
-export function CardSkeleton() {
-  return (
-    <div className="bg-bg3 rounded-2xl border border-border p-5">
-      <Skeleton className="h-3 w-20 mb-3" rounded="sm" />
-      <Skeleton className="h-8 w-32" rounded="sm" />
-    </div>
-  );
-}
+export { Skeleton, CardSkeleton, TableRowSkeleton };
+export default Skeleton;

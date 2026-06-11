@@ -257,10 +257,12 @@ __marimo__/
 **/dev-dist/
 
 # ── Frontend app source wrongly caught by the Python `lib/` rule above ───────
-# `tenant/src/lib/` is application code (utils, hooks, formatters), not a
-# Python build dir — keep it tracked.
+# `tenant/src/lib/` and `admin/src/lib/` are application code (utils, hooks,
+# formatters), not Python build dirs — keep them tracked.
 !tenant/src/lib/
 !tenant/src/lib/**
+!admin/src/lib/
+!admin/src/lib/**
 
 
 .superpowers/

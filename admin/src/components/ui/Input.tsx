@@ -1,35 +1,86 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-interface Props extends InputHTMLAttributes<HTMLInputElement> {
+/**
+ * Admin Input — wrapped variant with optional label/hint/error/left adornment.
+ *
+ * Kept as a composite component (not a bare shadcn Input + separate Label) so
+ * existing pages can keep their `<Input label="..." error={...}>` API.
+ */
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
-  error?: string;
+  /** Helper text shown below the field when there is no error. */
   hint?: string;
-  left?: ReactNode;
-  right?: ReactNode;
+  /** Validation error text (red). Overrides `hint` while present. */
+  error?: string;
+  /** Adornment rendered inside the input on the left (e.g. "@"). */
+  left?: React.ReactNode;
+  /** Mark the field with a red asterisk in the label. */
   required?: boolean;
 }
 
-export default function Input({ label, error, hint, left, right, required, className = '', ...rest }: Props) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      {label && (
-        <label className="text-[13px] text-text-dim font-medium tracking-tight flex items-center gap-1">
-          {label}
-          {required && <span className="text-danger" aria-hidden="true">*</span>}
-        </label>
-      )}
-      <div className={`flex items-center gap-2 bg-bg2 rounded-xl border px-3.5 h-12 ${error ? 'border-danger' : 'border-border'} focus-within:border-accent transition-colors`}>
-        {left && <span className="text-text-dim shrink-0">{left}</span>}
-        <input
-          aria-invalid={!!error}
-          aria-required={required}
-          className={`flex-1 bg-transparent text-text text-[15px] font-medium outline-none placeholder:text-text-muted ${className}`}
-          {...rest}
-        />
-        {right && <span className="text-text-dim shrink-0">{right}</span>}
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, hint, error, left, required, id, type = 'text', ...rest }, ref) => {
+    const autoId = React.useId();
+    const inputId = id ?? autoId;
+    const hasError = !!error;
+
+    return (
+      <div className="flex flex-col gap-1.5">
+        {label && (
+          <label
+            htmlFor={inputId}
+            className="flex items-center gap-1 text-hint font-medium tracking-tight text-text-dim"
+          >
+            {label}
+            {required && (
+              <span className="text-danger" aria-hidden>
+                *
+              </span>
+            )}
+          </label>
+        )}
+        <div
+          className={cn(
+            'flex h-11 w-full items-center gap-2 rounded-lg border bg-bg2 px-3 transition-colors',
+            'focus-within:ring-2 focus-within:ring-accent/30',
+            hasError
+              ? 'border-danger focus-within:border-danger'
+              : 'border-border focus-within:border-accent',
+          )}
+        >
+          {left && <span className="shrink-0 text-text-muted">{left}</span>}
+          <input
+            ref={ref}
+            id={inputId}
+            type={type}
+            aria-invalid={hasError || undefined}
+            aria-describedby={hint || error ? `${inputId}-help` : undefined}
+            className={cn(
+              'flex-1 bg-transparent text-label font-medium text-text outline-none placeholder:text-text-muted',
+              'disabled:cursor-not-allowed disabled:opacity-60',
+              className,
+            )}
+            {...rest}
+          />
+        </div>
+        {(error || hint) && (
+          <span
+            id={`${inputId}-help`}
+            role={hasError ? 'alert' : undefined}
+            className={cn(
+              'text-caption leading-tight',
+              hasError ? 'text-danger' : 'text-text-muted',
+            )}
+          >
+            {error || hint}
+          </span>
+        )}
       </div>
-      {error && <span role="alert" className="text-xs text-danger">{error}</span>}
-      {hint && !error && <span className="text-xs text-text-muted">{hint}</span>}
-    </div>
-  );
-}
+    );
+  },
+);
+Input.displayName = 'Input';
+
+export { Input };
+export default Input;

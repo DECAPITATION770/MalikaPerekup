@@ -1,54 +1,110 @@
+/**
+ * Platform statistics — three sections (shops / installments / security),
+ * each with a tiny KPI strip and a deep-link to the corresponding page.
+ */
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import {
+  ChevronRight,
+  CreditCard,
+  RefreshCw,
+  Shield,
+  Store as StoreIcon,
+} from 'lucide-react';
+
 import { getPlatformStats } from '../api';
+import { Button } from '../components/ui/Button';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import QueryError from '../components/ui/QueryError';
-import { fmtUZSCompact, fmtTime } from '../lib/fmt';
-import { RefreshCw, ChevronRight, Store, Shield, CreditCard } from 'lucide-react';
+import { fmtTime, fmtUZSCompact } from '../lib/fmt';
+import { cn } from '@/lib/utils';
 
 interface StatRowProps {
   label: string;
   value: string | number;
-  kind?: 'default' | 'green' | 'red' | 'yellow';
+  tone?: 'default' | 'success' | 'danger' | 'warning';
 }
 
-function StatRow({ label, value, kind = 'default' }: StatRowProps) {
-  const color = { default: 'text-text', green: 'text-success', red: 'text-danger', yellow: 'text-warning' }[kind];
+function StatRow({ label, value, tone = 'default' }: StatRowProps) {
+  const color = {
+    default: 'text-text',
+    success: 'text-success',
+    danger: 'text-danger',
+    warning: 'text-warning',
+  }[tone];
   return (
-    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
-      <span className="text-sm text-text-dim">{label}</span>
-      <span className={`text-[17px] font-bold tracking-tight tabular-nums ${color}`}>{value}</span>
+    <div className="flex items-center justify-between border-b border-border py-2.5 last:border-0">
+      <span className="text-label text-text-dim">{label}</span>
+      <span className={cn('text-subhead font-bold tabular-nums tracking-tight', color)}>
+        {value}
+      </span>
     </div>
   );
 }
 
-interface SegmentInfo { color: string; label: string; count: number }
+interface SegmentInfo {
+  color: string;
+  label: string;
+  count: number;
+}
 
 function SegmentBar({ segments }: { segments: SegmentInfo[] }) {
   const total = segments.reduce((s, x) => s + x.count, 0);
   if (total === 0) return null;
   return (
     <div>
-      <div className="h-2 rounded-full overflow-hidden flex bg-bg2 mb-3">
-        {segments.map(s => s.count > 0 && (
-          <div
-            key={s.label}
-            style={{ flex: s.count }}
-            className={s.color}
-            title={`${s.label}: ${s.count}`}
-          />
-        ))}
+      <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-bg3">
+        {segments.map(
+          (s) =>
+            s.count > 0 && (
+              <div
+                key={s.label}
+                style={{ flex: s.count }}
+                className={s.color}
+                title={`${s.label}: ${s.count}`}
+              />
+            ),
+        )}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        {segments.map(s => (
-          <div key={s.label} className="flex items-center gap-1.5 text-xs">
-            <span className={`w-2.5 h-2.5 rounded-sm ${s.color} shrink-0`} />
+        {segments.map((s) => (
+          <div key={s.label} className="flex items-center gap-1.5 text-caption">
+            <span className={cn('size-2.5 shrink-0 rounded-sm', s.color)} aria-hidden />
             <span className="text-text-dim">{s.label}</span>
             <span className="font-bold tabular-nums text-text">{s.count}</span>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  to,
+  linkLabel,
+}: {
+  icon: typeof StoreIcon;
+  title: string;
+  to?: string;
+  linkLabel?: string;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Icon size={14} className="text-text-dim" aria-hidden />
+        <span className="text-hint font-semibold tracking-tight text-text-dim">{title}</span>
+      </div>
+      {to && linkLabel && (
+        <Link
+          to={to}
+          className="text-hint font-semibold text-accent transition-colors hover:text-accent-hover"
+        >
+          {linkLabel} →
+        </Link>
+      )}
     </div>
   );
 }
@@ -62,84 +118,115 @@ export default function Stats() {
   });
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6 fia">
+    <div className="flex flex-col gap-6 p-6 md:p-8">
+      {/* Header */}
+      <header className="fia flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('stats.title')}</h1>
+          <h1 className="text-title font-bold tracking-tight">{t('stats.title')}</h1>
           {dataUpdatedAt > 0 && (
-            <p className="text-xs text-text-muted mt-1">
-              {t('stats.updated_at', { time: fmtTime(new Date(dataUpdatedAt).toISOString()) })}
+            <p className="mt-1 text-caption text-text-muted">
+              {t('stats.updated_at', {
+                time: fmtTime(new Date(dataUpdatedAt).toISOString()),
+              })}
             </p>
           )}
         </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="flex items-center gap-1.5 text-xs text-accent hover:text-accent-hover disabled:opacity-50 font-semibold transition-colors cursor-pointer h-9 px-3 rounded-lg border border-border hover:border-accent"
-        >
-          <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw
+            size={13}
+            className={isFetching ? 'animate-spin' : ''}
+            aria-hidden
+          />
           {t('common.refresh')}
-        </button>
-      </div>
+        </Button>
+      </header>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       ) : isError ? (
-        <div className="bg-bg3 rounded-2xl border border-border">
+        <div className="card">
           <QueryError onRetry={() => refetch()} error={error} />
         </div>
       ) : !data ? null : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-bg3 rounded-2xl border border-border p-5 fia fia-1 md:col-span-2">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Store size={14} className="text-text-dim" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">{t('stats.section_shops')}</span>
-              </div>
-              <Link to="/shops" className="text-xs text-accent hover:text-accent-hover transition-colors font-semibold">
-                {t('stats.open_link')} →
-              </Link>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Shops — spans both columns on md+ */}
+          <section className="card fia fia-1 p-5 md:col-span-2">
+            <SectionHeader
+              icon={StoreIcon}
+              title={t('stats.section_shops')}
+              to="/shops"
+              linkLabel={t('stats.open_link')}
+            />
+            <div className="mb-4 text-display font-bold tabular-nums tracking-tight">
+              {data.shops_total}
             </div>
-            <div className="text-4xl font-bold tracking-tight tabular-nums mb-4">{data.shops_total}</div>
             <SegmentBar
               segments={[
                 { color: 'bg-success', label: t('stats.shops_paid'), count: data.shops_paid },
                 { color: 'bg-warning', label: t('stats.shops_trial'), count: data.shops_trial },
-                { color: 'bg-text-muted', label: t('stats.shops_frozen'), count: data.shops_frozen },
+                {
+                  color: 'bg-text-muted',
+                  label: t('stats.shops_frozen'),
+                  count: data.shops_frozen,
+                },
               ]}
             />
-          </div>
+          </section>
 
-          <div className="bg-bg3 rounded-2xl border border-border px-5 py-4 fia fia-2">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <CreditCard size={14} className="text-text-dim" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">{t('stats.section_nasiya')}</span>
-              </div>
-              <Link to="/debts" className="text-xs text-accent hover:text-accent-hover transition-colors font-semibold">
-                {t('stats.open_link')} →
-              </Link>
-            </div>
-            <StatRow label={t('stats.nasiya_active')} value={data.nasiya_active_count} kind="green" />
-            <StatRow label={t('stats.nasiya_overdue')} value={data.nasiya_overdue_count} kind={data.nasiya_overdue_count > 0 ? 'red' : 'default'} />
-            <StatRow label={t('stats.nasiya_debt')} value={fmtUZSCompact(data.nasiya_total_debt_uzs)} kind="yellow" />
-          </div>
+          {/* Installments */}
+          <section className="card fia fia-2 px-5 py-4">
+            <SectionHeader
+              icon={CreditCard}
+              title={t('stats.section_nasiya', 'Рассрочка')}
+              to="/debts"
+              linkLabel={t('stats.open_link')}
+            />
+            <StatRow
+              label={t('stats.nasiya_active')}
+              value={data.nasiya_active_count}
+              tone="success"
+            />
+            <StatRow
+              label={t('stats.nasiya_overdue')}
+              value={data.nasiya_overdue_count}
+              tone={data.nasiya_overdue_count > 0 ? 'danger' : 'default'}
+            />
+            <StatRow
+              label={t('stats.nasiya_debt')}
+              value={fmtUZSCompact(data.nasiya_total_debt_uzs)}
+              tone="warning"
+            />
+          </section>
 
-          <Link to="/log" className="group bg-bg3 rounded-2xl border border-border px-5 py-4 fia fia-3 hover:bg-bg2 transition-colors flex flex-col">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <Shield size={14} className="text-text-dim" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.6px] text-text-muted">{t('stats.section_security')}</span>
-              </div>
-              <ChevronRight size={14} className="text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-text" />
-            </div>
+          {/* Security */}
+          <Link
+            to="/log"
+            className="card fia fia-3 group flex flex-col px-5 py-4 transition-colors hover:bg-bg3"
+          >
+            <SectionHeader icon={Shield} title={t('stats.section_security')} />
             <StatRow
               label={t('stats.failed_today')}
               value={data.failed_attempts_today}
-              kind={data.failed_attempts_today > 10 ? 'red' : data.failed_attempts_today > 0 ? 'yellow' : 'green'}
+              tone={
+                data.failed_attempts_today > 10
+                  ? 'danger'
+                  : data.failed_attempts_today > 0
+                    ? 'warning'
+                    : 'success'
+              }
             />
+            <div className="mt-3 flex justify-end">
+              <ChevronRight
+                size={14}
+                className="text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-text"
+                aria-hidden
+              />
+            </div>
           </Link>
         </div>
       )}
