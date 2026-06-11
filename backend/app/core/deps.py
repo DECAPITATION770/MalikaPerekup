@@ -40,7 +40,17 @@ async def get_current_user_id(
     the full ``User`` row, depend on ``CurrentUser`` instead.
     """
     settings = get_settings()
+    # Defence in depth: the boot-time validator in `config.py` already
+    # refuses to construct a Settings() with bypass enabled in prod, so
+    # this branch can't be reached on a prod boot. Re-check anyway — a
+    # mutated singleton or a forgotten test fixture should never quietly
+    # return a fake user id under prod traffic.
     if settings.dev_auth_bypass and settings.dev_bypass_user_id_int is not None:
+        if settings.is_prod:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="auth bypass enabled in prod — refusing request",
+            )
         return settings.dev_bypass_user_id_int
 
     token = _extract_bearer(authorization)

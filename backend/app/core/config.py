@@ -8,8 +8,18 @@ discoverable, typed, and easy to mock in tests.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import PostgresDsn, RedisDsn
+from pydantic import PostgresDsn, RedisDsn, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Known-insecure JWT secrets that must never reach a prod deploy.
+# Extend if dev defaults proliferate; the validator rejects any of these.
+_DEV_JWT_SECRETS = {
+    "dev-jwt-secret-not-for-prod-please-rotate",
+    "dev-jwt-secret",
+    "changeme",
+    "secret",
+}
+_MIN_JWT_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
@@ -91,6 +101,45 @@ class Settings(BaseSettings):
             for part in self.bootstrap_admin_tg_ids.split(",")
             if part.strip().isdigit()
         ]
+
+    # ── Prod-safety guards ──────────────────────────────────────────────
+    # These run AFTER all fields are populated so we can cross-check
+    # `environment` against the values that should be tightened in prod.
+    # Kept in one method so the failure messages share style and a single
+    # raise short-circuits multiple problems with all of them surfaced.
+    @model_validator(mode="after")
+    def _enforce_prod_guards(self) -> "Settings":
+        if not self.is_prod:
+            return self
+        problems: list[str] = []
+
+        # JWT secret must not be a known dev placeholder, must be long enough.
+        if self.jwt_secret in _DEV_JWT_SECRETS:
+            problems.append(
+                "JWT_SECRET is a known dev placeholder; rotate before prod"
+            )
+        if len(self.jwt_secret) < _MIN_JWT_SECRET_LEN:
+            problems.append(
+                f"JWT_SECRET must be at least {_MIN_JWT_SECRET_LEN} chars in prod"
+            )
+
+        # Auth bypass is a dev-only convenience — never honour it in prod.
+        if self.dev_auth_bypass:
+            problems.append(
+                "DEV_AUTH_BYPASS is enabled while ENVIRONMENT=prod; refusing to start"
+            )
+
+        # SQL echo dumps bound parameters (including PII) to stdout. The
+        # `debug` flag controls it; both must be off in prod regardless.
+        if self.debug:
+            problems.append(
+                "DEBUG=true in prod logs SQL with bound parameters (PII risk)"
+            )
+
+        if problems:
+            joined = "\n - ".join(problems)
+            raise ValueError(f"Prod config rejected:\n - {joined}")
+        return self
 
 
 @lru_cache

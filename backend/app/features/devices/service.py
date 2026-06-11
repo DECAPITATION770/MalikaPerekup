@@ -71,9 +71,9 @@ async def get_or_404(db: AsyncSession, device_id: int, *, shop_id: int) -> Devic
 async def get_by_token_or_404(
     db: AsyncSession, qr_token: str, *, shop_id: int
 ) -> Device:
-    """Used by the QR scanner — looks up by token then verifies shop."""
-    device = await repo.get_by_token(db, qr_token)
-    if device is None or device.shop_id != shop_id:
+    """Used by the QR scanner — looks up by token scoped to the shop."""
+    device = await repo.get_by_token(db, qr_token, shop_id=shop_id)
+    if device is None:
         # Same 404 for "not in our shop" as for "does not exist" — do not
         # leak the existence of devices belonging to other shops.
         raise DeviceNotFound("device not found")

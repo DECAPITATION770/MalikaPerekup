@@ -21,6 +21,20 @@ from app.core.config import get_settings
 PRESIGNED_URL_TTL = timedelta(minutes=15)
 
 
+def _clamp_ttl(ttl: timedelta) -> timedelta:
+    """Clamp a caller-supplied TTL to the global ceiling.
+
+    CLAUDE.md §10 mandates ≤ 15 min for PII downloads. A caller asking for
+    a longer URL is either a bug or an attempt to widen the window; either
+    way we silently truncate rather than honour it. Negative / zero TTLs
+    fall through to the default so callers can't accidentally mint a URL
+    that's instantly expired.
+    """
+    if ttl <= timedelta(0):
+        return PRESIGNED_URL_TTL
+    return min(ttl, PRESIGNED_URL_TTL)
+
+
 @lru_cache
 def _client() -> Minio:
     """Singleton MinIO client used for server-side ops (upload/delete) —
@@ -84,11 +98,11 @@ def upload(key: str, data: bytes, content_type: str) -> str:
 
 
 def presigned_url(key: str, ttl: timedelta = PRESIGNED_URL_TTL) -> str:
-    """Return a temporary HTTPS URL that expires after ``ttl``."""
+    """Return a temporary HTTPS URL that expires after ``ttl`` (clamped)."""
     return _public_client().presigned_get_object(
         bucket_name=get_settings().s3_bucket,
         object_name=key,
-        expires=ttl,
+        expires=_clamp_ttl(ttl),
     )
 
 
@@ -101,11 +115,12 @@ def build_upload_key(shop_id: int, scope: str, filename: str) -> str:
 
 def presigned_put_url(key: str, ttl: timedelta = PRESIGNED_URL_TTL) -> str:
     """Return a temporary HTTPS URL that the Mini App PUTs the file to —
-    the file never traverses the API server (offload to MinIO/R2)."""
+    the file never traverses the API server (offload to MinIO/R2). The
+    TTL is clamped to PRESIGNED_URL_TTL even if the caller asks for more."""
     return _public_client().presigned_put_object(
         bucket_name=get_settings().s3_bucket,
         object_name=key,
-        expires=ttl,
+        expires=_clamp_ttl(ttl),
     )
 
 

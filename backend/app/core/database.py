@@ -20,9 +20,12 @@ _settings = get_settings()
 
 # ``pool_pre_ping`` checks the connection is alive before handing it out —
 # avoids stale-connection errors when PostgreSQL closes idle sockets.
+# `echo` dumps every SQL statement WITH bound parameters to stdout — that
+# includes PII (phones, doc numbers). Force it off in prod regardless of
+# DEBUG so the env-var setting can't silently leak data.
 engine = create_async_engine(
     str(_settings.database_url),
-    echo=_settings.debug,
+    echo=False if _settings.is_prod else _settings.debug,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.dates import today_tashkent
 from app.common.pagination import Page, PageParams
+from app.common.ratelimit import login_rate_limit
 from app.core.deps import DbSession
 from app.features.admin import repository as admin_repo
 from app.features.admin import service
@@ -95,7 +96,19 @@ async def _shop_admin_out(db: AsyncSession, shop: Shop) -> ShopAdminOut:
 # ─── Auth ──────────────────────────────────────────────────────────────
 
 
-@router.post("/auth/telegram", response_model=AdminTokenResponse)
+_admin_login_throttle = login_rate_limit(
+    "admin.login", per_ip_limit=5, per_ip_window=60
+)
+_admin_tg_throttle = login_rate_limit(
+    "admin.telegram", per_ip_limit=15, per_ip_window=60
+)
+
+
+@router.post(
+    "/auth/telegram",
+    response_model=AdminTokenResponse,
+    dependencies=[Depends(_admin_tg_throttle)],
+)
 async def login_via_telegram(
     payload: AdminTelegramAuth, db: DbSession
 ) -> AdminTokenResponse:
@@ -108,7 +121,11 @@ async def login_via_telegram(
     return AdminTokenResponse(access_token=token, user_id=admin.id)
 
 
-@router.post("/auth/login", response_model=AdminTokenResponse)
+@router.post(
+    "/auth/login",
+    response_model=AdminTokenResponse,
+    dependencies=[Depends(_admin_login_throttle)],
+)
 async def login_via_password(
     payload: AdminLoginRequest, db: DbSession
 ) -> AdminTokenResponse:

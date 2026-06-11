@@ -1,7 +1,8 @@
 """HTTP endpoints for authentication."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.common.ratelimit import login_rate_limit
 from app.core.deps import CurrentUserId, DbSession
 from app.features.auth import repository as user_repo
 from app.features.auth import service
@@ -16,6 +17,11 @@ from app.features.auth.schemas import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Tighter limit on password login (lower legitimate volume + higher
+# brute-force risk) than on Telegram (verified by HMAC up front).
+_login_throttle = login_rate_limit("auth.login", per_ip_limit=10, per_ip_window=60)
+_telegram_throttle = login_rate_limit("auth.telegram", per_ip_limit=30, per_ip_window=60)
+
 
 def _user_out(user: User) -> UserOut:
     return UserOut(
@@ -28,7 +34,11 @@ def _user_out(user: User) -> UserOut:
     )
 
 
-@router.post("/telegram", response_model=TokenResponse)
+@router.post(
+    "/telegram",
+    response_model=TokenResponse,
+    dependencies=[Depends(_telegram_throttle)],
+)
 async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenResponse:
     """Mini App auth: send ``initData``, receive a JWT.
 
@@ -42,7 +52,11 @@ async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenRe
     return TokenResponse(access_token=token, user_id=user.id)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(_login_throttle)],
+)
 async def login_via_password(req: LoginRequest, db: DbSession) -> TokenResponse:
     """Fallback auth used when Telegram is unavailable."""
     try:

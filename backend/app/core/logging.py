@@ -148,3 +148,31 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
 
 #: Module-level convenience: ``from app.core.logging import logger``.
 logger = get_logger("malika")
+
+
+# ── Request-id contextvar bridge ────────────────────────────────────────
+# `structlog.contextvars.merge_contextvars` is already in the processor
+# pipeline, so anything bound here is auto-attached to every log line
+# emitted on the same task. The wrapper returns a small object whose
+# `.reset()` unbinds the key so middleware can clean up after the
+# response.
+
+
+class _RequestIDToken:
+    """Tiny RAII handle returned by `bind_request_id` — calling `reset()`
+    unbinds the key from the structlog contextvars so it doesn't leak
+    into other tasks reusing the same async context."""
+
+    __slots__ = ("_keys",)
+
+    def __init__(self, keys: tuple[str, ...]) -> None:
+        self._keys = keys
+
+    def reset(self) -> None:
+        structlog.contextvars.unbind_contextvars(*self._keys)
+
+
+def bind_request_id(request_id: str) -> _RequestIDToken:
+    """Stamp the current async context with `request_id=<id>` for logs."""
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+    return _RequestIDToken(("request_id",))

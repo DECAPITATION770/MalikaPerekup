@@ -18,7 +18,11 @@ from urllib.parse import parse_qsl
 from app.core.config import get_settings
 
 # initData older than this is rejected — protects against replay if a token leaks.
-INIT_DATA_TTL_SECONDS = 24 * 3600
+# Telegram's own recommendation is "as short as you can tolerate"; one hour
+# matches what BotFather examples use and gives the Mini App plenty of
+# time to negotiate auth across a flaky connection without leaving a
+# multi-day replay window open.
+INIT_DATA_TTL_SECONDS = 3600
 
 
 class InvalidInitData(Exception):

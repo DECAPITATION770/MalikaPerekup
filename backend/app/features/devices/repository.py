@@ -22,9 +22,19 @@ async def get_by_id(db: AsyncSession, device_id: int, *, shop_id: int) -> Device
     return result.scalar_one_or_none()
 
 
-async def get_by_token(db: AsyncSession, qr_token: str) -> Device | None:
-    """Look up by QR token only — caller must verify shop ownership."""
-    result = await db.execute(select(Device).where(Device.qr_token == qr_token))
+async def get_by_token(
+    db: AsyncSession, qr_token: str, *, shop_id: int
+) -> Device | None:
+    """Look up by QR token, scoped to one shop.
+
+    Defense in depth — the service layer already raises 404 on a
+    cross-shop hit, but filtering here too means a misused repo call
+    can never silently return another shop's row. CLAUDE.md §6
+    (multi-tenant invariant) wants every query scoped at the lowest
+    layer that knows about the entity."""
+    result = await db.execute(
+        select(Device).where(Device.qr_token == qr_token, Device.shop_id == shop_id)
+    )
     return result.scalar_one_or_none()
 
 

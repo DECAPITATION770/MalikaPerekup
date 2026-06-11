@@ -12,7 +12,6 @@ value with ``stale=True`` instead of disappearing. When both sources are
 empty the hint is ``{null, null}`` and the form shows no suggestions.
 """
 
-import logging
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -20,10 +19,9 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.dates import today_tashkent
+from app.core.logging import logger
 from app.features.exchange import repository as repo
 from app.features.exchange.schemas import ExchangeRateHint, RateSource
-
-logger = logging.getLogger(__name__)
 
 CBU_USD_URL = "https://cbu.uz/oz/arkhiv-kursov-valyut/json/USD/"
 _FETCH_TIMEOUT = httpx.Timeout(10.0)
@@ -86,7 +84,10 @@ async def refresh_cbu_rate(db: AsyncSession) -> None:
     try:
         rate_date, usd_rate = await fetch_cbu_usd_rate()
     except (httpx.HTTPError, CbuParseError) as exc:
-        logger.warning("CBU rate refresh failed: %s", exc)
+        # Keyed structlog call routes through the PII-scrubbing processor;
+        # the %-style version bypassed it because the message was already
+        # formatted by the stdlib logger.
+        logger.warning("cbu.refresh_failed", error=str(exc), error_type=type(exc).__name__)
         return
     await repo.upsert_cbu_rate(db, rate_date=rate_date, usd_rate=usd_rate)
 

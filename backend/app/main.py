@@ -6,15 +6,18 @@ ever extracted into its own process, only this file changes.
 """
 
 import asyncio
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.common.storage import ensure_bucket
 from app.core.config import get_settings
 from app.core.database import SessionFactory
-from app.core.logging import configure_logging, logger
+from app.core.logging import bind_request_id, configure_logging, logger
 from app.core.metrics import setup_metrics
 from app.core.sentry import init_sentry
 from app.features.admin import service as admin_service
@@ -134,7 +137,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Malika Perekup API",
     version="0.1.0",
+    # OpenAPI schema and Swagger UI are exposed in dev only. In prod we don't
+    # publish the schema — there's no public API consumer outside the Mini App
+    # bundle, and an enumerable schema is a recon convenience for attackers.
     docs_url="/docs" if not settings.is_prod else None,
+    openapi_url="/openapi.json" if not settings.is_prod else None,
     redoc_url=None,
     lifespan=lifespan,
     # Routes are declared without a trailing slash; a stray "/" from an
@@ -147,15 +154,63 @@ app = FastAPI(
 # so the instrumentator sees them.
 setup_metrics(app)
 
-# CORS is wide open for now because the Mini App is served from a separate
-# origin (BOT_WEBAPP_URL) inside Telegram WebView. Tighten in stage 12.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+# ─── Request ID middleware ─────────────────────────────────────────────
+# Stamps every request with a request id (echoed back in `X-Request-ID`)
+# and binds it into structlog's contextvars so every log line during the
+# request carries it without callers having to thread it through.
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        rid = request.headers.get("x-request-id") or uuid.uuid4().hex
+        token = bind_request_id(rid)
+        try:
+            response = await call_next(request)
+        finally:
+            token.reset()
+        response.headers["X-Request-ID"] = rid
+        return response
+
+
+app.add_middleware(RequestIDMiddleware)
+
+
+# ─── CORS ──────────────────────────────────────────────────────────────
+# Allowed origins:
+#   • Mini App (Telegram WebView) — `settings.bot_webapp_url`
+#   • Admin panel — same-origin in prod; localhost ports in dev
+# `allow_credentials=True` requires an explicit origin list (browsers
+# refuse `*` + credentials per CORS spec). In dev we keep localhost ports
+# permissive so vite + ngrok previews work without per-host fiddling.
+def _cors_origins() -> list[str]:
+    if settings.is_prod:
+        # Only the production Mini App URL. Admin and API ride the same
+        # origin behind the reverse proxy in prod, so they don't need CORS.
+        return [settings.bot_webapp_url] if settings.bot_webapp_url else []
+    return ["*"]
+
+
+_cors_kwargs: dict = {
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.is_prod:
+    _cors_kwargs.update(
+        allow_origins=_cors_origins(),
+        allow_credentials=True,
+        # ngrok-style preview hosts (dev). In prod we list one origin, so
+        # the regex stays empty — the explicit list wins.
+        allow_origin_regex=None,
+    )
+else:
+    # Dev: cannot mix `*` with `allow_credentials=True` (browser rejects).
+    # JWT is sent via Authorization header, not cookies, so credentials are
+    # not needed. Set to False so wildcard origins keep working in dev.
+    _cors_kwargs.update(
+        allow_origins=["*"],
+        allow_credentials=False,
+    )
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
 # ─── Routers ──────────────────────────────────────────────────────────
@@ -177,3 +232,44 @@ async def health() -> dict[str, str]:
     """Liveness probe used by Docker and the reverse proxy."""
     logger.debug("health.ping")
     return {"status": "ok"}
+
+
+@app.get("/ready", tags=["system"])
+async def ready() -> dict[str, object]:
+    """Readiness probe — verifies that the dependencies the API actually
+    talks to (Postgres + object storage) are reachable. A 503 here tells
+    the reverse proxy to stop routing traffic to this instance until the
+    underlying issue clears."""
+    from fastapi import HTTPException, status as http_status
+
+    checks: dict[str, str] = {}
+    overall_ok = True
+
+    # DB: cheap `SELECT 1` round trip on a fresh session.
+    try:
+        async with SessionFactory() as db:
+            await db.execute(text("SELECT 1"))
+        checks["db"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        checks["db"] = f"error: {type(exc).__name__}"
+        overall_ok = False
+
+    # S3 / MinIO: bucket-exists is the closest thing to a ping that the
+    # MinIO SDK exposes synchronously without listing objects.
+    try:
+        from app.common import storage
+
+        client = storage._client()  # noqa: SLF001 — readiness uses internal client
+        client.bucket_exists(settings.s3_bucket)
+        checks["storage"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        checks["storage"] = f"error: {type(exc).__name__}"
+        overall_ok = False
+
+    payload = {"status": "ok" if overall_ok else "degraded", "checks": checks}
+    if not overall_ok:
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=payload,
+        )
+    return payload
