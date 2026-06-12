@@ -96,6 +96,8 @@ class OwnerOut(BaseModel):
     last_login_at: datetime | None
     last_login_source: str | None
     created_at: datetime
+    is_blocked: bool
+    blocked_at: datetime | None
 
 
 class ShopAdminOut(BaseModel):

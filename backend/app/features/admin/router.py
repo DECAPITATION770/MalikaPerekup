@@ -73,6 +73,8 @@ def _owner_out(user: User) -> OwnerOut:
             "last_login_at": user.last_login_at,
             "last_login_source": user.last_login_source,
             "created_at": user.created_at,
+            "is_blocked": user.is_blocked,
+            "blocked_at": user.blocked_at,
         }
     )
 
@@ -281,6 +283,24 @@ async def unfreeze_shop(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "shop not found")
     await service.unfreeze_shop(shop)
     return await _shop_admin_out(db, shop)
+
+
+@router.post("/users/{user_id}/block", response_model=OwnerOut)
+async def block_user(user_id: int, admin: CurrentAdmin, db: DbSession) -> OwnerOut:
+    user = await user_repo.get_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
+    await service.block_user(user)
+    return _owner_out(user)
+
+
+@router.post("/users/{user_id}/unblock", response_model=OwnerOut)
+async def unblock_user(user_id: int, admin: CurrentAdmin, db: DbSession) -> OwnerOut:
+    user = await user_repo.get_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
+    await service.unblock_user(user)
+    return _owner_out(user)
 
 
 @router.post("/shops/{shop_id}/owner/credentials", response_model=OwnerOut)

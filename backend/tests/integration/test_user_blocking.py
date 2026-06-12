@@ -108,3 +108,23 @@ async def test_login_via_telegram_blocked(db):
 
     with pytest.raises(service.UserBlockedError):
         await service.login_via_telegram(db, _signed_init_data(700010))
+
+
+@pytest.mark.asyncio
+async def test_admin_block_unblock(admin_client, db):
+    user = User(full_name="Target", tg_id=700020)
+    db.add(user)
+    await db.commit()
+
+    r = await admin_client.post(f"/api/v1/admin/users/{user.id}/block")
+    assert r.status_code == 200
+    assert r.json()["is_blocked"] is True
+    assert r.json()["blocked_at"] is not None
+
+    r2 = await admin_client.post(f"/api/v1/admin/users/{user.id}/unblock")
+    assert r2.status_code == 200
+    assert r2.json()["is_blocked"] is False
+    assert r2.json()["blocked_at"] is None
+
+    r3 = await admin_client.post("/api/v1/admin/users/999999/block")
+    assert r3.status_code == 404
