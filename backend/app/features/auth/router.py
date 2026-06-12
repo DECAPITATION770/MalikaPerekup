@@ -1,9 +1,10 @@
 """HTTP endpoints for authentication."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 from app.common.ratelimit import enforce_account_limit, login_rate_limit
 from app.core.deps import CurrentUserId, DbSession
+from app.features.auth import avatars
 from app.features.auth import repository as user_repo
 from app.features.auth import service
 from app.features.auth.models import User
@@ -43,7 +44,12 @@ def _user_out(user: User) -> UserOut:
     response_model=TokenResponse,
     dependencies=[Depends(_telegram_throttle)],
 )
-async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenResponse:
+async def login_via_telegram(
+    req: TelegramAuthRequest,
+    db: DbSession,
+    request: Request,
+    background_tasks: BackgroundTasks,
+) -> TokenResponse:
     """Mini App auth: send ``initData``, receive a JWT.
 
     Creates the user on first call and refreshes their Telegram username
@@ -57,6 +63,11 @@ async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenRe
         ) from exc
     except service.AuthError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+
+    # Best-effort: cache the user's Telegram avatar for the admin Users view.
+    bot = getattr(request.app.state, "bot", None)
+    if bot is not None:
+        background_tasks.add_task(avatars.refresh_avatar_bg, user.id, bot)
     return TokenResponse(access_token=token, user_id=user.id)
 
 
