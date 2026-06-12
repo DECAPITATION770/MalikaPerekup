@@ -28,6 +28,8 @@ export interface OwnerOut {
   created_at: string;
   is_blocked: boolean;
   blocked_at: string | null;
+  avatar_url: string | null;
+  client_status: string;
 }
 
 export interface ShopStats {

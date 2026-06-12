@@ -38,6 +38,14 @@ const SOURCE_ICONS: Record<string, { Icon: typeof Send; color: string }> = {
   admin: { Icon: Shield, color: 'text-success' },
 };
 
+const STATUS_CLS: Record<string, string> = {
+  client: 'bg-success/15 text-success',
+  trial: 'bg-accent/15 text-accent',
+  expired: 'bg-warning/15 text-warning',
+  frozen: 'bg-danger-faded text-danger',
+  no_shop: 'bg-bg3 text-text-muted',
+};
+
 export default function Users() {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
@@ -142,13 +150,22 @@ export default function Users() {
                     className="grid grid-cols-[1fr_1fr_1fr_140px_120px] items-center gap-3 px-5 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-faded text-caption font-bold uppercase text-accent">
-                        {u.full_name
-                          .split(' ')
-                          .slice(0, 2)
-                          .map((w) => w[0])
-                          .join('')}
-                      </div>
+                      {u.avatar_url ? (
+                        <img
+                          src={u.avatar_url}
+                          alt=""
+                          loading="lazy"
+                          className="h-9 w-9 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-faded text-caption font-bold uppercase text-accent">
+                          {u.full_name
+                            .split(' ')
+                            .slice(0, 2)
+                            .map((w) => w[0])
+                            .join('')}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <div className="truncate text-label font-semibold">
                           {u.full_name}
@@ -163,7 +180,14 @@ export default function Users() {
                     </div>
                     <div className="min-w-0 text-label">
                       {u.tg_username ? (
-                        <span className="block truncate text-accent">@{u.tg_username}</span>
+                        <a
+                          href={`https://t.me/${u.tg_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate text-accent hover:underline"
+                        >
+                          @{u.tg_username}
+                        </a>
                       ) : u.tg_id ? (
                         <span className="font-mono text-text-dim">{u.tg_id}</span>
                       ) : (
@@ -179,6 +203,14 @@ export default function Users() {
                       <span className="truncate">{fmtRelative(u.last_login_at)}</span>
                     </div>
                     <div className="flex items-center justify-end gap-2">
+                      <span
+                        className={cn(
+                          'rounded px-1.5 py-0.5 text-micro font-semibold',
+                          STATUS_CLS[u.client_status] ?? STATUS_CLS.no_shop,
+                        )}
+                      >
+                        {t(`users.status_${u.client_status}`)}
+                      </span>
                       {u.is_blocked && (
                         <span className="rounded bg-danger-faded px-1.5 py-0.5 text-micro font-semibold text-danger">
                           {t('users.blocked_badge')}
