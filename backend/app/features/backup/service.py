@@ -150,3 +150,73 @@ async def restore_backup(
             str(work / "database.dump"),
         )
         storage_ops.upload_all(work / "objects")
+
+
+def split_file(
+    path: Path, *, part_size_mb: int, backup_id: int, stamp: str
+) -> list[str]:
+    part_size = part_size_mb * 1024 * 1024
+    parts: list[str] = []
+    with open(path, "rb") as src:
+        idx = 1
+        while True:
+            chunk = src.read(part_size)
+            if not chunk:
+                break
+            name = f"malika-backup-{backup_id}-{stamp}.part{idx:02d}"
+            part_path = path.parent / name
+            part_path.write_bytes(chunk)
+            parts.append(str(part_path))
+            idx += 1
+    return parts
+
+
+async def deliver_to_tg(db: AsyncSession, run: BackupRun, bot) -> None:
+    """Отправить бэкап в Telegram по настройкам config. ``bot`` — aiogram.Bot."""
+    from aiogram.types import FSInputFile
+
+    from app.features.backup.models import TgDeliveryMode
+
+    cfg = await repo.get_or_create_config(db)
+    if not cfg.tg_chat_id or not run.filename:
+        return
+    settings = get_settings()
+    archive = Path(settings.backup_dir) / run.filename
+    stamp = run.created_at.strftime("%Y%m%d-%H%M%S")
+    limit_bytes = cfg.tg_part_size_mb * 1024 * 1024
+
+    mode = cfg.tg_delivery_mode
+    if mode == TgDeliveryMode.full_if_fits and (run.size_bytes or 0) > limit_bytes:
+        mode = TgDeliveryMode.db_only  # graceful fallback
+
+    if mode == TgDeliveryMode.split:
+        parts = split_file(
+            archive, part_size_mb=cfg.tg_part_size_mb,
+            backup_id=run.id, stamp=stamp,
+        )
+        try:
+            for i, p in enumerate(parts, 1):
+                await bot.send_document(
+                    cfg.tg_chat_id, FSInputFile(p),
+                    caption=f"Бэкап #{run.id} · {stamp} · часть {i}/{len(parts)}",
+                )
+        finally:
+            for p in parts:
+                Path(p).unlink(missing_ok=True)
+    elif mode == TgDeliveryMode.db_only:
+        with tempfile.TemporaryDirectory() as tmp:
+            with tarfile.open(archive, "r:gz") as tar:
+                tar.extract("database.dump", tmp, filter="data")
+            await bot.send_document(
+                cfg.tg_chat_id, FSInputFile(Path(tmp) / "database.dump"),
+                caption=f"Бэкап #{run.id} · {stamp} · только БД "
+                        f"(полный архив — в админке)",
+            )
+    else:  # full_if_fits и влезает
+        await bot.send_document(
+            cfg.tg_chat_id, FSInputFile(str(archive)),
+            caption=f"Бэкап #{run.id} · {stamp}",
+        )
+
+    run.sent_to_tg = True
+    await db.commit()
