@@ -67,10 +67,16 @@ from app.features.admin.models import (  # noqa: F401, E402
     PlatformAdmin,
 )
 from app.features.exchange.models import CbuRateCache  # noqa: F401, E402
+from app.features.backup.models import (  # noqa: F401, E402
+    BackupConfig,
+    BackupRun,
+)
 
 
 # Tables in dependency order (children first), used by the per-test cleanup.
 _TABLES_TO_TRUNCATE = (
+    "backup_runs",
+    "backup_config",
     "cbu_rate_cache",
     "notifications",
     "access_attempts",
