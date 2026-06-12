@@ -77,3 +77,9 @@ export const getUsers = (params: UsersParams = {}) =>
 
 export const getUser = (id: number) =>
   api.get<OwnerOut>(`/users/${id}`).then(r => r.data);
+
+export const blockUser = (id: number) =>
+  api.post<OwnerOut>(`/users/${id}/block`).then(r => r.data);
+
+export const unblockUser = (id: number) =>
+  api.post<OwnerOut>(`/users/${id}/unblock`).then(r => r.data);

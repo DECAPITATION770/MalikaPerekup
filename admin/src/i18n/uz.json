@@ -19,7 +19,15 @@
     "col_last_login": "So'nggi kirish",
     "no_shop": "Do'konsiz",
     "orphan_filter": "Faqat do'konsiz",
-    "empty": "Foydalanuvchilar topilmadi"
+    "empty": "Foydalanuvchilar topilmadi",
+    "col_status": "Holat",
+    "blocked_badge": "Bloklangan",
+    "block": "Telegram-kirishni bloklash",
+    "unblock": "Blokdan chiqarish",
+    "block_confirm": "Bu foydalanuvchi uchun Telegram orqali kirishni bloklaymizmi? Login/parol orqali kirish ishlashda davom etadi.",
+    "blocked": "Foydalanuvchi bloklandi",
+    "unblocked": "Foydalanuvchi blokdan chiqarildi",
+    "block_error": "Blok holatini o'zgartirib bo'lmadi"
   },
   "login": {
     "title": "Malika Admin",

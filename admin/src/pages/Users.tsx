@@ -4,20 +4,23 @@
  * Telegram handle, and the source of the last login.
  */
 import { useState } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
+  Ban,
   Bot,
   HelpCircle,
   Lock,
   Search,
   Send,
   Shield,
+  ShieldCheck,
   Users as UsersIcon,
   X,
 } from 'lucide-react';
 
-import { getUsers } from '../api';
+import { getUsers, blockUser, unblockUser } from '../api';
 import Pagination from '../components/ui/Pagination';
 import { TableRowSkeleton } from '../components/ui/Skeleton';
 import QueryError from '../components/ui/QueryError';
@@ -46,6 +49,24 @@ export default function Users() {
     queryKey: ['users', { q: debouncedQ, offset }],
     queryFn: () => getUsers({ q: debouncedQ || undefined, limit: LIMIT, offset }),
     placeholderData: keepPreviousData,
+  });
+
+  const qc = useQueryClient();
+  const blockMut = useMutation({
+    mutationFn: (id: number) => blockUser(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      toast.success(t('users.blocked'));
+    },
+    onError: () => toast.error(t('users.block_error')),
+  });
+  const unblockMut = useMutation({
+    mutationFn: (id: number) => unblockUser(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      toast.success(t('users.unblocked'));
+    },
+    onError: () => toast.error(t('users.block_error')),
   });
 
   return (
@@ -100,11 +121,12 @@ export default function Users() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[1fr_1fr_1fr_140px] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">
+            <div className="grid grid-cols-[1fr_1fr_1fr_140px_120px] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">
               <span>{t('users.col_user')}</span>
               <span>{t('users.col_contact')}</span>
               <span>Telegram</span>
               <span>{t('users.col_last_login')}</span>
+              <span className="text-right">{t('users.col_status')}</span>
             </div>
             <div
               className={cn(
@@ -117,7 +139,7 @@ export default function Users() {
                 return (
                   <div
                     key={u.id}
-                    className="grid grid-cols-[1fr_1fr_1fr_140px] items-center gap-3 px-5 py-3"
+                    className="grid grid-cols-[1fr_1fr_1fr_140px_120px] items-center gap-3 px-5 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-faded text-caption font-bold uppercase text-accent">
@@ -155,6 +177,40 @@ export default function Users() {
                         <HelpCircle size={12} className="text-text-muted" aria-hidden />
                       ) : null}
                       <span className="truncate">{fmtRelative(u.last_login_at)}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      {u.is_blocked && (
+                        <span className="rounded bg-danger-faded px-1.5 py-0.5 text-micro font-semibold text-danger">
+                          {t('users.blocked_badge')}
+                        </span>
+                      )}
+                      {u.is_blocked ? (
+                        <button
+                          type="button"
+                          title={t('users.unblock')}
+                          aria-label={t('users.unblock')}
+                          className="shrink-0 cursor-pointer text-text-dim hover:text-success disabled:opacity-40"
+                          disabled={unblockMut.isPending}
+                          onClick={() => unblockMut.mutate(u.id)}
+                        >
+                          <ShieldCheck size={16} aria-hidden />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          title={t('users.block')}
+                          aria-label={t('users.block')}
+                          className="shrink-0 cursor-pointer text-text-dim hover:text-danger disabled:opacity-40"
+                          disabled={blockMut.isPending}
+                          onClick={() => {
+                            if (window.confirm(t('users.block_confirm'))) {
+                              blockMut.mutate(u.id);
+                            }
+                          }}
+                        >
+                          <Ban size={16} aria-hidden />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
