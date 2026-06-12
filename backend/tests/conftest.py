@@ -157,3 +157,41 @@ async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def admin_client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
+    """ASGI client carrying a valid platform-admin JWT.
+
+    Creates a PlatformAdmin row (committed, so the app's own session sees it),
+    mints an admin token, and attaches it as a Bearer header. Cleans up the
+    row afterwards since tests using this fixture don't depend on ``db`` (whose
+    teardown is what normally truncates).
+    """
+    from app.features.admin.auth import create_admin_token
+    from app.features.admin.models import PlatformAdmin
+    from app.main import app
+
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    async with factory() as session:
+        admin = PlatformAdmin(tg_id=990001, full_name="Test Admin")
+        session.add(admin)
+        await session.commit()
+        token = create_admin_token(admin.id)
+
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {token}"},
+        ) as ac:
+            yield ac
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "TRUNCATE TABLE backup_runs, backup_config, platform_admins "
+                    "RESTART IDENTITY CASCADE"
+                )
+            )

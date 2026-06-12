@@ -25,6 +25,7 @@ from app.features.exchange import service as exchange_service
 from app.features.admin.router import router as admin_router
 from app.features.attachments.router import router as attachments_router
 from app.features.auth.router import router as auth_router
+from app.features.backup.router import router as backup_router
 from app.features.catalog.router import router as catalog_router
 from app.features.counterparties.router import router as counterparties_router
 from app.features.devices.router import router as devices_router
@@ -225,6 +226,7 @@ app.include_router(sales_router, prefix="/api/v1")
 app.include_router(installments_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(attachments_router, prefix="/api/v1")
+app.include_router(backup_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["system"])
