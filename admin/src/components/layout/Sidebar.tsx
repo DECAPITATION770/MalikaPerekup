@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   CreditCard,
   BarChart3,
+  DatabaseBackup,
   LogOut,
   Globe,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ const NAV = [
   { to: '/log',   icon: ShieldAlert,     key: 'nav.auth_log' },
   { to: '/debts', icon: CreditCard,      key: 'nav.debts' },
   { to: '/stats', icon: BarChart3,       key: 'nav.stats' },
+  { to: '/backup', icon: DatabaseBackup, key: 'nav.backup' },
 ] as const;
 
 function nextLang(current: string): 'ru' | 'uz' {

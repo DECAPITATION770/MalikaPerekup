@@ -25,6 +25,7 @@ from app.features.exchange import service as exchange_service
 from app.features.admin.router import router as admin_router
 from app.features.attachments.router import router as attachments_router
 from app.features.auth.router import router as auth_router
+from app.features.backup.router import router as backup_router
 from app.features.catalog.router import router as catalog_router
 from app.features.counterparties.router import router as counterparties_router
 from app.features.devices.router import router as devices_router
@@ -114,6 +115,21 @@ async def lifespan(app: FastAPI):
         dispatcher.start_polling(bot, handle_signals=False)
     )
     scheduler.start()
+
+    # Backup system: expose bot/scheduler on app.state (used by the backup
+    # router for "send to Telegram" and runtime rescheduling), then install
+    # the configured backup job.
+    app.state.bot = bot
+    app.state.scheduler = scheduler
+
+    from bot.scheduler import apply_backup_schedule, set_backup_bot
+    from app.features.backup import repository as backup_repo
+
+    set_backup_bot(bot)
+    async with SessionFactory() as _db:
+        _backup_cfg = await backup_repo.get_or_create_config(_db)
+        await _db.commit()
+    apply_backup_schedule(scheduler, _backup_cfg)
 
     async def _startup_cbu_refresh() -> None:
         try:
@@ -225,6 +241,7 @@ app.include_router(sales_router, prefix="/api/v1")
 app.include_router(installments_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(attachments_router, prefix="/api/v1")
+app.include_router(backup_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["system"])

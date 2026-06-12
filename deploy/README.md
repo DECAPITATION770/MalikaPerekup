@@ -142,13 +142,24 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod up 
 # migrations run automatically via the `migrate` service before backend starts
 ```
 
-**Backups** (Postgres holds all business data; object storage holds PII files)
+**Backups** — the app ships an integrated backup system (DB dump + all object
+storage files + manifest, one `.tar.gz`). Configure schedule, retention and
+Telegram delivery in the admin panel → **Backup**, or run it on demand:
 ```bash
-# DB dump (cron, daily, off-site)
-docker compose -f deploy/docker-compose.prod.yml exec -T postgres \
-  pg_dump -U malika malika | gzip > malika-$(date +%F).sql.gz
+docker compose -f deploy/docker-compose.prod.yml exec backend \
+  python -m scripts.backup
+# restore (DESTRUCTIVE — overwrites DB and bucket):
+docker compose -f deploy/docker-compose.prod.yml exec backend \
+  python -m scripts.restore /backups/<archive>.tar.gz --yes
 ```
-For R2, enable bucket versioning / lifecycle in the Cloudflare dashboard.
+Archives live in the `backup_data` volume mounted at `/backups`. The backend
+image bundles `pg_dump`/`pg_restore` 16. **Copy the `backup_data` volume
+off-site** (the archives contain PII) — e.g. periodically:
+```bash
+docker run --rm -v malika_backup_data:/b -v "$PWD":/out alpine \
+  tar czf /out/backups-$(date +%F).tar.gz -C /b .
+```
+For R2, also enable bucket versioning / lifecycle in the Cloudflare dashboard.
 
 **Logs**: `docker compose -f deploy/docker-compose.prod.yml logs -f <service>`
 **Restart one service**: `... restart backend`

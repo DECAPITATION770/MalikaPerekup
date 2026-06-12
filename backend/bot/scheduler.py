@@ -214,3 +214,53 @@ def build_scheduler() -> AsyncIOScheduler:
         coalesce=True,
     )
     return scheduler
+
+
+# ─── Backup job ─────────────────────────────────────────────────────────
+#
+# The backup schedule is dynamic: the admin configures it at runtime, so we
+# add/replace/remove the "backup" job via ``apply_backup_schedule`` rather
+# than baking it into ``build_scheduler``. The bot reference is set once from
+# the FastAPI lifespan so the job can auto-send the archive to Telegram.
+
+_backup_bot = None
+
+
+def set_backup_bot(bot) -> None:
+    global _backup_bot
+    _backup_bot = bot
+
+
+async def _run_scheduled_backup() -> None:
+    from app.features.backup import repository as backup_repo
+    from app.features.backup import service as backup_service
+    from app.features.backup.models import BackupTrigger
+
+    async with SessionFactory() as db:
+        run = await backup_service.create_backup(db, trigger=BackupTrigger.auto)
+        cfg = await backup_repo.get_or_create_config(db)
+        if cfg.tg_auto_send and _backup_bot is not None:
+            await backup_service.deliver_to_tg(db, run, _backup_bot)
+
+
+def apply_backup_schedule(scheduler, cfg) -> None:
+    """Добавить/перенастроить/снять job 'backup' по конфигу."""
+    from app.features.backup.models import BackupFrequency
+
+    if scheduler.get_job("backup"):
+        scheduler.remove_job("backup")
+    if not cfg.enabled or cfg.frequency == BackupFrequency.off:
+        return
+    if cfg.frequency == BackupFrequency.daily and cfg.daily_time:
+        trigger = CronTrigger(
+            hour=cfg.daily_time.hour, minute=cfg.daily_time.minute,
+            timezone=TASHKENT,
+        )
+    elif cfg.frequency == BackupFrequency.interval and cfg.interval_hours:
+        trigger = IntervalTrigger(hours=cfg.interval_hours)
+    else:
+        return
+    scheduler.add_job(
+        _run_scheduled_backup, trigger=trigger, id="backup",
+        max_instances=1, coalesce=True,
+    )

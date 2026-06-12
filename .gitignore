@@ -269,6 +269,10 @@ __marimo__/
 !admin/src/lib/**
 
 
+# Backup archives (live in the backup_data volume, never in git)
+/backups/
+backups/
+
 .superpowers/
 
 # ── Local-only audit & dev artifacts (CLAUDE sessions, audit notes, ad-hoc previews) ──

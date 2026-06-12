@@ -67,10 +67,16 @@ from app.features.admin.models import (  # noqa: F401, E402
     PlatformAdmin,
 )
 from app.features.exchange.models import CbuRateCache  # noqa: F401, E402
+from app.features.backup.models import (  # noqa: F401, E402
+    BackupConfig,
+    BackupRun,
+)
 
 
 # Tables in dependency order (children first), used by the per-test cleanup.
 _TABLES_TO_TRUNCATE = (
+    "backup_runs",
+    "backup_config",
     "cbu_rate_cache",
     "notifications",
     "access_attempts",
@@ -146,8 +152,58 @@ async def db(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 @pytest_asyncio.fixture
 async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
     """ASGI test client wired to a real DB — no mocked dependencies."""
+    from app.core.database import engine as app_engine
     from app.main import app
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        # The app endpoints use the module-level SessionFactory engine, whose
+        # pooled asyncpg connections are bound to *this* test's event loop.
+        # Dispose the pool so the next test (fresh loop) never inherits a
+        # connection it cannot close ("Event loop is closed").
+        await app_engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def admin_client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
+    """ASGI client carrying a valid platform-admin JWT.
+
+    Creates a PlatformAdmin row (committed, so the app's own session sees it),
+    mints an admin token, and attaches it as a Bearer header. Cleans up the
+    row afterwards since tests using this fixture don't depend on ``db`` (whose
+    teardown is what normally truncates).
+    """
+    from app.core.database import engine as app_engine
+    from app.features.admin.auth import create_admin_token
+    from app.features.admin.models import PlatformAdmin
+    from app.main import app
+
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    async with factory() as session:
+        admin = PlatformAdmin(tg_id=990001, full_name="Test Admin")
+        session.add(admin)
+        await session.commit()
+        token = create_admin_token(admin.id)
+
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {token}"},
+        ) as ac:
+            yield ac
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "TRUNCATE TABLE backup_runs, backup_config, platform_admins "
+                    "RESTART IDENTITY CASCADE"
+                )
+            )
+        # See client fixture: drop the app engine's pool so its loop-bound
+        # asyncpg connections don't leak into the next test.
+        await app_engine.dispose()

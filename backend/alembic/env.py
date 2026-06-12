@@ -36,6 +36,10 @@ from app.features.admin.models import (  # noqa: F401  (stage 13)
     PlatformAdmin,
 )
 from app.features.exchange.models import CbuRateCache  # noqa: F401  (stage 12)
+from app.features.backup.models import (  # noqa: F401  (backup system)
+    BackupConfig,
+    BackupRun,
+)
 
 # from app.features.devices.models import *        # noqa: F401, F403  (stage 6)
 # from app.features.purchases.models import *      # noqa: F401, F403  (stage 7)

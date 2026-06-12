@@ -16,6 +16,7 @@ import AuthLog from './pages/AuthLog';
 import Debts from './pages/Debts';
 import Stats from './pages/Stats';
 import Users from './pages/Users';
+import Backup from './pages/Backup';
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,7 @@ export default function App() {
                   <Route path="/log"       element={<AuthLog />} />
                   <Route path="/debts"     element={<Debts />} />
                   <Route path="/stats"     element={<Stats />} />
+                  <Route path="/backup"    element={<Backup />} />
                 </Route>
               </Routes>
             </BrowserRouter>
