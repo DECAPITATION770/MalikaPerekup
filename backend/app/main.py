@@ -116,6 +116,21 @@ async def lifespan(app: FastAPI):
     )
     scheduler.start()
 
+    # Backup system: expose bot/scheduler on app.state (used by the backup
+    # router for "send to Telegram" and runtime rescheduling), then install
+    # the configured backup job.
+    app.state.bot = bot
+    app.state.scheduler = scheduler
+
+    from bot.scheduler import apply_backup_schedule, set_backup_bot
+    from app.features.backup import repository as backup_repo
+
+    set_backup_bot(bot)
+    async with SessionFactory() as _db:
+        _backup_cfg = await backup_repo.get_or_create_config(_db)
+        await _db.commit()
+    apply_backup_schedule(scheduler, _backup_cfg)
+
     async def _startup_cbu_refresh() -> None:
         try:
             async with SessionFactory() as db:
