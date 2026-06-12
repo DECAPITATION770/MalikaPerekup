@@ -152,11 +152,19 @@ async def db(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 @pytest_asyncio.fixture
 async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
     """ASGI test client wired to a real DB — no mocked dependencies."""
+    from app.core.database import engine as app_engine
     from app.main import app
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        # The app endpoints use the module-level SessionFactory engine, whose
+        # pooled asyncpg connections are bound to *this* test's event loop.
+        # Dispose the pool so the next test (fresh loop) never inherits a
+        # connection it cannot close ("Event loop is closed").
+        await app_engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -168,6 +176,7 @@ async def admin_client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
     row afterwards since tests using this fixture don't depend on ``db`` (whose
     teardown is what normally truncates).
     """
+    from app.core.database import engine as app_engine
     from app.features.admin.auth import create_admin_token
     from app.features.admin.models import PlatformAdmin
     from app.main import app
@@ -195,3 +204,6 @@ async def admin_client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
                     "RESTART IDENTITY CASCADE"
                 )
             )
+        # See client fixture: drop the app engine's pool so its loop-bound
+        # asyncpg connections don't leak into the next test.
+        await app_engine.dispose()
