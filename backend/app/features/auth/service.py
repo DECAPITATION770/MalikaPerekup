@@ -68,7 +68,7 @@ async def login_via_telegram(db: AsyncSession, init_data: str) -> tuple[User, st
         success=True,
         user_id=user.id,
     )
-    return user, create_access_token(user.id)
+    return user, create_access_token(user.id, extra={"src": "telegram"})
 
 
 async def login_via_password(db: AsyncSession, login: str, password: str) -> tuple[User, str]:
@@ -108,7 +108,7 @@ async def login_via_password(db: AsyncSession, login: str, password: str) -> tup
         success=True,
         user_id=user.id,
     )
-    return user, create_access_token(user.id)
+    return user, create_access_token(user.id, extra={"src": "login"})
 
 
 async def setup_password(
