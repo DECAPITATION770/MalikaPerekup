@@ -10,7 +10,7 @@ needs to know which method was used.
 
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.common.dates import now_utc
@@ -71,6 +71,12 @@ class User(Base):
         Boolean, nullable=False, default=False, server_default="false"
     )
     blocked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # ── Telegram avatar (fetched on login, cached in object storage) ──
+    avatar_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avatar_fetched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
