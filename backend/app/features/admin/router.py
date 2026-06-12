@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common import storage
 from app.common.dates import today_tashkent
 from app.common.pagination import Page, PageParams
 from app.common.ratelimit import enforce_account_limit, login_rate_limit
@@ -60,7 +61,7 @@ def _admin_out(admin) -> AdminOut:
     return AdminOut.model_validate(admin)
 
 
-def _owner_out(user: User) -> OwnerOut:
+def _owner_out(user: User, shop: Shop | None = None) -> OwnerOut:
     return OwnerOut.model_validate(
         {
             "id": user.id,
@@ -75,6 +76,10 @@ def _owner_out(user: User) -> OwnerOut:
             "created_at": user.created_at,
             "is_blocked": user.is_blocked,
             "blocked_at": user.blocked_at,
+            "avatar_url": (
+                storage.presigned_url(user.avatar_key) if user.avatar_key else None
+            ),
+            "client_status": service.client_status(shop, today_tashkent()),
         }
     )
 
@@ -91,7 +96,7 @@ async def _shop_admin_out(db: AsyncSession, shop: Shop) -> ShopAdminOut:
         frozen_at=shop.frozen_at,
         frozen_reason=shop.frozen_reason,
         created_at=shop.created_at,
-        owner=_owner_out(owner),  # type: ignore[arg-type]
+        owner=_owner_out(owner, shop),  # type: ignore[arg-type]
     )
 
 
@@ -202,7 +207,7 @@ async def list_shops(
             frozen_at=shop.frozen_at,
             frozen_reason=shop.frozen_reason,
             created_at=shop.created_at,
-            owner=_owner_out(owner),
+            owner=_owner_out(owner, shop),
         )
         for shop, owner in rows
     ]
@@ -291,7 +296,12 @@ async def block_user(user_id: int, admin: CurrentAdmin, db: DbSession) -> OwnerO
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
     await service.block_user(user)
-    return _owner_out(user)
+    shop = (
+        await shop_repo.get_by_id(db, user.shop_id)
+        if user.shop_id is not None
+        else None
+    )
+    return _owner_out(user, shop)
 
 
 @router.post("/users/{user_id}/unblock", response_model=OwnerOut)
@@ -300,7 +310,12 @@ async def unblock_user(user_id: int, admin: CurrentAdmin, db: DbSession) -> Owne
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
     await service.unblock_user(user)
-    return _owner_out(user)
+    shop = (
+        await shop_repo.get_by_id(db, user.shop_id)
+        if user.shop_id is not None
+        else None
+    )
+    return _owner_out(user, shop)
 
 
 @router.post("/shops/{shop_id}/owner/credentials", response_model=OwnerOut)
@@ -322,7 +337,7 @@ async def set_owner_credentials(
         )
     except service.ShopRegistrationError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
-    return _owner_out(owner)
+    return _owner_out(owner, shop)
 
 
 # ─── Users ─────────────────────────────────────────────────────────────
@@ -356,8 +371,17 @@ async def list_users(
             .offset(params.offset)
         )
     ).scalars().all()
+
+    shop_ids = {u.shop_id for u in items if u.shop_id is not None}
+    shop_map: dict[int, Shop] = {}
+    if shop_ids:
+        shops = (
+            await db.execute(select(Shop).where(Shop.id.in_(shop_ids)))
+        ).scalars().all()
+        shop_map = {s.id: s for s in shops}
+
     return Page.of(
-        items=[_owner_out(u) for u in items],
+        items=[_owner_out(u, shop_map.get(u.shop_id)) for u in items],
         total=int(total),
         params=params,
     )
@@ -370,7 +394,12 @@ async def get_user(
     user = await user_repo.get_by_id(db, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
-    return _owner_out(user)
+    shop = (
+        await shop_repo.get_by_id(db, user.shop_id)
+        if user.shop_id is not None
+        else None
+    )
+    return _owner_out(user, shop)
 
 
 # ─── Access attempts ───────────────────────────────────────────────────
