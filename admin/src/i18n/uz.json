@@ -27,7 +27,12 @@
     "block_confirm": "Bu foydalanuvchi uchun Telegram orqali kirishni bloklaymizmi? Login/parol orqali kirish ishlashda davom etadi.",
     "blocked": "Foydalanuvchi bloklandi",
     "unblocked": "Foydalanuvchi blokdan chiqarildi",
-    "block_error": "Blok holatini o'zgartirib bo'lmadi"
+    "block_error": "Blok holatini o'zgartirib bo'lmadi",
+    "status_client": "Mijoz",
+    "status_trial": "Sinov",
+    "status_expired": "Muddati tugagan",
+    "status_frozen": "Muzlatilgan",
+    "status_no_shop": "Do'konsiz"
   },
   "login": {
     "title": "Malika Admin",

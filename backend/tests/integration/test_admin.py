@@ -209,3 +209,28 @@ async def test_bootstrap_admins_seeds_only_when_empty(db):
     created_again = await admin_service.bootstrap_admins_if_needed(db, tg_ids=[33])
     assert created_again == 0
     assert await admin_repo.count_admins(db) == 2
+
+
+async def test_users_list_exposes_client_status_and_avatar(admin_client, db):
+    from app.features.auth.models import User
+    from app.features.shops.models import Shop
+
+    # user with a paid (basic) shop → "client"
+    u = User(full_name="Paid Owner", tg_id=810001)
+    db.add(u)
+    await db.flush()
+    shop = Shop(name="PaidShop", language_default="ru", owner_id=u.id, plan="basic")
+    db.add(shop)
+    await db.flush()
+    u.shop_id = shop.id
+    # user without a shop → "no_shop"
+    db.add(User(full_name="Orphan", tg_id=810002))
+    await db.commit()
+
+    r = await admin_client.get("/api/v1/admin/users")
+    assert r.status_code == 200
+    by_name = {row["full_name"]: row for row in r.json()["items"]}
+    assert by_name["Paid Owner"]["client_status"] == "client"
+    assert by_name["Orphan"]["client_status"] == "no_shop"
+    assert "avatar_url" in by_name["Orphan"]
+    assert by_name["Orphan"]["avatar_url"] is None

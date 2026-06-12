@@ -98,6 +98,8 @@ class OwnerOut(BaseModel):
     created_at: datetime
     is_blocked: bool
     blocked_at: datetime | None
+    avatar_url: str | None
+    client_status: str
 
 
 class ShopAdminOut(BaseModel):

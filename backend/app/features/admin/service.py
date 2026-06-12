@@ -308,6 +308,22 @@ async def bootstrap_admins_if_needed(
     return created
 
 
+def client_status(shop, today) -> str:
+    """Derive the platform-client status badge from a user's shop.
+
+    Priority: no shop > frozen > expired plan > paid (basic) > trial.
+    """
+    if shop is None:
+        return "no_shop"
+    if shop.is_frozen:
+        return "frozen"
+    if shop.plan_until is not None and shop.plan_until < today:
+        return "expired"
+    if shop.plan == "basic":
+        return "client"
+    return "trial"
+
+
 async def block_user(user: User) -> None:
     """Block the user's Telegram/initData access. Login/password unaffected."""
     user.is_blocked = True
