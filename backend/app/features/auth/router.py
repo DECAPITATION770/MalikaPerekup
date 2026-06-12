@@ -51,6 +51,10 @@ async def login_via_telegram(req: TelegramAuthRequest, db: DbSession) -> TokenRe
     """
     try:
         user, token = await service.login_via_telegram(db, req.init_data)
+    except service.UserBlockedError as exc:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, {"code": "user_blocked"}
+        ) from exc
     except service.AuthError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
     return TokenResponse(access_token=token, user_id=user.id)

@@ -1,12 +1,27 @@
 import hashlib
 import hmac
+import json
 import time
 from urllib.parse import urlencode
 
 import pytest
 
+from app.core.config import get_settings
 from app.core.security import create_access_token, decode_access_token, hash_password
 from app.features.auth.models import User
+
+
+def _signed_init_data(tg_id: int) -> str:
+    """Valid initData signed with the test bot token (mirrors
+    tests/unit/test_telegram_initdata.py::_signed_init_data)."""
+    user_payload = json.dumps({"id": tg_id, "first_name": "B"})
+    pairs = {"auth_date": str(int(time.time())), "user": user_payload}
+    data_check = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
+    secret = hmac.new(
+        b"WebAppData", get_settings().bot_token.encode("utf-8"), hashlib.sha256
+    ).digest()
+    sig = hmac.new(secret, data_check.encode("utf-8"), hashlib.sha256).hexdigest()
+    return urlencode({**pairs, "hash": sig})
 
 
 def test_token_carries_src_claim():
@@ -81,3 +96,15 @@ async def test_unblock_restores_telegram_access(client, db, monkeypatch):
         "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
     )
     assert ok.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_login_via_telegram_blocked(db):
+    from app.features.auth import service
+
+    user = User(full_name="Blocked TG", tg_id=700010, is_blocked=True)
+    db.add(user)
+    await db.commit()
+
+    with pytest.raises(service.UserBlockedError):
+        await service.login_via_telegram(db, _signed_init_data(700010))
