@@ -306,3 +306,15 @@ async def bootstrap_admins_if_needed(
         created += 1
 
     return created
+
+
+async def block_user(user: User) -> None:
+    """Block the user's Telegram/initData access. Login/password unaffected."""
+    user.is_blocked = True
+    user.blocked_at = now_utc()
+
+
+async def unblock_user(user: User) -> None:
+    """Lift the Telegram-access block."""
+    user.is_blocked = False
+    user.blocked_at = None

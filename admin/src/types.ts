@@ -26,6 +26,8 @@ export interface OwnerOut {
   last_login_at: string | null;
   last_login_source: string | null;
   created_at: string;
+  is_blocked: boolean;
+  blocked_at: string | null;
 }
 
 export interface ShopStats {

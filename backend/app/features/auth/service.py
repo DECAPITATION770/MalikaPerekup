@@ -24,6 +24,10 @@ class AuthError(Exception):
     """Raised on any failed auth attempt — caller maps to 401/403."""
 
 
+class UserBlockedError(AuthError):
+    """Telegram access blocked by platform admin (login/password still works)."""
+
+
 async def login_via_telegram(db: AsyncSession, init_data: str) -> tuple[User, str]:
     """Verify Telegram initData and return (user, JWT) for known users only.
 
@@ -54,6 +58,18 @@ async def login_via_telegram(db: AsyncSession, init_data: str) -> tuple[User, st
         )
         raise AuthError("access denied — contact administrator")
 
+    if user.is_blocked:
+        await admin_service.log_attempt(
+            db,
+            source=AttemptSource.TELEGRAM,
+            identifier=str(tg.id),
+            tg_username=tg.username,
+            success=False,
+            reason="blocked",
+            user_id=user.id,
+        )
+        raise UserBlockedError("access blocked by administrator")
+
     # Refresh username if Telegram has a fresher value, mark login.
     if tg.username and tg.username != user.tg_username:
         user.tg_username = tg.username
@@ -68,7 +84,7 @@ async def login_via_telegram(db: AsyncSession, init_data: str) -> tuple[User, st
         success=True,
         user_id=user.id,
     )
-    return user, create_access_token(user.id)
+    return user, create_access_token(user.id, extra={"src": "telegram"})
 
 
 async def login_via_password(db: AsyncSession, login: str, password: str) -> tuple[User, str]:
@@ -108,7 +124,7 @@ async def login_via_password(db: AsyncSession, login: str, password: str) -> tup
         success=True,
         user_id=user.id,
     )
-    return user, create_access_token(user.id)
+    return user, create_access_token(user.id, extra={"src": "login"})
 
 
 async def setup_password(
