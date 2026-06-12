@@ -1,3 +1,4 @@
+import shutil
 import tarfile
 import tempfile
 from pathlib import Path
@@ -8,6 +9,13 @@ from sqlalchemy import text as sql_text
 from app.common import storage
 from app.features.backup import service, storage_ops
 from app.features.backup.models import BackupStatus, BackupTrigger
+
+# create/restore shell out to pg_dump/pg_restore. Skip when the client isn't
+# installed (local dev macs) — CI and the backend image bundle it.
+needs_pg_tools = pytest.mark.skipif(
+    shutil.which("pg_dump") is None or shutil.which("pg_restore") is None,
+    reason="pg_dump/pg_restore not installed",
+)
 
 
 @pytest.mark.asyncio
@@ -31,6 +39,7 @@ async def test_download_then_upload_objects():
     assert data == b"hello-pii"
 
 
+@needs_pg_tools
 @pytest.mark.asyncio
 async def test_create_backup_produces_archive(db, tmp_path, monkeypatch):
     monkeypatch.setattr(
@@ -51,6 +60,7 @@ async def test_create_backup_produces_archive(db, tmp_path, monkeypatch):
         assert any("objects/" in n for n in names)
 
 
+@needs_pg_tools
 @pytest.mark.asyncio
 async def test_restore_returns_data(db, tmp_path, monkeypatch):
     monkeypatch.setattr(
