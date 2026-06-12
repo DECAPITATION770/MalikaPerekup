@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text as sql_text
 
 from app.common import storage
 from app.features.backup import service, storage_ops
@@ -48,3 +49,31 @@ async def test_create_backup_produces_archive(db, tmp_path, monkeypatch):
         assert any(n.endswith("database.dump") for n in names)
         assert any(n.endswith("manifest.json") for n in names)
         assert any("objects/" in n for n in names)
+
+
+@pytest.mark.asyncio
+async def test_restore_returns_data(db, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        service.get_settings(), "backup_dir", str(tmp_path), raising=False
+    )
+    storage.ensure_bucket()
+    storage.upload("0/test/restore/a.txt", b"v1", "text/plain")
+
+    # маркер в БД, который мы потом удалим и восстановим
+    await db.execute(sql_text(
+        "INSERT INTO backup_runs (created_at, status, trigger) "
+        "VALUES (now(), 'ok', 'manual')"
+    ))
+    await db.commit()
+    run = await service.create_backup(db, trigger=BackupTrigger.manual)
+    archive = tmp_path / run.filename
+
+    storage.delete("0/test/restore/a.txt")
+
+    await service.restore_backup(db, archive)
+
+    # объект вернулся
+    data = storage._client().get_object(
+        storage.get_settings().s3_bucket, "0/test/restore/a.txt"
+    ).read()
+    assert data == b"v1"

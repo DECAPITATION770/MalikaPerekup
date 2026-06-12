@@ -125,3 +125,28 @@ async def prune(db: AsyncSession) -> None:
             (Path(settings.backup_dir) / old.filename).unlink(missing_ok=True)
         await db.delete(old)
     await db.commit()
+
+
+async def restore_backup(
+    db: AsyncSession, archive_path: Path, *, force: bool = False
+) -> None:
+    settings = get_settings()
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        with tarfile.open(archive_path, "r:gz") as tar:
+            tar.extractall(work, filter="data")  # наш собственный архив
+        manifest = json.loads((work / "manifest.json").read_text())
+
+        current = await _alembic_revision(db)
+        if not force and manifest.get("alembic_revision") != current:
+            raise RevisionMismatch(
+                f"archive revision {manifest.get('alembic_revision')} "
+                f"!= current {current}"
+            )
+
+        await _run_subprocess(
+            "pg_restore", "--clean", "--if-exists", "--no-owner",
+            "-d", _pg_url(str(settings.database_url)),
+            str(work / "database.dump"),
+        )
+        storage_ops.upload_all(work / "objects")
