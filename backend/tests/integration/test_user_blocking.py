@@ -26,3 +26,58 @@ async def test_password_login_token_has_login_src(db):
 
     _, token = await service.login_via_password(db, "passuser", "secret123")
     assert decode_access_token(token)["src"] == "login"
+
+
+def _disable_bypass(monkeypatch):
+    """conftest enables DEV_AUTH_BYPASS — turn it off so the real JWT path
+    (and thus the src-claim guard) actually runs for these HTTP tests."""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "dev_auth_bypass", False)
+
+
+@pytest.mark.asyncio
+async def test_blocked_user_telegram_session_403(client, db, monkeypatch):
+    _disable_bypass(monkeypatch)
+    user = User(full_name="Blocked", tg_id=700001, is_blocked=True)
+    db.add(user)
+    await db.commit()
+    token = create_access_token(user.id, extra={"src": "telegram"})
+    r = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 403
+    assert r.json()["detail"]["code"] == "user_blocked"
+
+
+@pytest.mark.asyncio
+async def test_blocked_user_password_session_ok(client, db, monkeypatch):
+    _disable_bypass(monkeypatch)
+    user = User(full_name="Blocked Pass", tg_id=700002, is_blocked=True)
+    db.add(user)
+    await db.commit()
+    token = create_access_token(user.id, extra={"src": "login"})
+    r = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_unblock_restores_telegram_access(client, db, monkeypatch):
+    _disable_bypass(monkeypatch)
+    user = User(full_name="Toggle", tg_id=700003, is_blocked=True)
+    db.add(user)
+    await db.commit()
+    token = create_access_token(user.id, extra={"src": "telegram"})
+    blocked = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert blocked.status_code == 403
+
+    user.is_blocked = False
+    await db.commit()
+    ok = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert ok.status_code == 200

@@ -8,6 +8,7 @@ load users/shops by hand.
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -32,12 +33,18 @@ def _extract_bearer(authorization: str | None) -> str:
 
 
 async def get_current_user_id(
+    db: DbSession,
     authorization: Annotated[str | None, Header()] = None,
 ) -> int:
     """Return the authenticated user's id from the JWT (or dev bypass).
 
-    Use this only when you need the bare id (avoids a DB round-trip). For
+    Use this only when you need the bare id (avoids a full ``User`` load). For
     the full ``User`` row, depend on ``CurrentUser`` instead.
+
+    This is the universal choke point for every authenticated request, so the
+    *block* check lives here: a user blocked by the platform admin loses
+    Telegram/initData access immediately (``src == "telegram"``), while
+    login/password sessions (``src == "login"``) are intentionally unaffected.
     """
     settings = get_settings()
     # Defence in depth: the boot-time validator in `config.py` already
@@ -69,7 +76,21 @@ async def get_current_user_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token missing subject",
         )
-    return int(sub)
+    user_id = int(sub)
+
+    # Only telegram-src sessions can be blocked — pay for the lookup only then.
+    if payload.get("src") == "telegram":
+        from app.features.auth.models import User
+
+        blocked = (
+            await db.execute(select(User.is_blocked).where(User.id == user_id))
+        ).scalar_one_or_none()
+        if blocked:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "user_blocked"},
+            )
+    return user_id
 
 
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
