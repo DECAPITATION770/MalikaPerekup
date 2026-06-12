@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     default_language: Literal["ru", "uz"] = "ru"
     timezone: str = "Asia/Tashkent"
 
+    # ─── Backups ──────────────────────────────────────────────
+    # Directory where backup archives are written (mounted volume in prod).
+    backup_dir: str = "/backups"
+
     @property
     def is_prod(self) -> bool:
         return self.environment == "prod"
