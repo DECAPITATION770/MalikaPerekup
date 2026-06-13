@@ -12,6 +12,7 @@ from app.features.installments.models import (
     InstallmentPayment,
     InstallmentPlan,
     PaymentStatus,
+    PlanStatus,
 )
 from app.features.sales.models import Sale
 
@@ -165,6 +166,44 @@ async def remaining_balance(db: AsyncSession, plan: InstallmentPlan) -> Decimal:
     )
     paid = result.scalar_one()
     return plan.total_amount - paid
+
+
+async def outstanding_debt(
+    db: AsyncSession, *, shop_id: int | None = None
+) -> Decimal:
+    """Total remaining nasiya debt across active + overdue plans.
+
+    The single source of truth for the "Долги по рассрочке" KPI (tenant
+    dashboard, admin shop stats, admin platform stats).
+
+    Computed as ``SUM(total_amount) - SUM(amount_paid)`` via TWO separate
+    aggregates. A single ``plan -> payments`` join must NOT be used: it fans
+    out ``total_amount`` once per payment row, so a 4-row plan would count its
+    total 4× (the classic "debt shows 23M instead of 5M" bug).
+
+    ``shop_id=None`` aggregates across the whole platform (admin).
+    """
+    active = (PlanStatus.ACTIVE.value, PlanStatus.OVERDUE.value)
+    plan_filter = [InstallmentPlan.status.in_(active)]
+    if shop_id is not None:
+        plan_filter.append(InstallmentPlan.shop_id == shop_id)
+
+    total_owed = (
+        await db.execute(
+            select(func.coalesce(func.sum(InstallmentPlan.total_amount), 0)).where(
+                *plan_filter
+            )
+        )
+    ).scalar_one()
+    total_paid = (
+        await db.execute(
+            select(func.coalesce(func.sum(InstallmentPayment.amount_paid), 0))
+            .select_from(InstallmentPayment)
+            .join(InstallmentPlan, InstallmentPlan.id == InstallmentPayment.plan_id)
+            .where(*plan_filter)
+        )
+    ).scalar_one()
+    return Decimal(total_owed) - Decimal(total_paid)
 
 
 async def has_open_payments(db: AsyncSession, plan_id: int) -> bool:

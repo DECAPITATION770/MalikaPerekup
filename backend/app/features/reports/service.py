@@ -18,11 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.dates import days_ago, today_tashkent
 from app.common.money import Currency, quantize
 from app.features.devices.models import Device, DeviceStatus
+from app.features.installments import repository as installment_repo
 from app.features.installments.models import (
     InstallmentPayment,
     InstallmentPlan,
     PaymentStatus,
-    PlanStatus,
 )
 from app.features.purchases.models import Purchase
 from app.features.reports.schemas import (
@@ -106,27 +106,9 @@ async def today_dashboard(db: AsyncSession, *, shop_id: int) -> TodayDashboard:
     in_stock_count, inventory_value = inventory
 
     # 4. Outstanding nasiya debt across active and overdue plans.
-    debt_query = (
-        select(
-            func.coalesce(
-                func.sum(InstallmentPlan.total_amount)
-                - func.sum(InstallmentPayment.amount_paid),
-                0,
-            )
-        )
-        .select_from(InstallmentPlan)
-        .outerjoin(
-            InstallmentPayment,
-            InstallmentPayment.plan_id == InstallmentPlan.id,
-        )
-        .where(
-            InstallmentPlan.shop_id == shop_id,
-            InstallmentPlan.status.in_(
-                (PlanStatus.ACTIVE.value, PlanStatus.OVERDUE.value)
-            ),
-        )
-    )
-    nasiya_debt = (await db.execute(debt_query)).scalar_one()
+    # Single source of truth — avoids the plan→payments join fan-out that
+    # would multiply total_amount by the number of schedule rows.
+    nasiya_debt = await installment_repo.outstanding_debt(db, shop_id=shop_id)
 
     # 5. Number of payment rows past due and not yet fully paid.
     overdue_count = (

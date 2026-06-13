@@ -44,6 +44,7 @@ from app.features.admin.schemas import (
 from app.features.auth import repository as user_repo
 from app.features.auth.models import User
 from app.features.devices.models import Device, DeviceStatus
+from app.features.installments import repository as installment_repo
 from app.features.installments.models import (
     InstallmentPayment,
     InstallmentPlan,
@@ -624,37 +625,26 @@ async def _build_shop_stats(db: AsyncSession, *, shop_id: int) -> ShopStats:
         )
     ).one()
 
-    plans_agg = (
+    active_plans_count = (
         await db.execute(
-            select(
-                func.count(InstallmentPlan.id),
-                func.coalesce(
-                    func.sum(InstallmentPlan.total_amount)
-                    - func.sum(InstallmentPayment.amount_paid),
-                    0,
-                ),
-            )
-            .select_from(InstallmentPlan)
-            .outerjoin(
-                InstallmentPayment,
-                InstallmentPayment.plan_id == InstallmentPlan.id,
-            )
-            .where(
+            select(func.count(InstallmentPlan.id)).where(
                 InstallmentPlan.shop_id == shop_id,
                 InstallmentPlan.status.in_(
                     (PlanStatus.ACTIVE.value, PlanStatus.OVERDUE.value)
                 ),
             )
         )
-    ).one()
+    ).scalar_one()
+    # Debt via the shared helper (two aggregates, no join fan-out).
+    nasiya_debt = await installment_repo.outstanding_debt(db, shop_id=shop_id)
 
     return ShopStats(
         devices_in_stock=int(inv[0]),
         inventory_value_uzs=Decimal(inv[1] or 0),
         sales_total_uzs=Decimal(sales_agg[0] or 0),
         profit_total_uzs=Decimal(sales_agg[1] or 0),
-        nasiya_active_plans=int(plans_agg[0]),
-        nasiya_debt_uzs=Decimal(plans_agg[1] or 0),
+        nasiya_active_plans=int(active_plans_count),
+        nasiya_debt_uzs=nasiya_debt,
     )
 
 
@@ -701,27 +691,8 @@ async def platform_stats(admin: CurrentAdmin, db: DbSession) -> PlatformStats:
         )
     ).scalar_one()
 
-    total_debt = (
-        await db.execute(
-            select(
-                func.coalesce(
-                    func.sum(InstallmentPlan.total_amount)
-                    - func.sum(InstallmentPayment.amount_paid),
-                    0,
-                )
-            )
-            .select_from(InstallmentPlan)
-            .outerjoin(
-                InstallmentPayment,
-                InstallmentPayment.plan_id == InstallmentPlan.id,
-            )
-            .where(
-                InstallmentPlan.status.in_(
-                    (PlanStatus.ACTIVE.value, PlanStatus.OVERDUE.value)
-                )
-            )
-        )
-    ).scalar_one()
+    # Platform-wide debt via the shared helper (no join fan-out).
+    total_debt = await installment_repo.outstanding_debt(db)
 
     failed_today = (
         await db.execute(
