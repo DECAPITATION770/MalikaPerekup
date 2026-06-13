@@ -190,6 +190,18 @@ function PaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Remaining balance — the number the user actually needs while
+            entering a payment (was only shown as the «Весь остаток» button
+            with no amount). */}
+        <div className="flex items-baseline justify-between rounded-card bg-bg2 px-4 py-3">
+          <span className="text-label font-medium text-text-dim">
+            {t('installments.remaining')}
+          </span>
+          <span className="text-title-sm font-bold tabular-nums text-accent">
+            {fmtUzs(remaining)} UZS
+          </span>
+        </div>
+
         <div className="flex flex-col gap-2">
           <label className="text-label font-medium tracking-tight text-text-dim">
             {t('installments.amount_label')}
