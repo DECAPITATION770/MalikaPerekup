@@ -11,10 +11,9 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, BadgeDollarSign, Check } from 'lucide-react';
+import { ArrowLeft, BadgeDollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
-import Button from '@/components/ui/button-default';
 import { createSale, createInstallmentPlan } from '@/api/sales';
 import { getExchangeRateHint } from '@/api/reports';
 import { getDevice, type DeviceWithPurchaseOut } from '@/api/devices';
@@ -55,11 +54,9 @@ export default function SaleNew() {
 
   const [step, setStep] = useState<WizardStep>(0);
   const [shaking, setShaking] = useState(false);
-  const [done, setDone] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState<Draft | null>(null);
   const [priceResetKey, setPriceResetKey] = useState(0);
   const [selectedDevice, setSelectedDevice] = useState<DeviceWithPurchaseOut | null>(null);
-  const [soldDeviceId, setSoldDeviceId] = useState<number | null>(null);
   const [selectedBuyerId, setSelectedBuyerId] = useState<number | null>(null);
   const [buyerPhotos, setBuyerPhotos] = useState<string[]>([]);
 
@@ -141,7 +138,7 @@ export default function SaleNew() {
 
   // Draft autosave.
   useEffect(() => {
-    if (draftPrompt || done) return;
+    if (draftPrompt) return;
     const timer = setTimeout(() => {
       const v = getValues();
       const meaningful = v.device_id || v.buyer_name || v.price;
@@ -161,7 +158,7 @@ export default function SaleNew() {
       }
     }, DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [values, getValues, draftPrompt, done, step, selectedDevice, selectedBuyerId, buyerPhotos]);
+  }, [values, getValues, draftPrompt, step, selectedDevice, selectedBuyerId, buyerPhotos]);
 
   const restoreDraft = useCallback(() => {
     if (!draftPrompt) return setDraftPrompt(null);
@@ -241,10 +238,16 @@ export default function SaleNew() {
       haptic.notify('success');
       track('sale_created', { type: getValues('sale_type') });
       localStorage.removeItem(DRAFT_KEY);
-      // Remember the sold device so the done screen can open its card —
-      // parity with the purchase flow, which routes straight to the card.
-      setSoldDeviceId(getValues('device_id') ?? null);
-      setDone(true);
+      // Mirror the purchase flow: straight to the showcase with a toast — no
+      // separate done screen. Highlight the sold device for one-tap access.
+      const deviceId = getValues('device_id');
+      toast.success(t('sale.success_toast'), {
+        action: {
+          label: t('sale.toast_open'),
+          onClick: () => navigate(`/stock/${deviceId}`),
+        },
+      });
+      navigate('/stock', { state: { highlightId: deviceId } });
     },
     onError: () => {
       haptic.notify('error');
@@ -296,60 +299,15 @@ export default function SaleNew() {
   // `isEnabled` is gated by stepStatus so the native button can't silently
   // no-op on an incomplete step (mirror the in-page footer's disabled state).
   const isLastStep = step === TOTAL_STEPS - 1;
-  useTgMainButton(
-    !done
-      ? {
-          text: isLastStep ? submitLabel : t('purchase.wizard_next'),
-          isLoaderVisible: isSubmitting || mutation.isPending,
-          isEnabled: isLastStep || (stepStatus[step] ?? false),
-          onClick: () => {
-            if (!isLastStep) void goNext();
-            else void onSubmit();
-          },
-        }
-      : null,
-  );
-
-  // «Продать ещё» — clean reset instead of a full page reload.
-  const startAnother = () => {
-    reset(emptyDefaults());
-    setStep(0);
-    setSelectedDevice(null);
-    setSelectedBuyerId(null);
-    setBuyerPhotos([]);
-    setPriceResetKey((k) => k + 1);
-    setSoldDeviceId(null);
-    setDone(false);
-    window.scrollTo({ top: 0 });
-  };
-
-  if (done) {
-    return (
-      <div className="flex min-h-[60vh] animate-fade-up flex-col items-center justify-center gap-5 px-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-card bg-success-faded">
-          <Check size={28} className="text-success" />
-        </div>
-        <div className="text-center">
-          <h2 className="text-title-sm font-bold">{t('sale.success_title')}</h2>
-          <p className="mt-1 text-body text-text-dim">{t('sale.success_body')}</p>
-        </div>
-        <div className="flex w-full max-w-xs flex-col gap-2">
-          <Button size="md" onClick={startAnother}>
-            {t('sale.success_another')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() =>
-              navigate(soldDeviceId ? `/stock/${soldDeviceId}` : '/stock')
-            }
-          >
-            {t('sale.success_view')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  useTgMainButton({
+    text: isLastStep ? submitLabel : t('purchase.wizard_next'),
+    isLoaderVisible: isSubmitting || mutation.isPending,
+    isEnabled: isLastStep || (stepStatus[step] ?? false),
+    onClick: () => {
+      if (!isLastStep) void goNext();
+      else void onSubmit();
+    },
+  });
 
   return (
     <div className="flex w-full animate-fade-up flex-col gap-5">

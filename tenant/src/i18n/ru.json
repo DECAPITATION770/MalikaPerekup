@@ -657,6 +657,8 @@
     "success_body": "Устройство переведено в статус «Продано»",
     "success_another": "Ещё одна продажа",
     "success_view": "Открыть карточку",
+    "success_toast": "Продажа оформлена",
+    "toast_open": "Открыть карточку",
     "uzs_equiv": "≈ {{amount}} UZS",
     "errors": {
       "device_required": "Выберите устройство",
