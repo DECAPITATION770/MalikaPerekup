@@ -214,8 +214,11 @@ export function useTgMainButton(opts: MainButtonOpts | null) {
         isVisible: opts.isVisible ?? true,
         isEnabled: opts.isEnabled ?? true,
         isLoaderVisible: opts.isLoaderVisible ?? false,
-        ...(opts.backgroundColor ? { backgroundColor: opts.backgroundColor } : {}),
-        ...(opts.textColor ? { textColor: opts.textColor } : {}),
+        // Default to the brand brass so the native button doesn't inherit
+        // Telegram's theme accent (blue/etc.) and clash with the app's
+        // charcoal+brass design. Callers can still override per-button.
+        backgroundColor: opts.backgroundColor ?? '#C89B3C',
+        textColor: opts.textColor ?? '#1A140A',
       });
     }
 

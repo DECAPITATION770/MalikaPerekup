@@ -5,6 +5,7 @@
  * step. Mirrors the purchase wizard's device step.
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,6 +15,7 @@ import {
   Laptop,
   Package as PackageIcon,
   Search,
+  ShoppingCart,
   Smartphone,
   Tablet,
   Watch,
@@ -117,7 +119,16 @@ export default function StepSaleDevice({ selectedDevice, onSelect, onClear, erro
               ))}
             </div>
           ) : (devicesData?.items.length ?? 0) === 0 ? (
-            <p className="py-4 text-center text-label text-text-muted">{t('sale.device_empty')}</p>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <p className="text-label text-text-muted">{t('sale.device_empty')}</p>
+              <Link
+                to="/purchase/new"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-label font-bold text-[rgb(var(--c-on-accent))] transition-colors hover:bg-accent-hover"
+              >
+                <ShoppingCart size={16} />
+                {t('nav.buy')}
+              </Link>
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {!debouncedSearch && (
