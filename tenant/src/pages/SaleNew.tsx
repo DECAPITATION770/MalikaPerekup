@@ -59,6 +59,7 @@ export default function SaleNew() {
   const [draftPrompt, setDraftPrompt] = useState<Draft | null>(null);
   const [priceResetKey, setPriceResetKey] = useState(0);
   const [selectedDevice, setSelectedDevice] = useState<DeviceWithPurchaseOut | null>(null);
+  const [soldDeviceId, setSoldDeviceId] = useState<number | null>(null);
   const [selectedBuyerId, setSelectedBuyerId] = useState<number | null>(null);
   const [buyerPhotos, setBuyerPhotos] = useState<string[]>([]);
 
@@ -240,6 +241,9 @@ export default function SaleNew() {
       haptic.notify('success');
       track('sale_created', { type: getValues('sale_type') });
       localStorage.removeItem(DRAFT_KEY);
+      // Remember the sold device so the done screen can open its card —
+      // parity with the purchase flow, which routes straight to the card.
+      setSoldDeviceId(getValues('device_id') ?? null);
       setDone(true);
     },
     onError: () => {
@@ -314,6 +318,7 @@ export default function SaleNew() {
     setSelectedBuyerId(null);
     setBuyerPhotos([]);
     setPriceResetKey((k) => k + 1);
+    setSoldDeviceId(null);
     setDone(false);
     window.scrollTo({ top: 0 });
   };
@@ -332,7 +337,13 @@ export default function SaleNew() {
           <Button size="md" onClick={startAnother}>
             {t('sale.success_another')}
           </Button>
-          <Button variant="secondary" size="md" onClick={() => navigate('/')}>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() =>
+              navigate(soldDeviceId ? `/stock/${soldDeviceId}` : '/stock')
+            }
+          >
             {t('sale.success_view')}
           </Button>
         </div>
