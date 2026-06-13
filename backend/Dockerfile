@@ -49,6 +49,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
+# Backup target (BACKUP_DIR, default /backups). Create it owned by `app` so a
+# freshly-created named volume mounted here inherits app ownership — otherwise
+# Docker makes the mountpoint root-owned and the non-root app user gets
+# "Permission denied" on the first backup.
+RUN mkdir -p /backups && chown app:app /backups
+VOLUME /backups
+
 USER app
 EXPOSE 8000
 
