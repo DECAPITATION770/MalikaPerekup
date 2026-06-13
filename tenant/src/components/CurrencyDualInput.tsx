@@ -147,7 +147,7 @@ export default function CurrencyDualInput({
           placeholder="0"
           value={activeValue}
           onChange={(e) => active === 'UZS' ? handleUzsChange(e.target.value) : handleUsdChange(e.target.value)}
-          className="flex-1 bg-transparent text-text text-title-sm font-bold outline-none placeholder:text-text-muted tabular-nums"
+          className="min-w-0 flex-1 bg-transparent text-text text-title-sm font-bold outline-none placeholder:text-text-muted tabular-nums"
         />
         <button
           type="button"

@@ -15,7 +15,7 @@ import {
 } from 'react';
 import { Monitor, Sun, Moon, type LucideIcon } from 'lucide-react';
 
-import { useTgThemeBridge } from './telegram';
+import { syncTelegramChrome, useTgThemeBridge } from './telegram';
 
 export type ThemePref = 'auto' | 'light' | 'dark';
 
@@ -54,6 +54,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', resolved === 'light');
+    // Recolour Telegram's header + bottom bar to match (no-op outside TG).
+    syncTelegramChrome();
   }, [resolved]);
 
   const setPref = (p: ThemePref) => {

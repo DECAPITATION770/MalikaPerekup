@@ -115,6 +115,38 @@ export function useTelegram(): TgState {
   return useContext(TgContext);
 }
 
+// ── Telegram chrome sync ─────────────────────────────────────────────────
+// Telegram owns its own header bar + the bottom strip behind the MainButton.
+// By default they keep Telegram's theme colour, so when the app renders in a
+// theme that differs from the Telegram client (e.g. app light inside a dark
+// Telegram, or vice-versa) the bars look "unsynced". Push the app's own
+// background colour into Telegram's chrome whenever the resolved theme changes.
+
+function _cssVarHex(name: string, fallback: `#${string}`): `#${string}` {
+  if (typeof document === 'undefined') return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const m = raw.match(/(\d+)\s+(\d+)\s+(\d+)/);
+  if (!m) return fallback;
+  const hex = [m[1], m[2], m[3]]
+    .map((n) => Number(n).toString(16).padStart(2, '0'))
+    .join('');
+  return `#${hex}`;
+}
+
+/** Recolour Telegram's header / background / bottom bar to match the app's
+ *  current theme. No-op outside Telegram or on clients that don't support it. */
+export function syncTelegramChrome(): void {
+  const bg = _cssVarHex('--c-bg', '#15120e');
+  const header = _cssVarHex('--c-bg2', bg);
+  try {
+    if (miniApp.setBackgroundColor.isAvailable?.()) miniApp.setBackgroundColor(bg);
+    if (miniApp.setHeaderColor.isAvailable?.()) miniApp.setHeaderColor(header);
+    if (miniApp.setBottomBarColor.isAvailable?.()) miniApp.setBottomBarColor(bg);
+  } catch {
+    /* not in Telegram or method unsupported on this client */
+  }
+}
+
 // ── Theme bridge: subscribe to themeParams.colorScheme and apply .light class
 
 export function useTgThemeBridge(): 'dark' | 'light' {
