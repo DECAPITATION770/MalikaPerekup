@@ -119,20 +119,18 @@ export function useTelegram(): TgState {
 
 export function useTgThemeBridge(): 'dark' | 'light' {
   const { inTelegram } = useTelegram();
-  const [scheme, setScheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    // Default to system preference when outside Telegram
-    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  });
+  // Dark-first (CLAUDE.md §15): outside Telegram the ambient default is always
+  // dark — perekupshchik reads the screen under bright market sun, so we never
+  // start light just because the host OS prefers light. Inside Telegram we still
+  // inherit the user's deliberate Telegram theme choice (see effect below). The
+  // user can override either way via the theme toggle (persisted in theme.tsx).
+  const [scheme, setScheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     if (!inTelegram) {
-      // outside TG, follow system
-      const mql = window.matchMedia('(prefers-color-scheme: light)');
-      const update = () => setScheme(mql.matches ? 'light' : 'dark');
-      update();
-      mql.addEventListener?.('change', update);
-      return () => mql.removeEventListener?.('change', update);
+      // Outside TG: stay dark-first, ignore prefers-color-scheme.
+      setScheme('dark');
+      return;
     }
 
     const detectFromTg = () => {

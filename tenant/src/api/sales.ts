@@ -62,6 +62,8 @@ export interface SaleCreate {
   exchange_rate?: string | null;
   sale_date: string;
   comment?: string | null;
+  /** Nasiya schedule — sent with the sale so both are created atomically. */
+  installment?: InstallmentCreate;
 }
 
 export interface InstallmentCreate {

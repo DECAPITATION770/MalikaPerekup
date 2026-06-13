@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.common.dates import today_tashkent
+from app.features.installments.schemas import PlanCreate
 from app.features.purchases.schemas import CurrencyLiteral
 
 SaleTypeLiteral = Literal["cash", "nasiya"]
@@ -25,9 +26,11 @@ class BuyerOnSale(BaseModel):
 class SaleCreate(BaseModel):
     """Sell a device that is currently ``in_stock``.
 
-    For nasiya sales the actual instalment schedule is created in a
-    follow-up call to ``/installments`` (stage 9). This endpoint only
-    records the deal and flips the device status.
+    For nasiya sales the client SHOULD send the ``installment`` block so the
+    sale and its payment schedule are created in one atomic transaction (no
+    orphan debt if a second request fails). The legacy two-step flow — create
+    the sale, then ``POST /sales/{id}/installments`` — still works when
+    ``installment`` is omitted.
     """
 
     device_id: int
@@ -44,6 +47,10 @@ class SaleCreate(BaseModel):
     sale_date: date
     comment: str | None = Field(default=None, max_length=2000)
 
+    # Optional nasiya schedule, created atomically with the sale. The service
+    # validates total_amount == sale price before building the schedule.
+    installment: PlanCreate | None = None
+
     @field_validator("sale_date")
     @classmethod
     def _no_future_date(cls, v: date) -> date:
@@ -55,6 +62,12 @@ class SaleCreate(BaseModel):
     def _require_rate_for_usd(self) -> "SaleCreate":
         if self.currency == "USD" and self.exchange_rate is None:
             raise ValueError("exchange_rate is required for USD sales")
+        return self
+
+    @model_validator(mode="after")
+    def _installment_only_for_nasiya(self) -> "SaleCreate":
+        if self.installment is not None and self.sale_type != "nasiya":
+            raise ValueError("installment is only allowed for nasiya sales")
         return self
 
 

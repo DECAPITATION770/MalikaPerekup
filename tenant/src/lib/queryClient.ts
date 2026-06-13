@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, defaultShouldDehydrateQuery } from '@tanstack/react-query';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 
 /**
@@ -43,8 +43,17 @@ export const queryPersister = createSyncStoragePersister({
 
 const PERSISTABLE_KEYS = new Set(['reports', 'shops', 'devices', 'installments', 'counterparties']);
 
-/** Persistor option: which queries to dehydrate. */
-export function shouldDehydrateQuery(query: { queryKey: readonly unknown[] }): boolean {
+/** localStorage key the query persister writes to (referenced on logout). */
+export const QUERY_CACHE_KEY = 'malika-query-cache-v1';
+
+/** Persistor option: which queries to dehydrate.
+ *
+ * MUST keep TanStack's default guard (`status === 'success'`) — without it,
+ * in-flight (pending) queries get persisted and then *resumed* on the next cold
+ * boot, even on the unauthenticated `/login` route, firing a storm of 401s. We
+ * only add a key allowlist on top of that default. */
+export function shouldDehydrateQuery(query: Parameters<typeof defaultShouldDehydrateQuery>[0]): boolean {
+  if (!defaultShouldDehydrateQuery(query)) return false;
   const root = query.queryKey?.[0];
   return typeof root === 'string' && PERSISTABLE_KEYS.has(root);
 }
