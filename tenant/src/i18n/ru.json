@@ -656,7 +656,7 @@
     "success_title": "Продажа оформлена",
     "success_body": "Устройство переведено в статус «Продано»",
     "success_another": "Ещё одна продажа",
-    "success_view": "Открыть витрину",
+    "success_view": "Открыть карточку",
     "uzs_equiv": "≈ {{amount}} UZS",
     "errors": {
       "device_required": "Выберите устройство",

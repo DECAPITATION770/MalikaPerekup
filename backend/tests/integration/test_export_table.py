@@ -100,3 +100,23 @@ async def test_columns_metadata_lists_keys_and_labels():
     keys = {c["key"] for c in cols}
     assert {"date", "brand", "seller", "price_uzs"} <= keys
     assert all("label" in c and "type" in c for c in cols)
+
+
+async def test_export_includes_created_datetime_without_tz_error(db):
+    """Regression: the 'created' column is a tz-aware datetime; openpyxl can't
+    write tz-aware datetimes, so build_xlsx must strip the tz (→ 500 before)."""
+    from datetime import datetime
+
+    shop, user = await _shop(db, "TZ", 9799)
+    day = date(2026, 5, 20)
+    await _sell(db, shop, user, imei="tz1", buy="1000000", sell="1200000", day=day)
+
+    rows = await export_table.fetch(
+        db, shop_id=shop.id, entity="sales", date_from=day, date_to=day
+    )
+    xlsx = export_table.build_xlsx("sales", rows, selected=["date", "created"], lang="ru")
+    ws = _open(xlsx)
+    assert ws.max_row == 2  # header + 1 data row
+    created = ws.cell(row=2, column=2).value
+    assert isinstance(created, datetime)
+    assert created.tzinfo is None
