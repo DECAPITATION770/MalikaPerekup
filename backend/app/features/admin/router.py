@@ -28,6 +28,7 @@ from app.features.admin.schemas import (
     AdminOut,
     AdminTelegramAuth,
     AdminTokenResponse,
+    ContactUpdate,
     CreateShopRequest,
     CredentialsRequest,
     FreezeRequest,
@@ -80,6 +81,7 @@ def _owner_out(user: User, shop: Shop | None = None) -> OwnerOut:
                 storage.presigned_url(user.avatar_key) if user.avatar_key else None
             ),
             "client_status": service.client_status(shop, today_tashkent()),
+            "admin_contact_note": user.admin_contact_note,
         }
     )
 
@@ -310,6 +312,22 @@ async def unblock_user(user_id: int, admin: CurrentAdmin, db: DbSession) -> Owne
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
     await service.unblock_user(user)
+    shop = (
+        await shop_repo.get_by_id(db, user.shop_id)
+        if user.shop_id is not None
+        else None
+    )
+    return _owner_out(user, shop)
+
+
+@router.patch("/users/{user_id}/contact", response_model=OwnerOut)
+async def update_user_contact(
+    user_id: int, payload: ContactUpdate, admin: CurrentAdmin, db: DbSession
+) -> OwnerOut:
+    user = await user_repo.get_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
+    await service.update_contact(user, payload.phone, payload.admin_contact_note)
     shop = (
         await shop_repo.get_by_id(db, user.shop_id)
         if user.shop_id is not None

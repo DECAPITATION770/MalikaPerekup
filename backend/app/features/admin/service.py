@@ -334,3 +334,9 @@ async def unblock_user(user: User) -> None:
     """Lift the Telegram-access block."""
     user.is_blocked = False
     user.blocked_at = None
+
+
+async def update_contact(user: User, phone, note) -> None:
+    """Set the owner's phone + admin contact note (platform admin only)."""
+    user.phone = phone
+    user.admin_contact_note = note

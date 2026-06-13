@@ -83,6 +83,13 @@ class CredentialsRequest(BaseModel):
     password: str | None = Field(default=None, min_length=8, max_length=128)
 
 
+class ContactUpdate(BaseModel):
+    """Platform-admin edit of an owner's reachability info."""
+
+    phone: str | None = Field(default=None, max_length=32)
+    admin_contact_note: str | None = Field(default=None, max_length=2000)
+
+
 class OwnerOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -100,6 +107,7 @@ class OwnerOut(BaseModel):
     blocked_at: datetime | None
     avatar_url: str | None
     client_status: str
+    admin_contact_note: str | None
 
 
 class ShopAdminOut(BaseModel):
