@@ -644,6 +644,8 @@
     "success_body": "Qurilma «Sotilgan» holatiga o'tkazildi",
     "success_another": "Yana bir sotuv",
     "success_view": "Kartani ochish",
+    "success_toast": "Sotuv rasmiylashtirildi",
+    "toast_open": "Kartani ochish",
     "uzs_equiv": "≈ {{amount}} UZS",
     "errors": {
       "device_required": "Qurilma tanlang",
