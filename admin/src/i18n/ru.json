@@ -140,6 +140,10 @@
     "toast_unfreeze_failed": "Не удалось разморозить",
     "toast_plan_failed": "Не удалось обновить тариф",
     "toast_creds_failed": "Не удалось обновить креды",
+    "edit_contact": "Контакты",
+    "contact_note": "Заметка",
+    "toast_contact_saved": "Контакты сохранены",
+    "toast_contact_failed": "Не удалось сохранить контакты",
     "not_found": "Магазин не найден",
     "created_at_short": "создан"
   },

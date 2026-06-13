@@ -83,3 +83,8 @@ export const blockUser = (id: number) =>
 
 export const unblockUser = (id: number) =>
   api.post<OwnerOut>(`/users/${id}/unblock`).then(r => r.data);
+
+export const updateUserContact = (
+  id: number,
+  data: { phone: string | null; admin_contact_note: string | null },
+) => api.patch<OwnerOut>(`/users/${id}/contact`, data).then(r => r.data);

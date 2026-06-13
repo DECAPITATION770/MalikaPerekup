@@ -80,6 +80,9 @@ class User(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # ── Admin-maintained contact note (works for non-Telegram tenants) ──
+    admin_contact_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # ── Timestamps ──
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
