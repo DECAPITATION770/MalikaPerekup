@@ -16,7 +16,7 @@ until the final float cast openpyxl needs.
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
 from typing import Any
@@ -27,6 +27,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.dates import to_tashkent
 from app.features.devices.models import Device, DeviceStatus
 from app.features.purchases.models import Purchase
 from app.features.sales.models import Sale, SaleStatus
@@ -230,6 +231,14 @@ def _cell_value(col: Col, row: Row, lang: str) -> Any:
         return float(value) if value is not None else 0.0
     if col.type == "int":
         return int(value) if value is not None else 0
+    # openpyxl can't write tz-aware datetimes — show them in Tashkent local
+    # time with the tzinfo stripped (stored UTC-aware per DateTime(timezone=True)).
+    if (
+        col.type == "datetime"
+        and isinstance(value, datetime)
+        and value.tzinfo is not None
+    ):
+        return to_tashkent(value).replace(tzinfo=None)
     return value
 
 
