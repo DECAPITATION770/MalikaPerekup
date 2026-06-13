@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Key,
   Lock,
+  Phone,
   RefreshCw,
   Send,
   Shield,
@@ -30,6 +31,7 @@ import {
   setOwnerCredentials,
   unfreezeShop,
   updateShop,
+  updateUserContact,
 } from '../api';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -107,11 +109,14 @@ export default function ShopDetail() {
   const [freezeModal, setFreezeModal] = useState(false);
   const [planModal, setPlanModal] = useState(false);
   const [credsModal, setCredsModal] = useState(false);
+  const [contactModal, setContactModal] = useState(false);
   const [freezeReason, setFreezeReason] = useState('');
   const [newPlan, setNewPlan] = useState('');
   const [newPlanUntil, setNewPlanUntil] = useState('');
   const [newLogin, setNewLogin] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [cPhone, setCPhone] = useState('');
+  const [cNote, setCNote] = useState('');
 
   const shopId = Number(id);
 
@@ -172,6 +177,19 @@ export default function ShopDetail() {
       toast.success(t('shop_detail.toast_creds_updated'));
     },
     onError: () => toast.error(t('shop_detail.toast_creds_failed')),
+  });
+  const contactMut = useMutation({
+    mutationFn: () =>
+      updateUserContact(shop!.owner.id, {
+        phone: cPhone.trim() || null,
+        admin_contact_note: cNote.trim() || null,
+      }),
+    onSuccess: () => {
+      setContactModal(false);
+      invalidate();
+      toast.success(t('shop_detail.toast_contact_saved'));
+    },
+    onError: () => toast.error(t('shop_detail.toast_contact_failed')),
   });
 
   // A single dirty flag is enough — `credsCanSave` was a duplicate.
@@ -318,6 +336,10 @@ export default function ShopDetail() {
             value={shop.owner.tg_username ? `@${shop.owner.tg_username}` : '—'}
           />
           <Row label={t('shop_detail.phone')} value={shop.owner.phone} />
+          <Row
+            label={t('shop_detail.contact_note')}
+            value={shop.owner.admin_contact_note}
+          />
           <Row label={t('shop_detail.login')} value={shop.owner.login} />
           <Row
             label={t('shop_detail.has_password')}
@@ -370,6 +392,17 @@ export default function ShopDetail() {
             }}
           >
             <Key size={15} aria-hidden /> {t('shop_detail.set_creds_btn')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setCPhone(shop.owner.phone ?? '');
+              setCNote(shop.owner.admin_contact_note ?? '');
+              setContactModal(true);
+            }}
+          >
+            <Phone size={15} aria-hidden /> {t('shop_detail.edit_contact')}
           </Button>
         </div>
         {shop.is_frozen ? (
@@ -530,6 +563,45 @@ export default function ShopDetail() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
+        </div>
+      </Modal>
+
+      <Modal
+        open={contactModal}
+        onClose={() => setContactModal(false)}
+        title={t('shop_detail.edit_contact')}
+        footer={
+          <div className="flex w-full gap-2">
+            <Button variant="secondary" full onClick={() => setContactModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              full
+              loading={contactMut.isPending}
+              onClick={() => contactMut.mutate()}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label={t('shop_detail.phone')}
+            placeholder="+998 90 123 45 67"
+            value={cPhone}
+            onChange={(e) => setCPhone(e.target.value)}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-label font-medium text-text-dim">
+              {t('shop_detail.contact_note')}
+            </label>
+            <textarea
+              className="min-h-24 rounded-lg border border-border bg-bg2 px-3 py-2 text-label text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+              value={cNote}
+              onChange={(e) => setCNote(e.target.value)}
+            />
+          </div>
         </div>
       </Modal>
     </div>

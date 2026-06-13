@@ -140,6 +140,10 @@
     "toast_unfreeze_failed": "Ishga tushirib bo'lmadi",
     "toast_plan_failed": "Rejani yangilab bo'lmadi",
     "toast_creds_failed": "Loginni yangilab bo'lmadi",
+    "edit_contact": "Kontaktlar",
+    "contact_note": "Eslatma",
+    "toast_contact_saved": "Kontaktlar saqlandi",
+    "toast_contact_failed": "Kontaktlarni saqlab bo'lmadi",
     "not_found": "Do'kon topilmadi",
     "created_at_short": "yaratilgan"
   },

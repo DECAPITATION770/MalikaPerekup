@@ -30,6 +30,7 @@ export interface OwnerOut {
   blocked_at: string | null;
   avatar_url: string | null;
   client_status: string;
+  admin_contact_note: string | null;
 }
 
 export interface ShopStats {

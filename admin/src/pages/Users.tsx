@@ -175,8 +175,13 @@ export default function Users() {
                         </div>
                       </div>
                     </div>
-                    <div className="truncate font-mono text-label text-text-dim">
-                      {u.phone ?? '—'}
+                    <div className="min-w-0 font-mono text-label text-text-dim">
+                      <span className="block truncate">{u.phone ?? '—'}</span>
+                      {u.admin_contact_note && (
+                        <span className="mt-0.5 block truncate font-sans text-caption text-text-muted">
+                          {u.admin_contact_note}
+                        </span>
+                      )}
                     </div>
                     <div className="min-w-0 text-label">
                       {u.tg_username ? (
