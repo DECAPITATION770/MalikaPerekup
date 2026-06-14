@@ -5,7 +5,9 @@
  * installment schedule with a live preview. Buyer documents auto-expand for
  * nasiya, where a passport actually matters.
  */
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import {
   Controller,
   type Control,
@@ -15,6 +17,8 @@ import {
   type UseFormWatch,
 } from 'react-hook-form';
 import { Check, X } from 'lucide-react';
+
+import { getPurchaseByDevice } from '@/api/purchases';
 
 import LabeledInput from '@/components/ui/labeled-input';
 import CurrencyDualInput from '@/components/CurrencyDualInput';
@@ -85,6 +89,14 @@ export default function StepSaleDeal({
   const { t } = useTranslation();
   const saleType = watch('sale_type');
 
+  // Who this unit was bought from — context while selling. Shared cache key
+  // with StockDetail so it's usually already warm.
+  const { data: purchase } = useQuery({
+    queryKey: ['purchase-by-device', selectedDevice?.id],
+    queryFn: () => getPurchaseByDevice(selectedDevice!.id),
+    enabled: !!selectedDevice,
+  });
+
   return (
     <StepShell
       step={1}
@@ -122,6 +134,23 @@ export default function StepSaleDeal({
               </div>
             );
           })()}
+          {/* From whom it was bought — weak accent, links to the supplier's
+              counterparty card (like the buyer/device links elsewhere). */}
+          {purchase?.seller_name && (
+            <div className="flex items-center gap-1 text-caption text-text-muted">
+              <span>{t('sale.bought_from')}</span>
+              {purchase.counterparty_id ? (
+                <Link
+                  to={`/counterparties/${purchase.counterparty_id}`}
+                  className="truncate font-medium text-text-dim underline-offset-2 transition-colors hover:text-accent hover:underline"
+                >
+                  {purchase.seller_name}
+                </Link>
+              ) : (
+                <span className="truncate font-medium text-text-dim">{purchase.seller_name}</span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

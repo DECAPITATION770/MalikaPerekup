@@ -201,7 +201,6 @@
     "detail_created": "Добавлено",
     "detail_updated": "Обновлено",
     "detail_days_in_stock": "На витрине",
-    "detail_seller": "Принят от",
     "detail_specs": "Характеристики",
     "detail_photos": "Фото",
     "detail_files_title": "Файлы и история",
@@ -675,6 +674,7 @@
     "nasiya_warn_down": "Первый взнос больше цены",
     "buyer_photos_label": "Фото документа покупателя",
     "cost_reminder": "Закупка {{amount}} UZS",
+    "bought_from": "Куплен у",
     "profit_cash": "Прибыль",
     "profit_loss": "Убыток",
     "profit_breakeven": "В ноль"

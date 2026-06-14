@@ -200,7 +200,6 @@
     "detail_created": "Qo'shilgan",
     "detail_updated": "Yangilangan",
     "detail_days_in_stock": "Vitrinada",
-    "detail_seller": "Kimdan qabul qilingan",
     "detail_specs": "Xususiyatlar",
     "detail_photos": "Suratlar",
     "detail_files_title": "Fayllar va tarix",
@@ -662,6 +661,7 @@
     "nasiya_warn_down": "Birinchi to'lov narxdan katta",
     "buyer_photos_label": "Xaridor hujjatining fotosi",
     "cost_reminder": "Xarid {{amount}} UZS",
+    "bought_from": "Kimdan olingan:",
     "profit_cash": "Foyda",
     "profit_loss": "Zarar",
     "profit_breakeven": "Nolda"

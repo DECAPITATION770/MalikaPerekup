@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   BadgeDollarSign,
   Check,
-  ChevronRight,
   Copy,
   Headphones,
   Laptop,
@@ -24,7 +23,6 @@ import {
   Smartphone,
   Tablet,
   Upload,
-  UserRound,
   Watch,
 } from 'lucide-react';
 
@@ -344,42 +342,6 @@ export default function StockDetail() {
         <StatTile label={t('stock.detail_days_in_stock')} value={t('stock.days_n', { n: days })} />
         {hasBattery && <BatteryTile label={t('specs.battery_health')} pct={batteryPct} />}
       </div>
-
-      {/* Seller — «от кого приняли», links to the counterparty profile. */}
-      {purchaseQuery.data?.seller_name && (
-        (() => {
-          const cpId = purchaseQuery.data!.counterparty_id;
-          const inner = (
-            <>
-              <div className="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-faded text-accent"
-                >
-                  <UserRound size={18} />
-                </span>
-                <div className="min-w-0">
-                  <div className="text-caption text-text-muted">{t('stock.detail_seller')}</div>
-                  <div className="truncate text-label font-semibold">
-                    {purchaseQuery.data!.seller_name}
-                  </div>
-                </div>
-              </div>
-              {cpId && <ChevronRight size={18} className="shrink-0 text-text-muted" />}
-            </>
-          );
-          return cpId ? (
-            <Link
-              to={`/counterparties/${cpId}`}
-              className="card flex items-center justify-between gap-3 p-4 transition-colors hover:border-border-strong"
-            >
-              {inner}
-            </Link>
-          ) : (
-            <div className="card flex items-center justify-between gap-3 p-4">{inner}</div>
-          );
-        })()
-      )}
 
       {/* Files & history — unified attachments view, split into two
           distinct cards so the user reads them as separate purposes:
