@@ -120,16 +120,9 @@ function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
         // Width is justified by spreading info across columns (name |
         // phone | last contact | debt | actions), not by empty padding,
         // so a 1920px row reads dense, not stretched.
-        'card relative flex items-center gap-3 overflow-hidden px-4 py-3 transition-all hover:border-border-strong active:scale-[0.998] md:gap-4',
+        'card flex items-center gap-3 px-4 py-3 transition-all hover:border-border-strong active:scale-[0.998] md:gap-4',
       )}
     >
-      {/* Debtor accent — full-height left edge, clipped by the card's rounded
-          corners (overflow-hidden). Reads as a painted card edge, not a
-          floating mark. */}
-      {hasDebt && (
-        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-danger" />
-      )}
-
       {/* Column 1 — avatar */}
       <div
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-label font-bold tracking-tight"
@@ -199,9 +192,10 @@ function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
         )}
       </div>
 
-      {/* Column 5 — debt pill (only when applicable) */}
+      {/* Debt pill — the debtor signal (replaces the left strip). Shown on
+          every width now, not just desktop, so mobile also gets the amount. */}
       {hasDebt && (
-        <div className="hidden shrink-0 items-center gap-1.5 rounded-full border border-danger/30 bg-danger-faded px-2.5 py-1 text-caption font-bold tabular-nums text-danger md:inline-flex">
+        <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-danger/30 bg-danger-faded px-2.5 py-1 text-caption font-bold tabular-nums text-danger">
           <Wallet size={11} strokeWidth={2.2} />
           {fmtUzsCompact(owed, units)} UZS
         </div>
