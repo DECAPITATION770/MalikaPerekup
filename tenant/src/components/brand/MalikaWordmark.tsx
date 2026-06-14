@@ -29,10 +29,10 @@ export function MalikaWordmark({
   decorative = false,
 }: Props) {
   const { font, height } = SIZES[size];
-  const width = parseInt(font) * 4.5; // approximate text width for the 6-glyph word
+  const width = parseInt(font) * 4.7; // approximate text width for "perekup"
   const a11y = decorative
     ? { 'aria-hidden': true as const, focusable: false }
-    : { role: 'img' as const, 'aria-label': 'Малика' };
+    : { role: 'img' as const, 'aria-label': 'perekup' };
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -55,14 +55,14 @@ export function MalikaWordmark({
         fontFamily='"Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif'
         fill="currentColor"
       >
-        Малика
+        perekup
       </text>
       {!bare && (
-        // Amber dot replaces the natural dot of «и» — positioned over the
-        // 5th glyph (М-а-л-и-к-а → "и" is index 3).
+        // Brass period after the wordmark — the brand's signature accent
+        // (the ⇄ icon carries the colour elsewhere).
         <circle
-          cx={parseInt(font) * 2.05}
-          cy={height * 0.27}
+          cx={parseInt(font) * 4.35}
+          cy={height * 0.7}
           r={parseInt(font) * 0.085}
           fill="rgb(var(--c-accent))"
         />

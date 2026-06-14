@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils';
 
 /**
- * Compact square mark — «М» glyph carrying an amber dot above it. Use for
- * favicon-scale spots: avatar fallback, splash, install banner, header at
- * very narrow breakpoints.
+ * Compact square brand mark — the «⇄» exchange glyph (купил ↔ продал), the
+ * essence of перекуп. Brass strokes (currentColor) on a charcoal tile. Use for
+ * favicon-scale spots: avatar fallback, splash, install banner, header.
  */
 export function MalikaLogo({
   size = 32,
@@ -18,7 +18,7 @@ export function MalikaLogo({
       width={size}
       height={size}
       role="img"
-      aria-label="Малика"
+      aria-label="perekup"
       className={cn('inline-block', className)}
     >
       <rect width="32" height="32" rx="8" fill="rgb(var(--c-bg2))" />
@@ -31,15 +31,20 @@ export function MalikaLogo({
         fill="none"
         stroke="rgb(var(--c-border))"
       />
-      <circle cx="16" cy="9" r="2.4" fill="rgb(var(--c-accent))" />
-      <path
-        d="M7 24 V14 L12 19 L16 14 L20 19 L25 14 V24"
+      <g
         stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinejoin="round"
-        strokeLinecap="round"
+        strokeWidth="2.1"
         fill="none"
-      />
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* top arrow → (sell) */}
+        <path d="M8.5 12.5 H21.5" />
+        <path d="M18.5 9.5 L22.5 12.5 L18.5 15.5" />
+        {/* bottom arrow ← (buy) */}
+        <path d="M23.5 19.5 H10.5" />
+        <path d="M13.5 16.5 L9.5 19.5 L13.5 22.5" />
+      </g>
     </svg>
   );
 }
