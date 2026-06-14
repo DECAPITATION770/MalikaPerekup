@@ -167,43 +167,48 @@ function DeviceRow({
   const days = device.days_in_stock;
   const cost = device.purchase_price_uzs;
   return (
-    <div className="flex items-stretch gap-2">
+    // Same card surface + density as every other list. The whole row selects;
+    // the (i) is a compact secondary action. Card is a <div> so the inner
+    // select + info buttons aren't nested (invalid button-in-button).
+    <div
+      className={cn(
+        'card flex items-center gap-2 px-4 py-3 transition-all',
+        selected ? 'border-accent ring-1 ring-accent' : 'hover:border-border-strong',
+      )}
+    >
       <button
         type="button"
         onClick={onSelect}
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-3 text-left transition-all',
-          selected ? 'border-accent bg-accent-faded' : 'border-border bg-bg2 active:bg-bg3',
-        )}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bg3">
-          <Icon size={16} className="text-text-dim" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bg3 text-text-dim">
+          <Icon size={18} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <BrandBadge brand={device.brand} size="sm" />
             <span className="truncate text-body font-bold">{device.model}</span>
           </div>
-          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-caption text-text-muted">
-            {specs && <span className="truncate">{specs}</span>}
-            {specs && days !== null && days !== undefined && <span>·</span>}
-            {days !== null && days !== undefined && (
-              <span>{t('sale.device_days', { count: days })}</span>
+          {/* Meta + price share line 2 so the model on line 1 gets full width
+              (no more "MacBook…" truncation). */}
+          <div className="mt-0.5 flex items-center justify-between gap-2 text-caption">
+            <span className="min-w-0 truncate text-text-muted">
+              {[specs, days != null ? t('sale.device_days', { count: days }) : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+            {cost && (
+              <span className="shrink-0 font-bold tabular-nums text-text">{fmtUzs(cost)} UZS</span>
             )}
           </div>
         </div>
-        {cost && !selected && (
-          <span className="shrink-0 self-center text-right text-label font-bold tabular-nums text-text">
-            {fmtUzs(cost)} UZS
-          </span>
-        )}
-        {selected && <Check size={16} className="shrink-0 text-accent" />}
+        {selected && <Check size={18} className="shrink-0 text-accent" />}
       </button>
       <button
         type="button"
         onClick={() => setInfoOpen(true)}
         aria-label={t('sale.device_info')}
-        className="flex w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-bg2 text-text-dim transition-colors hover:text-text active:bg-bg3"
+        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg3 hover:text-text"
       >
         <Info size={18} />
       </button>
