@@ -120,10 +120,19 @@ function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
         // Width is justified by spreading info across columns (name |
         // phone | last contact | debt | actions), not by empty padding,
         // so a 1920px row reads dense, not stretched.
-        'card flex items-center gap-3 px-4 py-3 transition-all hover:border-border-strong active:scale-[0.998] md:gap-4',
-        hasDebt && 'border-l-[3px] border-l-danger pl-[13px]',
+        'card relative flex items-center gap-3 px-4 py-3 transition-all hover:border-border-strong active:scale-[0.998] md:gap-4',
       )}
     >
+      {/* Debtor accent — clean rounded left strip, same pattern as the active
+          sidebar item (avoids the curved sliver a border-left gives on a
+          rounded card). */}
+      {hasDebt && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-r-full bg-danger"
+        />
+      )}
+
       {/* Column 1 — avatar */}
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-label font-bold tracking-tight"
