@@ -120,7 +120,7 @@ function CounterpartyCard({ cp }: { cp: CounterpartyListItem }) {
         // Width is justified by spreading info across columns (name |
         // phone | last contact | debt | actions), not by empty padding,
         // so a 1920px row reads dense, not stretched.
-        'card relative flex items-center gap-3 overflow-hidden px-4 py-2.5 transition-all hover:border-border-strong active:scale-[0.998] md:gap-4',
+        'card relative flex items-center gap-3 overflow-hidden px-4 py-3 transition-all hover:border-border-strong active:scale-[0.998] md:gap-4',
       )}
     >
       {/* Debtor accent — full-height left edge, clipped by the card's rounded

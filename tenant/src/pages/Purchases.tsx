@@ -10,6 +10,7 @@ import { Calendar, ChevronRight, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ListRow } from '@/components/ui/list-row';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -172,38 +173,38 @@ function PurchaseRow({ p, delay }: { p: PurchaseOut; delay: number }) {
       ? `${p.device_brand ?? ''} ${p.device_model ?? ''}`.trim()
       : p.seller_name;
   return (
-    <li
-      className="card hover:border-border-strong transition-all animate-fade-up"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <Link
+    <li className="animate-fade-up" style={{ animationDelay: `${delay}ms` }}>
+      <ListRow
         to={`/stock/${p.device_id}`}
-        className="p-3 md:p-4 flex items-center gap-4 rounded-card"
+        leading={
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg3 text-text-muted ring-1 ring-border">
+            <ShoppingCart size={18} />
+          </div>
+        }
+        trailing={
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-body-lg font-bold tabular-nums">{fmtUzs(p.price_uzs)}</div>
+              <div className="text-micro text-text-muted">UZS</div>
+            </div>
+            <ChevronRight size={16} className="text-text-muted" />
+          </div>
+        }
       >
-        <div className="w-11 h-11 shrink-0 rounded-xl bg-bg3 ring-1 ring-border text-text-muted flex items-center justify-center">
-          <ShoppingCart size={18} />
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-body font-bold tracking-tight truncate">{deviceLabel}</span>
-            <span className="text-caption text-text-muted flex items-center gap-1 shrink-0">
-              {/* lucide icons read poorly below ~14px — bumped from 11 to match
-                  the same change on /sales. */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-body font-bold tracking-tight">{deviceLabel}</span>
+            <span className="flex shrink-0 items-center gap-1 text-caption text-text-muted">
               <Calendar size={14} aria-hidden />
               {fmtDate(p.purchase_date)}
             </span>
           </div>
-          <div className="text-caption text-text-muted truncate">
+          <div className="truncate text-caption text-text-muted">
             <span className="text-text-dim">{p.seller_name}</span>
             {p.device_imei && <span className="font-mono"> · IMEI {p.device_imei}</span>}
           </div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-body-lg font-bold tabular-nums">{fmtUzs(p.price_uzs)}</div>
-          <div className="text-micro text-text-muted">UZS</div>
-        </div>
-        <ChevronRight size={16} className="text-text-muted shrink-0" />
-      </Link>
+      </ListRow>
     </li>
   );
 }
