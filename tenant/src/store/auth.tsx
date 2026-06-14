@@ -15,6 +15,7 @@ import {
 } from 'react';
 import i18n from '@/i18n';
 import { UNAUTHORIZED_EVENT } from '@/api/client';
+import { QUERY_CACHE_KEY } from '@/lib/queryClient';
 import type { UserOut } from '@/api/auth';
 
 interface AuthState {
@@ -59,6 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Same reason as in setAuth — don't let the previous user's preference
     // bleed into the next session that signs in on this device.
     localStorage.removeItem('tenant_lang');
+    // Drop the persisted query cache so a logged-out cold boot doesn't resume
+    // the previous session's authenticated queries on /login (→ 401 storm) or
+    // leave another tenant's data sitting in localStorage.
+    localStorage.removeItem(QUERY_CACHE_KEY);
     localStorage.setItem(KEY_MANUAL_LOGOUT, '1');
     setToken(null);
     setUser(null);
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (localStorage.getItem(KEY_TOKEN)) {
         localStorage.removeItem(KEY_TOKEN);
         localStorage.removeItem(KEY_USER);
+        localStorage.removeItem(QUERY_CACHE_KEY);
         setToken(null);
         setUser(null);
         setExpired(true);

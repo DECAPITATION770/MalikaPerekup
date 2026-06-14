@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ListRow } from '@/components/ui/list-row';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NoSalesIllustration } from '@/components/illustrations';
@@ -196,17 +197,27 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
       ? `${s.device_brand ?? ''} ${s.device_model ?? ''}`.trim()
       : s.buyer_name;
   return (
-    <li
-      className="card hover:border-border-strong transition-all animate-fade-up"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <Link to={`/stock/${s.device_id}`} className="p-3 md:p-4 flex items-center gap-4 rounded-card">
-        <div className="w-11 h-11 shrink-0 rounded-xl bg-bg3 ring-1 ring-border text-text-muted flex items-center justify-center">
-          <BadgeDollarSign size={18} />
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-body font-bold tracking-tight truncate">{deviceLabel}</span>
+    <li className="animate-fade-up" style={{ animationDelay: `${delay}ms` }}>
+      <ListRow
+        to={`/stock/${s.device_id}`}
+        leading={
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg3 text-text-muted ring-1 ring-border">
+            <BadgeDollarSign size={18} />
+          </div>
+        }
+        trailing={
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-body-lg font-bold tabular-nums">{fmtUzs(s.sale_price_uzs)}</div>
+              <div className="text-micro text-text-muted">UZS</div>
+            </div>
+            <ChevronRight size={16} className="text-text-muted" />
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-body font-bold tracking-tight">{deviceLabel}</span>
             <Badge dot variant={s.sale_type === 'nasiya' ? 'accent' : 'neutral'} size="sm">
               {t(`sale.${s.sale_type}`)}
             </Badge>
@@ -215,18 +226,17 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
                 {t(`sales.status_${s.status}`)}
               </Badge>
             )}
-            <span className="text-caption text-text-muted flex items-center gap-1 shrink-0">
-              {/* lucide icons read poorly below ~14px — bumped from 11. */}
+            <span className="flex shrink-0 items-center gap-1 text-caption text-text-muted">
               <Calendar size={14} aria-hidden />
               {fmtDate(s.sale_date)}
             </span>
           </div>
-          <div className="text-caption text-text-muted truncate">
+          <div className="truncate text-caption text-text-muted">
             {s.counterparty_id ? (
               <button
                 type="button"
                 onClick={(e) => {
-                  // Stop the outer card-link from also navigating to /stock.
+                  // Stop the outer row-link from also navigating to /stock.
                   e.stopPropagation();
                   e.preventDefault();
                   navigate(`/counterparties/${s.counterparty_id}`);
@@ -241,12 +251,7 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
             {s.device_imei && <span className="font-mono"> · IMEI {s.device_imei}</span>}
           </div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-body-lg font-bold tabular-nums">{fmtUzs(s.sale_price_uzs)}</div>
-          <div className="text-micro text-text-muted">UZS</div>
-        </div>
-        <ChevronRight size={16} className="text-text-muted shrink-0" />
-      </Link>
+      </ListRow>
     </li>
   );
 }

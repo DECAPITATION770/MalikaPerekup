@@ -115,24 +115,54 @@ export function useTelegram(): TgState {
   return useContext(TgContext);
 }
 
+// ── Telegram chrome sync ─────────────────────────────────────────────────
+// Telegram owns its own header bar + the bottom strip behind the MainButton.
+// By default they keep Telegram's theme colour, so when the app renders in a
+// theme that differs from the Telegram client (e.g. app light inside a dark
+// Telegram, or vice-versa) the bars look "unsynced". Push the app's own
+// background colour into Telegram's chrome whenever the resolved theme changes.
+
+function _cssVarHex(name: string, fallback: `#${string}`): `#${string}` {
+  if (typeof document === 'undefined') return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const m = raw.match(/(\d+)\s+(\d+)\s+(\d+)/);
+  if (!m) return fallback;
+  const hex = [m[1], m[2], m[3]]
+    .map((n) => Number(n).toString(16).padStart(2, '0'))
+    .join('');
+  return `#${hex}`;
+}
+
+/** Recolour Telegram's header / background / bottom bar to match the app's
+ *  current theme. No-op outside Telegram or on clients that don't support it. */
+export function syncTelegramChrome(): void {
+  const bg = _cssVarHex('--c-bg', '#15120e');
+  const header = _cssVarHex('--c-bg2', bg);
+  try {
+    if (miniApp.setBackgroundColor.isAvailable?.()) miniApp.setBackgroundColor(bg);
+    if (miniApp.setHeaderColor.isAvailable?.()) miniApp.setHeaderColor(header);
+    if (miniApp.setBottomBarColor.isAvailable?.()) miniApp.setBottomBarColor(bg);
+  } catch {
+    /* not in Telegram or method unsupported on this client */
+  }
+}
+
 // ── Theme bridge: subscribe to themeParams.colorScheme and apply .light class
 
 export function useTgThemeBridge(): 'dark' | 'light' {
   const { inTelegram } = useTelegram();
-  const [scheme, setScheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    // Default to system preference when outside Telegram
-    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  });
+  // Dark-first (CLAUDE.md §15): outside Telegram the ambient default is always
+  // dark — perekupshchik reads the screen under bright market sun, so we never
+  // start light just because the host OS prefers light. Inside Telegram we still
+  // inherit the user's deliberate Telegram theme choice (see effect below). The
+  // user can override either way via the theme toggle (persisted in theme.tsx).
+  const [scheme, setScheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     if (!inTelegram) {
-      // outside TG, follow system
-      const mql = window.matchMedia('(prefers-color-scheme: light)');
-      const update = () => setScheme(mql.matches ? 'light' : 'dark');
-      update();
-      mql.addEventListener?.('change', update);
-      return () => mql.removeEventListener?.('change', update);
+      // Outside TG: stay dark-first, ignore prefers-color-scheme.
+      setScheme('dark');
+      return;
     }
 
     const detectFromTg = () => {
@@ -216,8 +246,11 @@ export function useTgMainButton(opts: MainButtonOpts | null) {
         isVisible: opts.isVisible ?? true,
         isEnabled: opts.isEnabled ?? true,
         isLoaderVisible: opts.isLoaderVisible ?? false,
-        ...(opts.backgroundColor ? { backgroundColor: opts.backgroundColor } : {}),
-        ...(opts.textColor ? { textColor: opts.textColor } : {}),
+        // Default to the brand brass so the native button doesn't inherit
+        // Telegram's theme accent (blue/etc.) and clash with the app's
+        // charcoal+brass design. Callers can still override per-button.
+        backgroundColor: opts.backgroundColor ?? '#C89B3C',
+        textColor: opts.textColor ?? '#1A140A',
       });
     }
 

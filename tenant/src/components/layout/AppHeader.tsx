@@ -104,7 +104,7 @@ export function AppHeader({ onOpenSearch }: AppHeaderProps = {}) {
           <button
             type="button"
             onClick={() => go('/')}
-            aria-label="Malika"
+            aria-label="perekup"
             className="cursor-pointer md:hidden"
           >
             <MalikaWordmark size="sm" className="text-text" decorative />

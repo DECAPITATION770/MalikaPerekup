@@ -51,7 +51,12 @@ async def create_sale(
     user: CurrentUser,
     db: DbSession,
 ) -> SaleOut:
-    """Sell an in-stock device for cash or nasiya (schedule built later)."""
+    """Sell an in-stock device for cash or nasiya.
+
+    For nasiya, pass ``installment`` to create the sale and its payment
+    schedule atomically; omitting it falls back to the legacy two-step flow
+    (``POST /sales/{id}/installments``).
+    """
     try:
         sale, _ = await service.create_sale(
             db,
@@ -65,6 +70,7 @@ async def create_sale(
             exchange_rate=payload.exchange_rate,
             sale_date=payload.sale_date,
             comment=payload.comment,
+            installment=payload.installment,
         )
     except device_service.DeviceNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc

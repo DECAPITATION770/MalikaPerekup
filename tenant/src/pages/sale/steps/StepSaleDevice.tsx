@@ -5,6 +5,7 @@
  * step. Mirrors the purchase wizard's device step.
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,6 +15,7 @@ import {
   Laptop,
   Package as PackageIcon,
   Search,
+  ShoppingCart,
   Smartphone,
   Tablet,
   Watch,
@@ -30,6 +32,7 @@ import {
   type DeviceCategory,
   type DeviceOut,
 } from '@/api/devices';
+import { getPurchaseByDevice } from '@/api/purchases';
 import { formatSpecValue, specsSummary } from '@/lib/specsFmt';
 import { fmtUzs } from '@/lib/fmt';
 import { useDebounced } from '@/lib/useDebounced';
@@ -117,7 +120,16 @@ export default function StepSaleDevice({ selectedDevice, onSelect, onClear, erro
               ))}
             </div>
           ) : (devicesData?.items.length ?? 0) === 0 ? (
-            <p className="py-4 text-center text-label text-text-muted">{t('sale.device_empty')}</p>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <p className="text-label text-text-muted">{t('sale.device_empty')}</p>
+              <Link
+                to="/purchase/new"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-label font-bold text-[rgb(var(--c-on-accent))] transition-colors hover:bg-accent-hover"
+              >
+                <ShoppingCart size={16} />
+                {t('nav.buy')}
+              </Link>
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {!debouncedSearch && (
@@ -155,43 +167,48 @@ function DeviceRow({
   const days = device.days_in_stock;
   const cost = device.purchase_price_uzs;
   return (
-    <div className="flex items-stretch gap-2">
+    // Same card surface + density as every other list. The whole row selects;
+    // the (i) is a compact secondary action. Card is a <div> so the inner
+    // select + info buttons aren't nested (invalid button-in-button).
+    <div
+      className={cn(
+        'card flex items-center gap-2 px-4 py-3 transition-all',
+        selected ? 'border-accent ring-1 ring-accent' : 'hover:border-border-strong',
+      )}
+    >
       <button
         type="button"
         onClick={onSelect}
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-3 text-left transition-all',
-          selected ? 'border-accent bg-accent-faded' : 'border-border bg-bg2 active:bg-bg3',
-        )}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bg3">
-          <Icon size={16} className="text-text-dim" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bg3 text-text-dim">
+          <Icon size={18} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <BrandBadge brand={device.brand} size="sm" />
             <span className="truncate text-body font-bold">{device.model}</span>
           </div>
-          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-caption text-text-muted">
-            {specs && <span className="truncate">{specs}</span>}
-            {specs && days !== null && days !== undefined && <span>·</span>}
-            {days !== null && days !== undefined && (
-              <span>{t('sale.device_days', { count: days })}</span>
+          {/* Meta + price share line 2 so the model on line 1 gets full width
+              (no more "MacBook…" truncation). */}
+          <div className="mt-0.5 flex items-center justify-between gap-2 text-caption">
+            <span className="min-w-0 truncate text-text-muted">
+              {[specs, days != null ? t('sale.device_days', { count: days }) : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+            {cost && (
+              <span className="shrink-0 font-bold tabular-nums text-text">{fmtUzs(cost)} UZS</span>
             )}
           </div>
         </div>
-        {cost && !selected && (
-          <span className="shrink-0 self-center text-right text-label font-bold tabular-nums text-text">
-            {fmtUzs(cost)} UZS
-          </span>
-        )}
-        {selected && <Check size={16} className="shrink-0 text-accent" />}
+        {selected && <Check size={18} className="shrink-0 text-accent" />}
       </button>
       <button
         type="button"
         onClick={() => setInfoOpen(true)}
         aria-label={t('sale.device_info')}
-        className="flex w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-bg2 text-text-dim transition-colors hover:text-text active:bg-bg3"
+        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg3 hover:text-text"
       >
         <Info size={18} />
       </button>
@@ -223,6 +240,14 @@ function DeviceDetailDialog({
   });
   const urls = photosQ.data ?? [];
   const specs = Object.entries(device.specs ?? {}).filter(([, v]) => v !== null && v !== '');
+  // From whom this unit was bought — provenance context while choosing what to
+  // sell. Fetched lazily when the dialog opens (shared cache with StockDetail).
+  const purchaseQ = useQuery({
+    queryKey: ['purchase-by-device', device.id],
+    queryFn: () => getPurchaseByDevice(device.id),
+    enabled: open,
+  });
+  const purchase = purchaseQ.data;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -317,6 +342,23 @@ function DeviceDetailDialog({
               </div>
             )}
           </div>
+
+          {/* From whom it was bought — weak accent, links to the supplier. */}
+          {purchase?.seller_name && (
+            <div className="flex items-center gap-1 text-caption text-text-muted">
+              <span>{t('sale.bought_from')}</span>
+              {purchase.counterparty_id ? (
+                <Link
+                  to={`/counterparties/${purchase.counterparty_id}`}
+                  className="truncate font-medium text-text-dim underline-offset-2 transition-colors hover:text-accent hover:underline"
+                >
+                  {purchase.seller_name}
+                </Link>
+              ) : (
+                <span className="truncate font-medium text-text-dim">{purchase.seller_name}</span>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

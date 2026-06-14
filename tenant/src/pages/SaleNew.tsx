@@ -14,7 +14,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, BadgeDollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { createSale, createInstallmentPlan } from '@/api/sales';
+import { createSale } from '@/api/sales';
 import { getExchangeRateHint } from '@/api/reports';
 import { getDevice, type DeviceWithPurchaseOut } from '@/api/devices';
 import type { CounterpartyOut } from '@/api/counterparties';
@@ -207,7 +207,10 @@ export default function SaleNew() {
 
   const mutation = useMutation({
     mutationFn: async (v: SaleFormValues) => {
-      const sale = await createSale({
+      // Single atomic call: for nasiya the backend creates the sale and the
+      // schedule in one transaction, so a failure can't leave an orphan debt
+      // with no schedule.
+      await createSale({
         device_id: v.device_id!,
         buyer: {
           full_name: v.buyer_name.trim(),
@@ -223,16 +226,17 @@ export default function SaleNew() {
         exchange_rate: v.currency === 'USD' ? parseMoneyInput(v.exchange_rate ?? '') : null,
         sale_date: v.sale_date,
         comment: v.comment || null,
+        installment:
+          v.sale_type === 'nasiya'
+            ? {
+                total_amount: parseMoneyInput(v.price),
+                down_payment: v.down_payment ? parseMoneyInput(v.down_payment) : undefined,
+                period_type: v.period_type,
+                period_count: v.period_count!,
+                start_date: v.start_date!,
+              }
+            : undefined,
       });
-      if (v.sale_type === 'nasiya') {
-        await createInstallmentPlan(sale.id, {
-          total_amount: parseMoneyInput(v.price),
-          down_payment: v.down_payment ? parseMoneyInput(v.down_payment) : undefined,
-          period_type: v.period_type,
-          period_count: v.period_count!,
-          start_date: v.start_date!,
-        });
-      }
     },
     onSuccess: () => {
       haptic.notify('success');

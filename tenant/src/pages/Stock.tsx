@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { ListRow } from '@/components/ui/list-row';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pagination } from '@/components/ui/pagination';
 import {
@@ -672,7 +673,7 @@ function DeviceList({
       </div>
 
       {/* Mobile + sidebar zone: card list */}
-      <ul className="divide-y divide-border lg:hidden">
+      <ul className="flex flex-col gap-2 lg:hidden">
         {items.map((d, i) => (
           <DeviceRowMobile key={d.id} d={d} delay={i * 20} highlight={d.id === hl} />
         ))}
@@ -784,27 +785,29 @@ function DeviceRowMobile({
   }, [highlight]);
 
   return (
-    <li
-      ref={ref}
-      className={cn('animate-fade-up transition-colors', highlight && 'bg-accent-faded')}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <Link to={`/stock/${d.id}`} className="flex items-center gap-3 p-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl"
-          style={{
-            backgroundColor: brandTint(d.brand, 0.14),
-            color: brandTextColor(d.brand, resolved),
-          }}
-        >
-          <DevicePhoto
-            src={d.photo_url}
-            alt={`${d.brand} ${d.model}`}
-            fallback={<Icon size={20} strokeWidth={1.8} />}
-            className="h-full w-full object-cover"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
+    <li ref={ref} className="animate-fade-up" style={{ animationDelay: `${delay}ms` }}>
+      <ListRow
+        to={`/stock/${d.id}`}
+        className={cn(highlight && 'ring-2 ring-accent')}
+        leading={
+          <div
+            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl"
+            style={{
+              backgroundColor: brandTint(d.brand, 0.14),
+              color: brandTextColor(d.brand, resolved),
+            }}
+          >
+            <DevicePhoto
+              src={d.photo_url}
+              alt={`${d.brand} ${d.model}`}
+              fallback={<Icon size={20} strokeWidth={1.8} />}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        }
+        trailing={<ChevronRight size={16} className="text-text-muted" />}
+      >
+        <div>
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <BrandBadge brand={d.brand} size="sm" />
@@ -842,8 +845,7 @@ function DeviceRowMobile({
             )}
           </div>
         </div>
-        <ChevronRight size={16} className="shrink-0 text-text-muted" />
-      </Link>
+      </ListRow>
     </li>
   );
 }
@@ -1049,10 +1051,10 @@ function DeviceTableSkeleton() {
           </div>
         ))}
       </div>
-      <ul className="divide-y divide-border lg:hidden">
+      <ul className="flex flex-col gap-2 lg:hidden">
         {Array.from({ length: 6 }).map((_, i) => (
-          <li key={i} className="flex items-center gap-3 p-3">
-            <Skeleton className="size-12 rounded-xl" />
+          <li key={i} className="card flex items-center gap-3 px-4 py-3">
+            <Skeleton className="size-11 rounded-xl" />
             <div className="flex flex-1 flex-col gap-2">
               <Skeleton className="h-3.5 w-3/5" />
               <Skeleton className="h-3 w-2/5" />

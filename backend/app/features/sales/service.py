@@ -85,8 +85,14 @@ async def create_sale(
     exchange_rate: Decimal | None,
     sale_date: date,
     comment: str | None,
+    installment=None,             # installments.schemas.PlanCreate | None
 ) -> tuple[Sale, Device]:
-    """Sell a device. Pins profit and moves the device to ``sold``."""
+    """Sell a device. Pins profit and moves the device to ``sold``.
+
+    When ``installment`` is provided (nasiya), the payment schedule is created
+    in this same transaction — sale + plan commit or roll back together, so a
+    nasiya sale can never end up as an orphan debt with no schedule.
+    """
     # 1. Load and validate the device.
     device = await device_service.get_or_404(db, device_id, shop_id=shop_id)
     if device.status != DeviceStatus.IN_STOCK.value:
@@ -148,6 +154,38 @@ async def create_sale(
 
     # 6. Flip device status atomically with the sale insert.
     device_service.transition_status(device, DeviceStatus.SOLD.value)
+
+    # 6.5 Nasiya: build the payment schedule in the SAME transaction so a sale
+    # and its plan commit or roll back together (no orphan debt). Local import
+    # mirrors return_sale() — installments depends on sales, so importing it at
+    # module top would cycle.
+    if installment is not None:
+        from app.features.installments import service as plan_service
+
+        # The plan total must equal the actual sale price, else the tracked
+        # debt (and the "Долги по Nasiya" KPI) is fabricated. Compare in the
+        # sale's own currency (mirrors the legacy /installments endpoint).
+        expected = sale_price_usd if currency == Currency.USD.value else sale_price_uzs
+        if installment.total_amount != expected:
+            raise SaleError(
+                f"installment total_amount must equal the sale price "
+                f"({expected} {currency})"
+            )
+        try:
+            await plan_service.create_plan(
+                db,
+                shop_id=shop_id,
+                sale_id=sale.id,
+                total_amount=installment.total_amount,
+                down_payment=installment.down_payment,
+                period_type=installment.period_type,
+                period_count=installment.period_count,
+                start_date=installment.start_date,
+            )
+        except plan_service.InstallmentError as exc:
+            # Surface as a SaleError so the router maps it to 400 and the whole
+            # transaction (sale + device flip) rolls back.
+            raise SaleError(str(exc)) from exc
 
     # 7. Auto-system-note for the buyer's directory entry. Best-effort —
     # a note write failure must not block a real sale. The nasiya period

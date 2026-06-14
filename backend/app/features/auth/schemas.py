@@ -37,6 +37,8 @@ class UserOut(BaseModel):
     language: Literal["ru", "uz"]
     tg_username: str | None = None
     phone: str | None = None
+    login: str | None = None
+    """The fallback login, if the user set one (Settings → Security)."""
     has_password: bool
 
     # ── Notification preferences (Settings → Уведомления) ──

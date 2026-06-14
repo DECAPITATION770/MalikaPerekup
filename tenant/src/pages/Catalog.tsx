@@ -234,7 +234,7 @@ export default function Catalog() {
             return (
               <div
                 key={m.id}
-                className="card px-4 py-3.5 flex items-center gap-3 hover:border-border-strong transition-all"
+                className="card flex items-center gap-3 px-4 py-3 transition-all hover:border-border-strong"
               >
                 <button
                   type="button"

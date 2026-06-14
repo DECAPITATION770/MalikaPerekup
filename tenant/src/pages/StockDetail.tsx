@@ -4,7 +4,7 @@
  * QR-print preview dialog (fetches qr.png blob), Tg MainButton «Печать
  * QR-стикера», copy-token fallback.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +50,7 @@ import BrandBadge from '@/components/BrandBadge';
 import DevicePhoto from '@/components/DevicePhoto';
 import { brandTextColor, brandTint } from '@/lib/brand';
 import { useTheme } from '@/lib/theme';
-import { useTgMainButton, useTgHaptic } from '@/lib/telegram';
+import { useTgBackButton, useTgMainButton, useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_ICON: Record<DeviceCategory, React.ElementType> = {
@@ -169,6 +169,11 @@ export default function StockDetail() {
     enabled: Boolean(id),
     retry: false,
   });
+
+  // Native Telegram BackButton → return to the previous screen (the showcase
+  // / installments / wherever we came from). Without this the Mini App shows
+  // only the ✕ "close" chrome and the user can't get back from a device card.
+  useTgBackButton(useCallback(() => navigate(-1), [navigate]));
 
   // Tg MainButton → sell this device (the frequent action); QR print is the
   // primary only for devices that aren't in stock anymore.
@@ -444,8 +449,10 @@ export default function StockDetail() {
 
       <ReturnSaleAction deviceId={d.id} deviceStatus={d.status} />
 
-      {/* QR token + print */}
-      <div className="card flex items-center justify-between gap-4 p-4">
+      {/* QR token + print — stacks on narrow phones (inside Telegram the
+          webview is ~360-390px wide; a single row overflowed and the buttons
+          overlapped the token label). */}
+      <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-faded text-accent">
             <QrStickerIcon size={20} />
