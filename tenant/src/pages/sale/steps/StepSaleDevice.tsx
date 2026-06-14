@@ -32,6 +32,7 @@ import {
   type DeviceCategory,
   type DeviceOut,
 } from '@/api/devices';
+import { getPurchaseByDevice } from '@/api/purchases';
 import { formatSpecValue, specsSummary } from '@/lib/specsFmt';
 import { fmtUzs } from '@/lib/fmt';
 import { useDebounced } from '@/lib/useDebounced';
@@ -234,6 +235,14 @@ function DeviceDetailDialog({
   });
   const urls = photosQ.data ?? [];
   const specs = Object.entries(device.specs ?? {}).filter(([, v]) => v !== null && v !== '');
+  // From whom this unit was bought — provenance context while choosing what to
+  // sell. Fetched lazily when the dialog opens (shared cache with StockDetail).
+  const purchaseQ = useQuery({
+    queryKey: ['purchase-by-device', device.id],
+    queryFn: () => getPurchaseByDevice(device.id),
+    enabled: open,
+  });
+  const purchase = purchaseQ.data;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -328,6 +337,23 @@ function DeviceDetailDialog({
               </div>
             )}
           </div>
+
+          {/* From whom it was bought — weak accent, links to the supplier. */}
+          {purchase?.seller_name && (
+            <div className="flex items-center gap-1 text-caption text-text-muted">
+              <span>{t('sale.bought_from')}</span>
+              {purchase.counterparty_id ? (
+                <Link
+                  to={`/counterparties/${purchase.counterparty_id}`}
+                  className="truncate font-medium text-text-dim underline-offset-2 transition-colors hover:text-accent hover:underline"
+                >
+                  {purchase.seller_name}
+                </Link>
+              ) : (
+                <span className="truncate font-medium text-text-dim">{purchase.seller_name}</span>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
