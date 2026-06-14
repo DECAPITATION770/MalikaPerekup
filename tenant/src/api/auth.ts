@@ -6,6 +6,7 @@ export interface UserOut {
   language: 'ru' | 'uz';
   tg_username: string | null;
   phone: string | null;
+  login: string | null;
   has_password: boolean;
   notifications_enabled: boolean;
   tg_connected: boolean;

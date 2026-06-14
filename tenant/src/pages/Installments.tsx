@@ -461,6 +461,21 @@ function PlanCard({ plan }: { plan: PlanOut }) {
         />
       </div>
 
+      {/* Term: when the plan was opened and the last scheduled due date. */}
+      <div className="flex items-center gap-1.5 text-hint text-text-muted">
+        <CalendarClock size={14} className="shrink-0" />
+        {t('installments.term', {
+          from: fmtDate(`${plan.start_date}T00:00:00`),
+          to: fmtDate(
+            addPeriod(
+              new Date(`${plan.start_date}T00:00:00`),
+              plan.period_type,
+              plan.period_count,
+            ).toISOString(),
+          ),
+        })}
+      </div>
+
       {/* Due-date line: overdue urgency or the next payment date */}
       {isOverdue && daysOverdue > 0 ? (
         <div className="flex items-center gap-1.5 text-hint font-semibold text-danger">

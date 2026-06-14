@@ -57,6 +57,8 @@ function passwordSchema(t: (k: string) => string) {
 function PasswordSection() {
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const qc = useQueryClient();
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
 
   const {
     register,
@@ -69,12 +71,19 @@ function PasswordSection() {
     mode: 'onBlur',
   });
 
+  // Prefill the saved login so it persists across visits (was always blank).
+  useEffect(() => {
+    if (me?.login) resetForm({ login: me.login, password: '', confirm: '' });
+  }, [me?.login, resetForm]);
+
   const onSubmit = handleSubmit(async ({ login, password }) => {
     try {
       await setupPassword(login.trim(), password);
       haptic.notify('success');
       toast.success(t('settings.password_ok'));
-      resetForm();
+      // Keep the (now saved) login visible; only clear the password fields.
+      resetForm({ login: login.trim(), password: '', confirm: '' });
+      qc.invalidateQueries({ queryKey: ['me'] });
     } catch {
       haptic.notify('error');
       toast.error(t('settings.password_failed'));
@@ -426,6 +435,18 @@ function NotificationsSection() {
           <div className="flex items-start gap-2 rounded-xl bg-warning-faded/40 p-3 text-caption text-warning">
             <CircleAlert size={15} className="mt-0.5 shrink-0" />
             {t('settings.notif_not_connected')}
+          </div>
+        )}
+
+        {/* Connected → reminders auto-deliver to the user's own DM. Make that
+            explicit so the chat-id field below reads as an optional override,
+            not a required step. */}
+        {enabled && me?.tg_connected && (
+          <div className="flex items-start gap-2 rounded-xl bg-success-faded/40 p-3 text-caption text-success">
+            <Bell size={15} className="mt-0.5 shrink-0" />
+            {t('settings.notif_auto_self', {
+              at: me.tg_username ? ` (@${me.tg_username})` : '',
+            })}
           </div>
         )}
 

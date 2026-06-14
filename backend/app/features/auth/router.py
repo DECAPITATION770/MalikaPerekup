@@ -32,6 +32,7 @@ def _user_out(user: User) -> UserOut:
         language=user.language,  # type: ignore[arg-type]  # checked at write time
         tg_username=user.tg_username,
         phone=user.phone,
+        login=user.login,
         has_password=user.has_password,
         notifications_enabled="telegram" in (user.notification_channels or []),
         tg_connected=user.tg_id is not None,
