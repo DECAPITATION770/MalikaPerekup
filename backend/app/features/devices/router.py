@@ -139,7 +139,10 @@ async def suggestions(
     field: Annotated[Literal["brand", "model"], Query()],
     q: Annotated[str, Query(max_length=120)] = "",
     brand: Annotated[str | None, Query(max_length=64)] = None,
-    limit: Annotated[int, Query(ge=1, le=20)] = 8,
+    # le=200 (was 20): the Stock brand filter requests the full popularity-
+    # ordered list so its «show all» toggle reveals every brand, not just 20.
+    # The purchase-form autocomplete still passes its own small limit.
+    limit: Annotated[int, Query(ge=1, le=200)] = 8,
 ) -> SuggestOut:
     """Autocomplete for the purchase form's brand/model fields — distinct
     values from THIS shop's own device history, most-used first."""
