@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BadgeDollarSign,
+  CircleDollarSign,
   CalendarClock,
   LayoutDashboard,
   Package,
@@ -26,7 +26,7 @@ const TABS: readonly TabSpec[] = [
   { to: '/', icon: LayoutDashboard, key: 'nav.today', end: true },
   { to: '/stock', icon: Package, key: 'nav.stock' },
   { to: '/purchase/new', icon: ShoppingCart, key: 'nav.buy', tone: 'accent' },
-  { to: '/sale/new', icon: BadgeDollarSign, key: 'nav.sell', tone: 'success' },
+  { to: '/sale/new', icon: CircleDollarSign, key: 'nav.sell', tone: 'success' },
   { to: '/installments', icon: CalendarClock, key: 'nav.installments', badge: 'overdue' },
 ];
 
@@ -119,7 +119,11 @@ function TabItem({
                 !tone && isActive && 'bg-accent-faded',
               )}
             >
-              <Icon size={showChip ? 18 : 20} strokeWidth={isActive ? 2.2 : 1.9} />
+              {/* One icon size for every tab — the chip is a 36px backdrop, not
+                  a reason to shrink the glyph. Previously chip tabs (money +
+                  active) rendered at 18 while naked tabs rendered at 20, so the
+                  cart/$ read visibly smaller than the grid/calendar beside them. */}
+              <Icon size={20} strokeWidth={isActive ? 2.2 : 1.9} />
               {!!badge && badge > 0 && (
                 <span className="absolute -right-2 -top-1.5 h-[16px] min-w-[16px] rounded-full bg-danger px-1 text-center text-[10px] font-bold tabular-nums leading-[16px] text-white">
                   {badge > 99 ? '99+' : badge}

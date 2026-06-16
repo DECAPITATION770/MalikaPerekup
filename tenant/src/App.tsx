@@ -129,10 +129,27 @@ function ThemedToaster() {
   return (
     <Toaster
       position="top-center"
-      richColors
       closeButton
       theme={resolved}
-      toastOptions={{ className: 'card !rounded-xl' }}
+      // `richColors` painted a near-white slab that clashed with the dark
+      // brass theme. Instead colour each toast type from our own tokens so a
+      // toast reads like the app's Badges (faded tint + tonal text), in both
+      // light and dark. Shape lives on `toast`; colour on the per-type keys so
+      // the two never fight over `!important`.
+      toastOptions={{
+        classNames: {
+          toast: '!rounded-xl !border !shadow-lg !backdrop-blur',
+          title: '!font-semibold',
+          description: '!text-text-dim',
+          default: '!bg-bg2 !text-text !border-border',
+          success: '!bg-success-faded !text-success !border-success/40',
+          error: '!bg-danger-faded !text-danger !border-danger/40',
+          warning: '!bg-warning-faded !text-warning !border-warning/40',
+          actionButton:
+            '!bg-accent !text-[rgb(var(--c-on-accent))] !font-semibold !rounded-lg',
+          closeButton: '!bg-bg2 !text-text-muted !border-border hover:!text-text',
+        },
+      }}
     />
   );
 }

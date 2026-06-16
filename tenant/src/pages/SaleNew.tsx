@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, BadgeDollarSign } from 'lucide-react';
+import { ArrowLeft, CircleDollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { createSale } from '@/api/sales';
@@ -400,7 +400,7 @@ export default function SaleNew() {
         onDiscard={discardDraft}
         title={t('sale.draft_restore_title')}
         body={t('sale.draft_restore_body')}
-        icon={<BadgeDollarSign size={22} />}
+        icon={<CircleDollarSign size={22} />}
       />
     </div>
   );

@@ -14,17 +14,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ChevronDown,
   ChevronRight,
-  Headphones,
-  Laptop,
-  Package as PackageIcon,
   Search as SearchIcon,
   ShoppingCart,
   SlidersHorizontal,
-  Smartphone,
-  Tablet,
-  Watch,
   X,
-  type LucideIcon,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -66,9 +59,7 @@ import { specsSummary } from '@/lib/specsFmt';
 import { useTgHaptic } from '@/lib/telegram';
 import { cn } from '@/lib/utils';
 import BrandBadge from '@/components/BrandBadge';
-import DevicePhoto from '@/components/DevicePhoto';
-import { brandTextColor, brandTint } from '@/lib/brand';
-import { useTheme } from '@/lib/theme';
+import DeviceTile, { CATEGORY_ICON } from '@/components/DeviceTile';
 
 const STATUSES: DeviceStatus[] = ['in_stock', 'reserved', 'sold', 'returned', 'written_off'];
 const CATEGORIES: DeviceCategory[] = [
@@ -91,15 +82,6 @@ const PRICE_RANGES: { key: string; min: string; max: string }[] = [
   { key: 'gt', min: '10000000', max: '' },
 ];
 
-const CATEGORY_ICON: Record<DeviceCategory, LucideIcon> = {
-  phone: Smartphone,
-  tablet: Tablet,
-  laptop: Laptop,
-  smartwatch: Watch,
-  accessory: Headphones,
-  other: PackageIcon,
-};
-
 const STATUS_VARIANT: Record<DeviceStatus, 'success' | 'warning' | 'muted' | 'danger' | 'neutral'> =
   {
     in_stock: 'success',
@@ -117,6 +99,9 @@ const CONDITION_VARIANT: Record<DeviceCondition, 'success' | 'accent' | 'warning
 };
 
 const PAGE_SIZE = 20;
+
+/** Brand chips shown before the «show all» toggle reveals the long tail. */
+const BRAND_COLLAPSED = 8;
 
 export default function Stock() {
   const { t } = useTranslation();
@@ -211,7 +196,9 @@ export default function Stock() {
 
   const brandQuery = useQuery({
     queryKey: ['brand-suggestions'],
-    queryFn: () => getDeviceSuggestions({ field: 'brand', limit: 12 }),
+    // Pull the full popularity-ordered brand list (backend caps at 200); the
+    // brand FilterSection shows the top few and reveals the rest via «show all».
+    queryFn: () => getDeviceSuggestions({ field: 'brand', limit: 200 }),
     staleTime: 5 * 60_000,
   });
   const brandOptions = brandQuery.data ?? [];
@@ -642,12 +629,15 @@ function DeviceList({
   }, [highlightId]);
 
   return (
-    <div className="card overflow-hidden">
-      {/* Desktop ≥1024: real <table>. Was ≥768, but with the sidebar (244px)
-          eating into the content column the 6-column table overflowed at
-          768–1023 and clipped «Цена / Дни / Статус». Fall back to the card
-          list in that zone — it fits and already renders the same data. */}
-      <div className="hidden lg:block">
+    <>
+      {/* Desktop ≥1024: real <table> on a single card surface (rows separated
+          by dividers). The mobile list below must NOT share this card — its
+          rows are already individual cards, so wrapping them here produced a
+          card-inside-cards look. Was ≥768, but with the sidebar (244px) eating
+          into the content column the 6-column table overflowed at 768–1023 and
+          clipped «Цена / Дни / Статус». Fall back to the card list in that
+          zone — it fits and already renders the same data. */}
+      <div className="card hidden overflow-hidden lg:block">
         <Table>
           {/* Sticky header was `bg-bg2/60` — at 60% alpha the rows below
               ghosted through and broke column-edge alignment as the user
@@ -672,20 +662,18 @@ function DeviceList({
         </Table>
       </div>
 
-      {/* Mobile + sidebar zone: card list */}
+      {/* Mobile + sidebar zone: standalone card list (each row is its own card) */}
       <ul className="flex flex-col gap-2 lg:hidden">
         {items.map((d, i) => (
           <DeviceRowMobile key={d.id} d={d} delay={i * 20} highlight={d.id === hl} />
         ))}
       </ul>
-    </div>
+    </>
   );
 }
 
 function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highlight: boolean }) {
   const { t } = useTranslation();
-  const { resolved } = useTheme();
-  const Icon = CATEGORY_ICON[d.category];
   const specs = specsSummary(d.category, d.specs);
   const ref = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
@@ -696,22 +684,7 @@ function DeviceRowDesktop({ d, highlight }: { d: DeviceWithPurchaseOut; highligh
     <TableRow ref={ref} className={cn('transition-colors', highlight && 'bg-accent-faded')}>
       <TableCell>
         <Link to={`/stock/${d.id}`} className="flex min-w-0 items-center gap-3">
-          {/* Brand-tinted bg sits behind both states; the photo fully covers it
-              when it loads, and shows through as the icon backdrop on failure. */}
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl"
-            style={{
-              backgroundColor: brandTint(d.brand, 0.14),
-              color: brandTextColor(d.brand, resolved),
-            }}
-          >
-            <DevicePhoto
-              src={d.photo_url}
-              alt={`${d.brand} ${d.model}`}
-              fallback={<Icon size={20} strokeWidth={1.8} />}
-              className="h-full w-full object-cover"
-            />
-          </div>
+          <DeviceTile brand={d.brand} model={d.model} category={d.category} photoUrl={d.photo_url} />
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <BrandBadge brand={d.brand} size="sm" />
@@ -776,8 +749,6 @@ function DeviceRowMobile({
   highlight: boolean;
 }) {
   const { t } = useTranslation();
-  const { resolved } = useTheme();
-  const Icon = CATEGORY_ICON[d.category];
   const specs = specsSummary(d.category, d.specs);
   const ref = useRef<HTMLLIElement>(null);
   useEffect(() => {
@@ -790,23 +761,26 @@ function DeviceRowMobile({
         to={`/stock/${d.id}`}
         className={cn(highlight && 'ring-2 ring-accent')}
         leading={
-          <div
-            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl"
-            style={{
-              backgroundColor: brandTint(d.brand, 0.14),
-              color: brandTextColor(d.brand, resolved),
-            }}
-          >
-            <DevicePhoto
-              src={d.photo_url}
-              alt={`${d.brand} ${d.model}`}
-              fallback={<Icon size={20} strokeWidth={1.8} />}
-              className="h-full w-full object-cover"
-            />
+          <DeviceTile brand={d.brand} model={d.model} category={d.category} photoUrl={d.photo_url} />
+        }
+        trailing={
+          <div className="flex items-center gap-2">
+            {d.purchase_price_uzs && (
+              <div className="text-right">
+                <div className="text-body font-bold tabular-nums text-text">
+                  {fmtUzs(d.purchase_price_uzs)}
+                </div>
+                <div className="text-micro text-text-muted">UZS</div>
+              </div>
+            )}
+            <ChevronRight size={16} className="text-text-muted" />
           </div>
         }
-        trailing={<ChevronRight size={16} className="text-text-muted" />}
       >
+        {/* Price rides the trailing slot (matches Sales/Purchases). The meta
+            line WRAPS instead of cramming specs+IMEI into one truncating span —
+            that earlier crammed version hid specs/IMEI on narrow screens, which
+            is why the cards "showed no data". IMEI keeps its own line. */}
         <div>
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
@@ -817,32 +791,28 @@ function DeviceRowMobile({
                 row would carry an identical green chip and the right column
                 turns into wallpaper. Non-default statuses still earn it. */}
             {d.status !== 'in_stock' && (
-              <Badge dot variant={STATUS_VARIANT[d.status]} size="sm">
+              <Badge dot variant={STATUS_VARIANT[d.status]} size="sm" className="shrink-0">
                 {t(`status.${d.status}`)}
               </Badge>
             )}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-caption">
-            {specs && <span className="text-text-dim">{specs}</span>}
-            <Badge dot variant={CONDITION_VARIANT[d.condition]} size="sm">
-              {t(`condition.${d.condition}`)}
-            </Badge>
+          <div className="mt-1 flex items-center justify-between gap-2 text-caption">
+            <div className="flex min-w-0 items-center gap-2">
+              {specs && <span className="truncate text-text-dim">{specs}</span>}
+              <Badge dot variant={CONDITION_VARIANT[d.condition]} size="sm" className="shrink-0">
+                {t(`condition.${d.condition}`)}
+              </Badge>
+            </div>
             {d.days_in_stock != null && (
-              <span className="tabular-nums text-text-muted">
+              <span className="shrink-0 tabular-nums text-text-muted">
                 {t('stock.days_n', { n: d.days_in_stock })}
               </span>
             )}
           </div>
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="truncate font-mono text-caption text-text-muted">
-              {d.imei ?? d.serial ?? '—'}
-            </span>
-            {d.purchase_price_uzs && (
-              <span className="shrink-0 text-body font-bold tabular-nums text-text">
-                {fmtUzs(d.purchase_price_uzs)}{' '}
-                <span className="text-caption font-normal text-text-muted">UZS</span>
-              </span>
-            )}
+          {/* Always render the IMEI line (— when absent) so every card is the
+              same height — a conditional line made rows without an IMEI shorter. */}
+          <div className="mt-1 truncate font-mono text-caption text-text-muted">
+            {d.imei ?? d.serial ?? '—'}
           </div>
         </div>
       </ListRow>
@@ -945,6 +915,14 @@ function FilterControls({
   setPrice: (min: string, max: string) => void;
 }) {
   const { t } = useTranslation();
+  // Collapse the brand list to the most-popular few; the rest hide behind a
+  // toggle so a shop with many brands isn't a wall of chips.
+  const [brandsExpanded, setBrandsExpanded] = useState(false);
+  let visibleBrands = brandsExpanded ? brandOptions : brandOptions.slice(0, BRAND_COLLAPSED);
+  // Keep a selected-but-hidden brand on screen so its active chip never vanishes.
+  if (!brandsExpanded && brand && !visibleBrands.includes(brand)) {
+    visibleBrands = [...visibleBrands, brand];
+  }
   return (
     <div className="flex flex-col gap-4">
       <FilterSection label={t('stock.filter_sort')}>
@@ -1012,11 +990,27 @@ function FilterControls({
           <Chip active={brand === undefined} onClick={() => setBrand(undefined)}>
             {t('stock.filter_all_brand')}
           </Chip>
-          {brandOptions.map((b) => (
+          {visibleBrands.map((b) => (
             <Chip key={b} active={brand === b} onClick={() => setBrand(b)}>
               {b}
             </Chip>
           ))}
+          {brandOptions.length > BRAND_COLLAPSED && (
+            <button
+              type="button"
+              onClick={() => setBrandsExpanded((v) => !v)}
+              aria-expanded={brandsExpanded}
+              className="flex h-8 cursor-pointer items-center gap-1 rounded-full border border-border bg-bg2 px-3 text-hint font-semibold tracking-tight text-text-dim transition-all hover:border-border-strong hover:text-text"
+            >
+              {brandsExpanded
+                ? t('stock.brand_collapse')
+                : t('stock.brand_show_all', { n: brandOptions.length - BRAND_COLLAPSED })}
+              <ChevronDown
+                size={12}
+                className={cn('transition-transform', brandsExpanded && 'rotate-180')}
+              />
+            </button>
+          )}
         </FilterSection>
       )}
     </div>
@@ -1025,9 +1019,11 @@ function FilterControls({
 
 function DeviceTableSkeleton() {
   return (
-    <div className="card overflow-hidden">
-      {/* Skeleton breakpoints must mirror the real table — see lg:block above. */}
-      <div className="hidden lg:block">
+    <>
+      {/* Skeleton breakpoints must mirror the real table — see lg:block above.
+          Only the desktop table gets the card surface; the mobile list is
+          standalone cards (matches DeviceList — no card-inside-cards). */}
+      <div className="card hidden overflow-hidden lg:block">
         {/* Skeleton mirrors the real sticky-header opacity (see TableHeader
             comment above) so the initial frame doesn't visibly shift when
             data arrives. */}
@@ -1058,14 +1054,11 @@ function DeviceTableSkeleton() {
             <div className="flex flex-1 flex-col gap-2">
               <Skeleton className="h-3.5 w-3/5" />
               <Skeleton className="h-3 w-2/5" />
-              <div className="flex gap-1.5">
-                <Skeleton className="h-3.5 w-20" />
-                <Skeleton className="h-4 w-12 rounded-md" />
-              </div>
             </div>
+            <Skeleton className="h-7 w-20" />
           </li>
         ))}
       </ul>
-    </div>
+    </>
   );
 }

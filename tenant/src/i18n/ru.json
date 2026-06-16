@@ -171,6 +171,8 @@
     "filter_all_category": "Все категории",
     "filter_all_condition": "Любое состояние",
     "filter_all_brand": "Все бренды",
+    "brand_show_all": "Ещё {{n}}",
+    "brand_collapse": "Свернуть",
     "filter_reset": "Сбросить",
     "filter_status": "Статус",
     "filter_category": "Категория",

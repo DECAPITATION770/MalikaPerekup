@@ -14,7 +14,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
-  BadgeDollarSign,
+  CircleDollarSign,
   CalendarClock,
   Check,
   CheckCheck,
@@ -515,7 +515,7 @@ function PlanCard({ plan }: { plan: PlanOut }) {
             onClick={() => setPayOpen(true)}
             className="focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-success/40 bg-success-faded text-label font-bold text-success transition-all hover:bg-success/15 active:scale-[0.98]"
           >
-            <BadgeDollarSign size={16} />
+            <CircleDollarSign size={16} />
             {t('installments.record_payment')}
           </button>
           <AlertDialog>
@@ -670,7 +670,7 @@ export default function Installments() {
                 {/* Green to match /sales: buy = orange (money out), sell = green
                     (money in). The default accent CTA here broke that pattern. */}
                 <Button variant="success">
-                  <BadgeDollarSign className="size-4" />
+                  <CircleDollarSign className="size-4" />
                   {t('today.action_sale')}
                 </Button>
               </Link>

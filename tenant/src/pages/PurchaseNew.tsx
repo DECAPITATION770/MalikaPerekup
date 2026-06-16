@@ -12,7 +12,7 @@ import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -51,6 +51,7 @@ export default function PurchaseNew() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const haptic = useTgHaptic();
+  const queryClient = useQueryClient();
   const { mainButtonMounted } = useTelegram();
 
   const [step, setStep] = useState<WizardStep>(0);
@@ -199,6 +200,13 @@ export default function PurchaseNew() {
       haptic.notify('success');
       track('purchase_created', { currency: getValues('currency') });
       localStorage.removeItem(DRAFT_KEY);
+      // A purchase can introduce a brand/model the shop never had — drop the
+      // cached autocomplete/filter sources so the new value shows immediately.
+      // `brand-suggestions` (the Stock brand filter) has a 5-min staleTime, so
+      // without this it'd stay missing from the filter for minutes.
+      queryClient.invalidateQueries({ queryKey: ['brand-suggestions'] });
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: ['catalog'] });
       // No success modal — go straight to the showcase with a toast, and
       // highlight the just-created device there (one tap to its card).
       toast.success(t('purchase.success_toast'), {

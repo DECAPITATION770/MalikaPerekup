@@ -24,8 +24,10 @@ import { Input } from '@/components/ui/input';
 import { useDebounced } from '@/lib/useDebounced';
 import { inferBrandCategory } from '@/lib/inferModel';
 
+import DeviceTile from '@/components/DeviceTile';
+
 import { StepShell } from '../Wizard';
-import { CATEGORY_ICON, CategoryPicker, Field } from '../primitives';
+import { CategoryPicker, Field } from '../primitives';
 import { SuggestField } from '../SuggestField';
 import { type FormValues } from '../types';
 import DeviceFields from './DeviceFields';
@@ -162,7 +164,6 @@ export default function StepDevice({
 
   const renderModelCard = (u: UnifiedModel) => {
     const { brand, model, category } = u.item;
-    const Icon = CATEGORY_ICON[category];
     const photo = u.kind === 'catalog' ? u.item.photo_urls[0] : undefined;
     return (
       <button
@@ -171,13 +172,7 @@ export default function StepDevice({
         onClick={() => pick(u)}
         className="flex cursor-pointer items-center gap-3 rounded-card border border-border bg-bg2 p-3.5 text-left transition-all hover:border-border-strong active:scale-[0.99]"
       >
-        {photo ? (
-          <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover bg-bg3" />
-        ) : (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bg3 text-text-dim">
-            <Icon size={18} strokeWidth={1.8} />
-          </div>
-        )}
+        <DeviceTile brand={brand} model={model} category={category} photoUrl={photo} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-label font-bold tracking-tight">{brand}</div>
           <div className="truncate text-caption text-text-dim">{model}</div>

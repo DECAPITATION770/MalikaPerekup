@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowLeft,
-  BadgeDollarSign,
+  CircleDollarSign,
   Calendar,
   CalendarClock,
   ChevronRight,
@@ -292,7 +292,7 @@ export default function CounterpartyDetail() {
           loading={statsQ.isLoading}
         />
         <StatTile
-          icon={<BadgeDollarSign size={14} />}
+          icon={<CircleDollarSign size={14} />}
           label={t('sales.title')}
           n={statsQ.data?.sales_count ?? sales.length}
           sum={Number(statsQ.data?.sales_total_uzs ?? 0)}
@@ -640,7 +640,7 @@ function DealRow({ e }: { e: DealEvent }) {
   const deviceLabel = [e.ref.device_brand, e.ref.device_model].filter(Boolean).join(' ').trim();
   const partyName = e.kind === 'purchase' ? e.ref.seller_name : e.ref.buyer_name;
   const amount = e.kind === 'purchase' ? e.ref.price_uzs : e.ref.sale_price_uzs;
-  const Icon = e.kind === 'purchase' ? ShoppingCart : BadgeDollarSign;
+  const Icon = e.kind === 'purchase' ? ShoppingCart : CircleDollarSign;
   return (
     <li>
       <Link

@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
-  BadgeDollarSign,
+  CircleDollarSign,
   CalendarClock,
   BarChart3,
   Users as UsersIcon,
@@ -36,7 +36,7 @@ const NAV_PRIMARY: readonly NavSpec[] = [
 
 const NAV_ARCHIVE: readonly NavSpec[] = [
   { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
-  { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
+  { to: '/sales', icon: CircleDollarSign, key: 'nav.sales' },
 ];
 
 interface SidebarProps {
@@ -98,7 +98,7 @@ export function Sidebar({ onOpenSearch }: SidebarProps = {}) {
           to="/sale/new"
           className="flex h-11 items-center justify-center gap-2 rounded-xl bg-success text-label font-bold text-bg transition-opacity hover:opacity-90"
         >
-          <BadgeDollarSign size={17} strokeWidth={2.2} />
+          <CircleDollarSign size={17} strokeWidth={2.2} />
           {t('nav.sell')}
         </NavLink>
       </div>

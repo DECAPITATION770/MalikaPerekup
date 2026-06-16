@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
-  BadgeDollarSign,
+  CircleDollarSign,
   BarChart3,
   Globe,
   LogOut,
@@ -50,7 +50,7 @@ const MENU_PRIMARY = [
 
 const MENU_ARCHIVE = [
   { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
-  { to: '/sales', icon: BadgeDollarSign, key: 'nav.sales' },
+  { to: '/sales', icon: CircleDollarSign, key: 'nav.sales' },
 ] as const;
 
 /** Top bar — slim on mobile (brand + lang/theme/search/menu drawer), and on

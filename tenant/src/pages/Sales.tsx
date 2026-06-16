@@ -6,7 +6,7 @@
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { BadgeDollarSign, Calendar, ChevronRight } from 'lucide-react';
+import { CircleDollarSign, Calendar, ChevronRight } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ListRow } from '@/components/ui/list-row';
+import DeviceTile from '@/components/DeviceTile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NoSalesIllustration } from '@/components/illustrations';
@@ -102,7 +103,7 @@ export default function Sales() {
         {!(data && data.items.length === 0 && !isFiltered) && (
           <Link to="/sale/new" onClick={() => haptic.select()}>
             <Button variant="success">
-              <BadgeDollarSign className="size-4" />
+              <CircleDollarSign className="size-4" />
               {t('today.action_sale')}
             </Button>
           </Link>
@@ -170,7 +171,7 @@ export default function Sales() {
             !isFiltered && (
               <Link to="/sale/new">
                 <Button variant="success">
-                  <BadgeDollarSign className="size-4" />
+                  <CircleDollarSign className="size-4" />
                   {t('today.action_sale')}
                 </Button>
               </Link>
@@ -201,9 +202,11 @@ function SaleRow({ s, delay }: { s: SaleOut; delay: number }) {
       <ListRow
         to={`/stock/${s.device_id}`}
         leading={
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg3 text-text-muted ring-1 ring-border">
-            <BadgeDollarSign size={18} />
-          </div>
+          <DeviceTile
+            brand={s.device_brand}
+            model={s.device_model}
+            category={s.device_category}
+          />
         }
         trailing={
           <div className="flex items-center gap-3">

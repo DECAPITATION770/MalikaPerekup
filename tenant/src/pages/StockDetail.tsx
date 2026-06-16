@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
-  BadgeDollarSign,
+  CircleDollarSign,
   Check,
   Copy,
   Headphones,
@@ -317,7 +317,7 @@ export default function StockDetail() {
           className="md:self-start"
         >
           <Button size="lg" className="w-full md:w-auto">
-            <BadgeDollarSign className="size-4" />
+            <CircleDollarSign className="size-4" />
             {t('stock.sell_this')}
           </Button>
         </Link>
@@ -715,7 +715,7 @@ function TimelineRow({ e }: { e: TimelineEvent }) {
       label: t('stock.event_purchase'),
     },
     sale: {
-      Icon: BadgeDollarSign,
+      Icon: CircleDollarSign,
       tone: 'text-success bg-success-faded ring-success/30',
       label: t('stock.event_sale'),
     },

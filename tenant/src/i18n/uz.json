@@ -171,6 +171,8 @@
     "filter_all_category": "Barcha turlar",
     "filter_all_condition": "Har qanday holat",
     "filter_all_brand": "Barcha brendlar",
+    "brand_show_all": "Yana {{n}}",
+    "brand_collapse": "Yig'ish",
     "filter_reset": "Tozalash",
     "filter_status": "Holat",
     "filter_category": "Turi",

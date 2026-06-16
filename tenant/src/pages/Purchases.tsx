@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListRow } from '@/components/ui/list-row';
+import DeviceTile from '@/components/DeviceTile';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -177,9 +178,11 @@ function PurchaseRow({ p, delay }: { p: PurchaseOut; delay: number }) {
       <ListRow
         to={`/stock/${p.device_id}`}
         leading={
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg3 text-text-muted ring-1 ring-border">
-            <ShoppingCart size={18} />
-          </div>
+          <DeviceTile
+            brand={p.device_brand}
+            model={p.device_model}
+            category={p.device_category}
+          />
         }
         trailing={
           <div className="flex items-center gap-3">

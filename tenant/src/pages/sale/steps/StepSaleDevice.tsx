@@ -8,28 +8,16 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Check,
-  Headphones,
-  Info,
-  Laptop,
-  Package as PackageIcon,
-  Search,
-  ShoppingCart,
-  Smartphone,
-  Tablet,
-  Watch,
-  type LucideIcon,
-} from 'lucide-react';
+import { Check, Info, Search, ShoppingCart } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BrandBadge from '@/components/BrandBadge';
+import DeviceTile from '@/components/DeviceTile';
 import {
   listDevices,
   getDevicePhotoUrls,
   type DeviceWithPurchaseOut,
-  type DeviceCategory,
   type DeviceOut,
 } from '@/api/devices';
 import { getPurchaseByDevice } from '@/api/purchases';
@@ -39,15 +27,6 @@ import { useDebounced } from '@/lib/useDebounced';
 import { cn } from '@/lib/utils';
 
 import { StepShell } from '../../purchase/Wizard';
-
-const CATEGORY_ICON: Record<DeviceCategory, LucideIcon> = {
-  phone: Smartphone,
-  tablet: Tablet,
-  laptop: Laptop,
-  smartwatch: Watch,
-  accessory: Headphones,
-  other: PackageIcon,
-};
 
 const CONDITION_VARIANT: Record<
   DeviceOut['condition'],
@@ -158,7 +137,6 @@ function DeviceRow({
   onSelect: () => void;
 }) {
   const { t } = useTranslation();
-  const Icon = CATEGORY_ICON[device.category] ?? PackageIcon;
   const [infoOpen, setInfoOpen] = useState(false);
   // Meta row shown under the model: «6/64 · Чёрный · 3 дн.» so the perekup
   // can pick «that older one» / «that more-expensive one» without opening
@@ -181,26 +159,40 @@ function DeviceRow({
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bg3 text-text-dim">
-          <Icon size={18} />
-        </div>
+        <DeviceTile
+          brand={device.brand}
+          model={device.model}
+          category={device.category}
+          photoUrl={device.photo_url}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <BrandBadge brand={device.brand} size="sm" />
             <span className="truncate text-body font-bold">{device.model}</span>
           </div>
-          {/* Meta + price share line 2 so the model on line 1 gets full width
-              (no more "MacBook…" truncation). */}
-          <div className="mt-0.5 flex items-center justify-between gap-2 text-caption">
-            <span className="min-w-0 truncate text-text-muted">
-              {[specs, days != null ? t('sale.device_days', { count: days }) : null]
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
-            {cost && (
-              <span className="shrink-0 font-bold tabular-nums text-text">{fmtUzs(cost)} UZS</span>
+          {/* Fixed 3-line card so every row is the same height: specs +
+              condition on the left (specs truncates), days pinned to the right
+              edge — never wraps to its own line — and price below. Earlier the
+              meta wrapped, so «days» dropped to a new line on some cards and
+              made the heights uneven. */}
+          <div className="mt-1 flex items-center justify-between gap-2 text-caption">
+            <div className="flex min-w-0 items-center gap-2">
+              {specs && <span className="truncate text-text-muted">{specs}</span>}
+              <Badge dot variant={CONDITION_VARIANT[device.condition]} size="sm" className="shrink-0">
+                {t(`condition.${device.condition}`)}
+              </Badge>
+            </div>
+            {days != null && (
+              <span className="shrink-0 tabular-nums text-text-muted">
+                {t('sale.device_days', { count: days })}
+              </span>
             )}
           </div>
+          {cost && (
+            <div className="mt-1 text-caption font-bold tabular-nums text-text">
+              {fmtUzs(cost)} UZS
+            </div>
+          )}
         </div>
         {selected && <Check size={18} className="shrink-0 text-accent" />}
       </button>
