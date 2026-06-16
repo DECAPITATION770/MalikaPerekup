@@ -13,6 +13,7 @@ import { AlertTriangle, Calendar, CheckCircle2, Phone } from 'lucide-react';
 
 import { getNasiyaActive, getNasiyaOverdue } from '../api';
 import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
 import { TableRowSkeleton } from '../components/ui/Skeleton';
 import QueryError from '../components/ui/QueryError';
 import { dueDateStatus, fmtDate, fmtUZS } from '../lib/fmt';
@@ -153,10 +154,7 @@ export default function Debts() {
           ) : overdue.isError ? (
             <QueryError onRetry={() => overdue.refetch()} error={overdue.error} />
           ) : !overdue.data?.length ? (
-            <div className="flex flex-col items-center gap-2 py-12 text-success">
-              <CheckCircle2 size={28} className="opacity-60" aria-hidden />
-              <span className="text-label">{t('debts.overdue_empty')}</span>
-            </div>
+            <EmptyState icon={CheckCircle2} tone="success" label={t('debts.overdue_empty')} />
           ) : (
             <>
               <div className="grid grid-cols-[1fr_1fr_1fr_120px_120px_140px_44px] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">
@@ -225,9 +223,7 @@ export default function Debts() {
           ) : active.isError ? (
             <QueryError onRetry={() => active.refetch()} error={active.error} />
           ) : !active.data?.length ? (
-            <div className="py-12 text-center text-label text-text-dim">
-              {t('debts.empty')}
-            </div>
+            <EmptyState label={t('debts.empty')} />
           ) : (
             <>
               <div className="grid grid-cols-[1fr_1fr_1fr_140px_150px_44px] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">

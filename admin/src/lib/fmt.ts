@@ -76,6 +76,26 @@ export function planLabel(plan: string | null | undefined): string {
   return PLAN_LABELS[plan] ?? plan;
 }
 
+/** Subscription expiry status for a shop's `plan_until` date.
+ *  `days` = whole days remaining (0 = expires today, negative = expired).
+ *  Returns `null` when there's no date (perpetual plan). */
+export type PlanStatus = 'expired' | 'soon' | 'ok';
+export function planUntilStatus(
+  iso: string | null | undefined,
+): { kind: PlanStatus; days: number } | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const days = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (days < 0) return { kind: 'expired', days };
+    if (days <= 7) return { kind: 'soon', days };
+    return { kind: 'ok', days };
+  } catch {
+    return null;
+  }
+}
+
 /** Categorise an installment due date so the row can render the right chip. */
 export type DueStatus = 'overdue' | 'today' | 'tomorrow' | 'soon' | 'normal';
 export function dueDateStatus(iso: string | null | undefined): DueStatus | null {

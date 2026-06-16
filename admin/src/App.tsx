@@ -41,9 +41,24 @@ function ThemedToaster() {
     <Toaster
       theme={resolved}
       position="top-right"
-      richColors
       closeButton
       duration={3500}
+      // `richColors` painted a near-white slab that clashed with the dark
+      // brass theme. Colour each toast type from our own tokens instead (same
+      // treatment as the tenant app) so toasts read like the app's Badges.
+      toastOptions={{
+        classNames: {
+          toast: '!rounded-xl !border !shadow-lg !backdrop-blur',
+          title: '!font-semibold',
+          description: '!text-text-dim',
+          default: '!bg-bg2 !text-text !border-border',
+          success: '!bg-success-faded !text-success !border-success/40',
+          error: '!bg-danger-faded !text-danger !border-danger/40',
+          warning: '!bg-warning-faded !text-warning !border-warning/40',
+          actionButton: '!bg-accent !text-accent-fg !font-semibold !rounded-lg',
+          closeButton: '!bg-bg2 !text-text-muted !border-border hover:!text-text',
+        },
+      }}
     />
   );
 }

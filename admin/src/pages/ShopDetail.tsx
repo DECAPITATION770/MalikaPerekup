@@ -36,6 +36,7 @@ import {
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { PlanExpiryBadge } from '../components/PlanExpiryBadge';
 import Modal from '../components/ui/Modal';
 import QueryError from '../components/ui/QueryError';
 import { CardSkeleton } from '../components/ui/Skeleton';
@@ -310,7 +311,16 @@ export default function ShopDetail() {
           />
           <Row
             label={t('shop_detail.plan_until')}
-            value={shop.plan_until ? fmtDate(shop.plan_until) : '—'}
+            value={
+              shop.plan_until ? (
+                <span className="flex items-center gap-2">
+                  {fmtDate(shop.plan_until)}
+                  <PlanExpiryBadge planUntil={shop.plan_until} />
+                </span>
+              ) : (
+                '—'
+              )
+            }
           />
           {shop.is_frozen && (
             <>

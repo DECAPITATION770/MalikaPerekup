@@ -12,7 +12,9 @@ import { ChevronRight, Plus, Search, Store as StoreIcon, X } from 'lucide-react'
 import { getShops } from '../api';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import { EmptyState } from '../components/ui/EmptyState';
+import { FilterChip } from '../components/ui/FilterChip';
+import { PlanExpiryBadge } from '../components/PlanExpiryBadge';
 import Pagination from '../components/ui/Pagination';
 import QueryError from '../components/ui/QueryError';
 import { TableRowSkeleton } from '../components/ui/Skeleton';
@@ -22,13 +24,6 @@ import { useNow } from '../lib/useNow';
 import { cn } from '@/lib/utils';
 
 const LIMIT = 20;
-
-const chipBase =
-  'inline-flex items-center h-9 px-3 rounded-lg text-label font-semibold tracking-tight ' +
-  'border transition-colors cursor-pointer whitespace-nowrap';
-const chipIdle = 'border-border bg-bg2 text-text-dim hover:text-text hover:border-border-strong';
-const chipActive = 'border-accent bg-accent text-accent-fg';
-const chipDanger = 'border-danger bg-danger text-white';
 
 export default function Shops() {
   const { t } = useTranslation();
@@ -111,30 +106,29 @@ export default function Shops() {
 
         {/* Plan chips */}
         {(['', 'trial', 'basic', 'business'] as const).map((p) => (
-          <button
+          <FilterChip
             key={p}
-            type="button"
+            active={plan === p}
             onClick={() => {
               setPlan(p);
               setOffset(0);
             }}
-            className={cn(chipBase, plan === p ? chipActive : chipIdle)}
           >
             {p ? planLabel(p) : t('shops.filter_all_plans')}
-          </button>
+          </FilterChip>
         ))}
 
         {/* Frozen toggle */}
-        <button
-          type="button"
+        <FilterChip
+          active={frozen === true}
+          danger
           onClick={() => {
             setFrozen(frozen === true ? undefined : true);
             setOffset(0);
           }}
-          className={cn(chipBase, frozen === true ? chipDanger : chipIdle)}
         >
           {t('shops.filter_only_frozen')}
-        </button>
+        </FilterChip>
 
         {hasFilters && (
           <button
@@ -158,15 +152,17 @@ export default function Shops() {
         ) : isError ? (
           <QueryError onRetry={() => refetch()} error={error} />
         ) : !data?.items.length ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-text-dim">
-            <StoreIcon size={28} className="opacity-40" aria-hidden />
-            <span className="text-label">{t('shops.empty')}</span>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={resetFilters}>
-                {t('shops.filter_reset')}
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={StoreIcon}
+            label={t('shops.empty')}
+            action={
+              hasFilters && (
+                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  {t('shops.filter_reset')}
+                </Button>
+              )
+            }
+          />
         ) : (
           <>
             <div className="grid grid-cols-[1fr_1fr_160px_36px] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">
@@ -214,13 +210,16 @@ export default function Shops() {
                         : shop.owner.phone ?? '—'}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col items-start gap-1">
                     <Badge variant="accent" size="sm">
                       {planLabel(shop.plan)}
                     </Badge>
                     <Badge variant={shop.is_frozen ? 'danger' : 'success'} size="sm" dot>
                       {shop.is_frozen ? t('shops.frozen') : t('shops.active')}
                     </Badge>
+                    {/* Only surfaces shops that are expiring/expired — healthy
+                        plans stay quiet so the list highlights what needs action. */}
+                    <PlanExpiryBadge planUntil={shop.plan_until} alertsOnly />
                   </div>
                   <ChevronRight
                     size={16}

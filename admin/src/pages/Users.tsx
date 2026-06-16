@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 import { getUsers, blockUser, unblockUser } from '../api';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
 import Pagination from '../components/ui/Pagination';
 import { TableRowSkeleton } from '../components/ui/Skeleton';
 import QueryError from '../components/ui/QueryError';
@@ -38,12 +40,14 @@ const SOURCE_ICONS: Record<string, { Icon: typeof Send; color: string }> = {
   admin: { Icon: Shield, color: 'text-success' },
 };
 
-const STATUS_CLS: Record<string, string> = {
-  client: 'bg-success/15 text-success',
-  trial: 'bg-accent/15 text-accent',
-  expired: 'bg-warning/15 text-warning',
-  frozen: 'bg-danger-faded text-danger',
-  no_shop: 'bg-bg3 text-text-muted',
+// Map client status → shared Badge variant so these read like every other
+// status pill in the app (was hand-rolled square chips with ad-hoc colours).
+const STATUS_VARIANT: Record<string, 'success' | 'accent' | 'warning' | 'danger' | 'neutral'> = {
+  client: 'success',
+  trial: 'accent',
+  expired: 'warning',
+  frozen: 'danger',
+  no_shop: 'neutral',
 };
 
 export default function Users() {
@@ -123,10 +127,7 @@ export default function Users() {
         ) : isError ? (
           <QueryError onRetry={() => refetch()} error={error} />
         ) : !data?.items.length ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-text-dim">
-            <UsersIcon size={28} className="opacity-40" aria-hidden />
-            <span className="text-label">{t('users.empty')}</span>
-          </div>
+          <EmptyState icon={UsersIcon} label={t('users.empty')} />
         ) : (
           <>
             <div className="grid grid-cols-[1fr_1fr_1fr_140px_120px] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">
@@ -208,18 +209,13 @@ export default function Users() {
                       <span className="truncate">{fmtRelative(u.last_login_at)}</span>
                     </div>
                     <div className="flex items-center justify-end gap-2">
-                      <span
-                        className={cn(
-                          'rounded px-1.5 py-0.5 text-micro font-semibold',
-                          STATUS_CLS[u.client_status] ?? STATUS_CLS.no_shop,
-                        )}
-                      >
+                      <Badge variant={STATUS_VARIANT[u.client_status] ?? 'neutral'} size="sm" dot>
                         {t(`users.status_${u.client_status}`)}
-                      </span>
+                      </Badge>
                       {u.is_blocked && (
-                        <span className="rounded bg-danger-faded px-1.5 py-0.5 text-micro font-semibold text-danger">
+                        <Badge variant="danger" size="sm">
                           {t('users.blocked_badge')}
-                        </span>
+                        </Badge>
                       )}
                       {u.is_blocked ? (
                         <button

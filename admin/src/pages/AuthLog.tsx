@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 
 import { getAccessLog } from '../api';
+import { EmptyState } from '../components/ui/EmptyState';
+import { FilterChip } from '../components/ui/FilterChip';
 import Pagination from '../components/ui/Pagination';
 import { TableRowSkeleton } from '../components/ui/Skeleton';
 import QueryError from '../components/ui/QueryError';
@@ -27,13 +29,6 @@ import { useNow } from '../lib/useNow';
 import { cn } from '@/lib/utils';
 
 const LIMIT = 30;
-
-const chipBase =
-  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-hint font-semibold ' +
-  'border transition-colors cursor-pointer whitespace-nowrap';
-const chipIdle = 'border-border bg-bg2 text-text-dim hover:text-text';
-const chipActive = 'border-accent bg-accent text-accent-fg';
-const chipActiveDanger = 'border-danger bg-danger text-white';
 
 const SOURCE_ICONS: Record<string, { Icon: typeof Send; color: string; label: string }> = {
   telegram: { Icon: Send, color: 'text-accent', label: 'Telegram' },
@@ -83,18 +78,17 @@ export default function AuthLog() {
           const cfg = s ? SOURCE_ICONS[s] : null;
           const Icon = cfg?.Icon;
           return (
-            <button
+            <FilterChip
               key={s}
-              type="button"
+              active={source === s}
               onClick={() => {
                 setSource(s);
                 setOffset(0);
               }}
-              className={cn(chipBase, source === s ? chipActive : chipIdle)}
             >
               {Icon && <Icon size={12} aria-hidden />}
               {s || t('auth_log.filter_all_sources')}
-            </button>
+            </FilterChip>
           );
         })}
 
@@ -102,23 +96,23 @@ export default function AuthLog() {
 
         {(
           [
-            { v: undefined, l: t('auth_log.filter_all_results'), active: chipActive, Icon: null as typeof Send | null },
-            { v: true, l: t('auth_log.filter_success_only'), active: chipActive, Icon: CheckCircle2 },
-            { v: false, l: t('auth_log.filter_failed_only'), active: chipActiveDanger, Icon: XCircle },
+            { v: undefined, l: t('auth_log.filter_all_results'), danger: false, Icon: null as typeof Send | null },
+            { v: true, l: t('auth_log.filter_success_only'), danger: false, Icon: CheckCircle2 },
+            { v: false, l: t('auth_log.filter_failed_only'), danger: true, Icon: XCircle },
           ] as const
-        ).map(({ v, l, active, Icon }) => (
-          <button
+        ).map(({ v, l, danger, Icon }) => (
+          <FilterChip
             key={String(v)}
-            type="button"
+            active={success === v}
+            danger={danger}
             onClick={() => {
               setSuccess(v);
               setOffset(0);
             }}
-            className={cn(chipBase, success === v ? active : chipIdle)}
           >
             {Icon && <Icon size={12} aria-hidden />}
             {l}
-          </button>
+          </FilterChip>
         ))}
       </div>
 
@@ -133,9 +127,7 @@ export default function AuthLog() {
         ) : isError ? (
           <QueryError onRetry={() => refetch()} error={error} />
         ) : !data?.items.length ? (
-          <div className="py-12 text-center text-label text-text-dim">
-            {t('auth_log.empty')}
-          </div>
+          <EmptyState label={t('auth_log.empty')} />
         ) : (
           <>
             <div className="grid grid-cols-[28px_140px_28px_1fr_140px_80px_1fr] gap-3 border-b border-border bg-bg3/50 px-5 py-2.5 text-caption font-semibold tracking-tight text-text-muted">
