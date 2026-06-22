@@ -29,6 +29,7 @@ from app.features.devices.schemas import (
     RecentModelsOut,
     SuggestOut,
 )
+from app.features.purchases import repository as purchases_repo
 
 
 def _parse_money(raw: str | None) -> Decimal | None:
@@ -39,7 +40,7 @@ def _parse_money(raw: str | None) -> Decimal | None:
         return Decimal(raw.replace(" ", ""))
     except InvalidOperation:
         return None
-from app.features.purchases import repository as purchases_repo
+
 
 class _UploadUrlRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=120)

@@ -1,18 +1,9 @@
-/**
- * FilterChip — the single pill-button for filter bars (Shops plans/frozen,
- * AuthLog source/result, …). Before this each page hand-rolled its own
- * `chipBase` and they drifted: Shops used h-9/text-label, AuthLog h-8/text-hint,
- * so the same filter bar looked different per page. One height, one text size,
- * optional leading icon (gap is always reserved), and a `danger` active tone
- * for destructive filters like «only frozen».
- */
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
 interface Props {
   active?: boolean;
-  /** Active state paints red instead of brass (e.g. «only frozen» / «failed»). */
   danger?: boolean;
   onClick: () => void;
   children: ReactNode;

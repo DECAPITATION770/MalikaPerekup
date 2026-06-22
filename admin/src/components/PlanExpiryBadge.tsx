@@ -1,9 +1,3 @@
-/**
- * PlanExpiryBadge — at-a-glance subscription state from a shop's `plan_until`.
- * Used in the shop detail (always, alongside the date) and the Shops list
- * (`alertsOnly` — only surfaces shops that are expiring/expired so the list
- * draws the eye to problems). Perpetual plans (no date) render nothing.
- */
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from './ui/Badge';
