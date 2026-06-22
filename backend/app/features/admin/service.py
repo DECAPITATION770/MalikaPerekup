@@ -44,6 +44,18 @@ class ShopRegistrationError(AdminError):
     """Conflict during shop registration (duplicate tg_id, login, …)."""
 
 
+class AdminValidationError(AdminError):
+    """Bad admin payload — no auth method, or login/password mismatch."""
+
+
+class AdminConflictError(AdminError):
+    """Duplicate tg_id or login when creating an admin."""
+
+
+class AdminLockoutError(AdminError):
+    """Refused: would deactivate yourself or the last active admin."""
+
+
 # ─── Access attempt logging ────────────────────────────────────────────
 
 
@@ -259,6 +271,80 @@ async def set_owner_credentials(
     if password is not None:
         user.password_hash = hash_password(password)
     return user
+
+
+# ─── Admin management (from the panel) ─────────────────────────────────
+
+
+async def create_admin(
+    db: AsyncSession,
+    *,
+    full_name: str,
+    tg_id: int | None = None,
+    tg_username: str | None = None,
+    login: str | None = None,
+    password: str | None = None,
+) -> PlatformAdmin:
+    """Create a new platform admin from the panel.
+
+    Same auth-method rules as a shop owner: needs Telegram OR login, and a
+    login is useless without a password.
+    """
+    if tg_id is None and login is None:
+        raise AdminValidationError("admin must have either Telegram ID or login set")
+    if login and not password:
+        raise AdminValidationError("password is required when login is set")
+    if password and not login:
+        raise AdminValidationError("login is required when password is set")
+
+    if tg_id is not None and await admin_repo.get_admin_by_tg_id(db, tg_id):
+        raise AdminConflictError(f"admin with tg_id={tg_id} already exists")
+    if login is not None and await admin_repo.get_admin_by_login(db, login):
+        raise AdminConflictError(f"admin with login={login!r} already exists")
+
+    admin = PlatformAdmin(
+        full_name=full_name,
+        tg_id=tg_id,
+        tg_username=tg_username,
+        login=login,
+        password_hash=hash_password(password) if password else None,
+        is_active=True,
+    )
+    return await admin_repo.add_admin(db, admin)
+
+
+async def update_admin(
+    db: AsyncSession,
+    admin: PlatformAdmin,
+    *,
+    acting_admin_id: int,
+    full_name: str | None = None,
+    tg_username: str | None = None,
+    password: str | None = None,
+    is_active: bool | None = None,
+) -> PlatformAdmin:
+    """Patch an admin. Guards against locking everyone out of the panel."""
+    if is_active is False:
+        if admin.id == acting_admin_id:
+            raise AdminLockoutError("you cannot deactivate your own account")
+        if admin.is_active and await admin_repo.count_active_admins(
+            db, exclude_id=admin.id
+        ) == 0:
+            raise AdminLockoutError("cannot deactivate the last active admin")
+
+    if password is not None:
+        if not admin.login:
+            raise AdminValidationError(
+                "cannot set a password for an admin without a login"
+            )
+        admin.password_hash = hash_password(password)
+    if full_name is not None:
+        admin.full_name = full_name
+    if tg_username is not None:
+        admin.tg_username = tg_username
+    if is_active is not None:
+        admin.is_active = is_active
+    return admin
 
 
 # ─── Bootstrap (called from FastAPI lifespan) ──────────────────────────

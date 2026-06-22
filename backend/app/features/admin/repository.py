@@ -40,6 +40,26 @@ async def count_admins(db: AsyncSession) -> int:
     return int(result.scalar_one())
 
 
+async def count_active_admins(
+    db: AsyncSession, *, exclude_id: int | None = None
+) -> int:
+    """Active admins, optionally excluding one — used to block deactivating
+    the very last way into the panel."""
+    q = select(func.count(PlatformAdmin.id)).where(
+        PlatformAdmin.is_active == True  # noqa: E712
+    )
+    if exclude_id is not None:
+        q = q.where(PlatformAdmin.id != exclude_id)
+    return int((await db.execute(q)).scalar_one())
+
+
+async def list_admins(db: AsyncSession) -> list[PlatformAdmin]:
+    result = await db.execute(
+        select(PlatformAdmin).order_by(PlatformAdmin.created_at.asc())
+    )
+    return list(result.scalars().all())
+
+
 async def add_admin(db: AsyncSession, admin: PlatformAdmin) -> PlatformAdmin:
     db.add(admin)
     await db.flush()

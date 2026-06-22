@@ -15,6 +15,21 @@ export interface AdminOut {
   created_at: string;
 }
 
+export interface AdminCreate {
+  full_name: string;
+  tg_id?: number | null;
+  tg_username?: string | null;
+  login?: string | null;
+  password?: string | null;
+}
+
+export interface AdminUpdate {
+  full_name?: string;
+  tg_username?: string | null;
+  password?: string | null;
+  is_active?: boolean;
+}
+
 export interface OwnerOut {
   id: number;
   tg_id: number | null;

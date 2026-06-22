@@ -39,6 +39,34 @@ class AdminOut(BaseModel):
     created_at: datetime
 
 
+class AdminCreate(BaseModel):
+    """Create a new platform admin.
+
+    At least one of ``tg_id`` / ``login`` must be set, and ``login`` requires
+    a ``password`` — both enforced in the service (mirrors shop-owner rules).
+    """
+
+    full_name: str = Field(min_length=1, max_length=120)
+    tg_id: int | None = None
+    tg_username: str | None = Field(default=None, max_length=64)
+    login: str | None = Field(default=None, min_length=3, max_length=64,
+                              pattern=r"^[a-zA-Z0-9_.-]+$")
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
+
+class AdminUpdate(BaseModel):
+    """Patch an existing admin — all fields optional, omitted = unchanged.
+
+    ``login`` itself is immutable (create a new admin instead); ``password``
+    is only meaningful for admins that already have a login.
+    """
+
+    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    tg_username: str | None = Field(default=None, max_length=64)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    is_active: bool | None = None
+
+
 # ─── Shop management ───────────────────────────────────────────────────
 
 

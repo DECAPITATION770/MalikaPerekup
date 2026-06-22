@@ -24,10 +24,12 @@ from app.features.admin.auth import CurrentAdmin
 from app.features.admin.models import AccessAttempt
 from app.features.admin.schemas import (
     AccessAttemptOut,
+    AdminCreate,
     AdminLoginRequest,
     AdminOut,
     AdminTelegramAuth,
     AdminTokenResponse,
+    AdminUpdate,
     ContactUpdate,
     CreateShopRequest,
     CredentialsRequest,
@@ -157,6 +159,66 @@ async def login_via_password(
 @router.get("/me", response_model=AdminOut)
 async def me(admin: CurrentAdmin) -> AdminOut:
     return _admin_out(admin)
+
+
+# ─── Admin management ──────────────────────────────────────────────────
+
+
+@router.get("/admins", response_model=list[AdminOut])
+async def list_platform_admins(
+    admin: CurrentAdmin, db: DbSession
+) -> list[AdminOut]:
+    # Admins are few — no pagination needed. Oldest first (bootstrap on top).
+    rows = await admin_repo.list_admins(db)
+    return [AdminOut.model_validate(a) for a in rows]
+
+
+@router.post(
+    "/admins", response_model=AdminOut, status_code=status.HTTP_201_CREATED
+)
+async def create_platform_admin(
+    payload: AdminCreate, admin: CurrentAdmin, db: DbSession
+) -> AdminOut:
+    try:
+        created = await service.create_admin(
+            db,
+            full_name=payload.full_name,
+            tg_id=payload.tg_id,
+            tg_username=payload.tg_username,
+            login=payload.login,
+            password=payload.password,
+        )
+    except service.AdminValidationError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    except service.AdminConflictError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return AdminOut.model_validate(created)
+
+
+@router.patch("/admins/{admin_id}", response_model=AdminOut)
+async def update_platform_admin(
+    admin_id: int, payload: AdminUpdate, admin: CurrentAdmin, db: DbSession
+) -> AdminOut:
+    target = await admin_repo.get_admin_by_id(db, admin_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "admin not found")
+    try:
+        updated = await service.update_admin(
+            db,
+            target,
+            acting_admin_id=admin.id,
+            full_name=payload.full_name,
+            tg_username=payload.tg_username,
+            password=payload.password,
+            is_active=payload.is_active,
+        )
+    except service.AdminValidationError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    except service.AdminLockoutError as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)
+        ) from exc
+    return AdminOut.model_validate(updated)
 
 
 # ─── Shop CRUD ─────────────────────────────────────────────────────────

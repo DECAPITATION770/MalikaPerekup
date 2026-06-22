@@ -16,6 +16,7 @@ import AuthLog from './pages/AuthLog';
 import Debts from './pages/Debts';
 import Stats from './pages/Stats';
 import Users from './pages/Users';
+import Admins from './pages/Admins';
 import Backup from './pages/Backup';
 
 const qc = new QueryClient({
@@ -80,6 +81,7 @@ export default function App() {
                   <Route path="/shops/:id" element={<ShopDetail />} />
                   <Route path="/create"    element={<CreateShop />} />
                   <Route path="/users"     element={<Users />} />
+                  <Route path="/admins"    element={<Admins />} />
                   <Route path="/log"       element={<AuthLog />} />
                   <Route path="/debts"     element={<Debts />} />
                   <Route path="/stats"     element={<Stats />} />

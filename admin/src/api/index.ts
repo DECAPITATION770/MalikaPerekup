@@ -1,6 +1,7 @@
 import api from './client';
 import type {
-  AdminOut, AdminTokenResponse, ShopAdminOut, ShopAdminDetail,
+  AdminOut, AdminCreate, AdminUpdate, AdminTokenResponse,
+  ShopAdminOut, ShopAdminDetail,
   AccessAttemptOut, NasiyaOverdueRow, NasiyaActiveRow,
   PlatformStats, Page, CreateShopRequest, OwnerOut,
 } from '../types';
@@ -15,6 +16,17 @@ export const loginTelegram = (init_data: string) =>
 
 export const getMe = () =>
   api.get<AdminOut>('/me').then(r => r.data);
+
+// ─── Admins ────────────────────────────────────────────────────────────────
+
+export const getAdmins = () =>
+  api.get<AdminOut[]>('/admins').then(r => r.data);
+
+export const createAdmin = (data: AdminCreate) =>
+  api.post<AdminOut>('/admins', data).then(r => r.data);
+
+export const updateAdmin = (id: number, data: AdminUpdate) =>
+  api.patch<AdminOut>(`/admins/${id}`, data).then(r => r.data);
 
 // ─── Shops ─────────────────────────────────────────────────────────────────
 
