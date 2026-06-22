@@ -101,6 +101,12 @@ export async function getPeriodReportXlsx(from: string, to: string): Promise<Blo
   return data;
 }
 
+/** Telegram WebView can't save blob downloads — ask the bot to send the
+ *  period workbook to the user's chat as a document instead. */
+export async function sendPeriodReportXlsx(from: string, to: string): Promise<void> {
+  await api.post('/reports/period.xlsx/send', null, { params: { from, to } });
+}
+
 export async function getInventoryValue(): Promise<InventoryValue> {
   const { data } = await api.get<InventoryValue>('/reports/inventory-value');
   return data;
@@ -165,6 +171,18 @@ export async function getExportXlsx(
     responseType: 'blob',
   });
   return data;
+}
+
+/** Telegram WebView can't save blob downloads — ask the bot to send the
+ *  flat table export to the user's chat as a document instead. */
+export async function sendExportXlsx(
+  entity: ExportEntity,
+  columns: string[],
+  range?: { from: string; to: string },
+): Promise<void> {
+  await api.post('/reports/export.xlsx/send', null, {
+    params: { entity, columns: columns.join(','), ...(range ?? {}) },
+  });
 }
 
 /** Group active sales by one dimension over a period, with optional filters. */

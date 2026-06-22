@@ -62,13 +62,16 @@ import {
   getInventoryValue,
   getPeriodReport,
   getPeriodReportXlsx,
+  sendExportXlsx,
+  sendPeriodReportXlsx,
   type BreakdownGroupBy,
   type BreakdownRow,
   type ExportEntity,
 } from '@/api/reports';
 import { compactUnits, fmtUzs, fmtUzsCompact } from '@/lib/fmt';
-import { useTgHaptic } from '@/lib/telegram';
+import { isTelegramEnvironment, useTgHaptic } from '@/lib/telegram';
 import { track } from '@/lib/analytics';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 function todayStr() {
@@ -140,15 +143,21 @@ export default function Reports() {
     setExporting(true);
     haptic.tap('light');
     try {
-      const blob = await getPeriodReportXlsx(from, to);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `malika-report-${from}_${to}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      if (isTelegramEnvironment()) {
+        // WebView can't save blob downloads — the bot delivers it to chat.
+        await sendPeriodReportXlsx(from, to);
+        toast.success(t('reports.export_sent'));
+      } else {
+        const blob = await getPeriodReportXlsx(from, to);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `malika-report-${from}_${to}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
       track('report_exported', { preset });
     } finally {
       setExporting(false);
@@ -446,19 +455,22 @@ function ExportTable({ from, to }: { from: string; to: string }) {
     try {
       // Preserve registry order, not click order.
       const ordered = columns.map((c) => c.key).filter((k) => selected.has(k));
-      const blob = await getExportXlsx(
-        entity,
-        ordered,
-        periodOnly ? { from, to } : undefined,
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `malika-${entity}-${from}_${to}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const range = periodOnly ? { from, to } : undefined;
+      if (isTelegramEnvironment()) {
+        // WebView can't save blob downloads — the bot delivers it to chat.
+        await sendExportXlsx(entity, ordered, range);
+        toast.success(t('reports.export_sent'));
+      } else {
+        const blob = await getExportXlsx(entity, ordered, range);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `malika-${entity}-${from}_${to}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
       track('report_exported', { preset: `table:${entity}` });
     } finally {
       setBusy(false);

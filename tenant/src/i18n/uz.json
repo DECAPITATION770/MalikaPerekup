@@ -543,6 +543,7 @@
     "empty": "Tanlangan davr uchun sotuvlar yo'q",
     "no_data": "—",
     "export": "Eksport",
+    "export_sent": "Fayl bot chatiga yuborildi",
     "profit_by_day": "Kunlik foyda",
     "vs_prev_period": "o'tgan davrga nisbatan",
     "breakdown_title": "Kesimlar konstruktori",
