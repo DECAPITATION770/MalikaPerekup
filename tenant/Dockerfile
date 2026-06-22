@@ -17,6 +17,9 @@ COPY . .
 # `pnpm build` = `tsc -b && vite build`. No VITE_* build args required —
 # the API base is the relative path `/api/v1` (the edge proxy routes it),
 # and Sentry/analytics self-disable when their env vars are absent.
+# Raise V8's heap cap so the production bundle build can spill into swap on
+# low-RAM hosts (the market server is a ~1 GB box) instead of OOM-killing.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 RUN pnpm build
 
 # ─── Runtime stage ──────────────────────────────────────────────────
