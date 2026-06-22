@@ -69,7 +69,7 @@ import {
   type ExportEntity,
 } from '@/api/reports';
 import { compactUnits, fmtUzs, fmtUzsCompact } from '@/lib/fmt';
-import { isTelegramEnvironment, useTgHaptic } from '@/lib/telegram';
+import { useTelegram, useTgHaptic } from '@/lib/telegram';
 import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -88,6 +88,9 @@ type Preset = '7d' | '30d' | '90d' | 'custom';
 export default function Reports() {
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  // Captured once at app init — the launch hash isTelegramEnvironment() reads
+  // is consumed by the SDK, so a fresh call on this route would read false.
+  const { inTelegram } = useTelegram();
   const COMPACT = compactUnits(t);
   const [preset, setPreset] = useState<Preset>('30d');
   const [customFrom, setCustomFrom] = useState(daysAgo(30));
@@ -143,7 +146,7 @@ export default function Reports() {
     setExporting(true);
     haptic.tap('light');
     try {
-      if (isTelegramEnvironment()) {
+      if (inTelegram) {
         // WebView can't save blob downloads — the bot delivers it to chat.
         await sendPeriodReportXlsx(from, to);
         toast.success(t('reports.export_sent'));
@@ -159,6 +162,8 @@ export default function Reports() {
         URL.revokeObjectURL(url);
       }
       track('report_exported', { preset });
+    } catch {
+      toast.error(t('reports.export_error'));
     } finally {
       setExporting(false);
     }
@@ -425,6 +430,7 @@ const EXPORT_ENTITIES: ExportEntity[] = ['sales', 'devices', 'purchases'];
 function ExportTable({ from, to }: { from: string; to: string }) {
   const { t } = useTranslation();
   const haptic = useTgHaptic();
+  const { inTelegram } = useTelegram();
   const [entity, setEntity] = useState<ExportEntity>('sales');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [periodOnly, setPeriodOnly] = useState(true);
@@ -456,7 +462,7 @@ function ExportTable({ from, to }: { from: string; to: string }) {
       // Preserve registry order, not click order.
       const ordered = columns.map((c) => c.key).filter((k) => selected.has(k));
       const range = periodOnly ? { from, to } : undefined;
-      if (isTelegramEnvironment()) {
+      if (inTelegram) {
         // WebView can't save blob downloads — the bot delivers it to chat.
         await sendExportXlsx(entity, ordered, range);
         toast.success(t('reports.export_sent'));
@@ -472,6 +478,8 @@ function ExportTable({ from, to }: { from: string; to: string }) {
         URL.revokeObjectURL(url);
       }
       track('report_exported', { preset: `table:${entity}` });
+    } catch {
+      toast.error(t('reports.export_error'));
     } finally {
       setBusy(false);
     }
