@@ -557,6 +557,7 @@
     "export": "Экспорт",
     "export_sent": "Файл отправлен в чат с ботом",
     "export_error": "Не удалось выгрузить отчёт",
+    "export_downloading": "Скачивание файла…",
     "profit_by_day": "Прибыль по дням",
     "vs_prev_period": "к прошлому периоду",
     "breakdown_title": "Конструктор разрезов",

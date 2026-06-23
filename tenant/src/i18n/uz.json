@@ -545,6 +545,7 @@
     "export": "Eksport",
     "export_sent": "Fayl bot chatiga yuborildi",
     "export_error": "Hisobotni yuklab bo‘lmadi",
+    "export_downloading": "Fayl yuklab olinmoqda…",
     "profit_by_day": "Kunlik foyda",
     "vs_prev_period": "o'tgan davrga nisbatan",
     "breakdown_title": "Kesimlar konstruktori",

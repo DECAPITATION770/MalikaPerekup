@@ -30,15 +30,21 @@ import {
 
 /** True iff we're running inside Telegram (initData is present). */
 export function isTelegramEnvironment(): boolean {
-  // The SDK sets `window.Telegram.WebApp` and parses launch params from the URL
-  // hash. The most reliable signal is presence of `tgWebAppPlatform` in URL.
   if (typeof window === 'undefined') return false;
+  // Strongest signal: `window.Telegram.WebApp.initData`, set by Telegram's
+  // telegram-web-app.js. It's the same value auth uses to sign in, and unlike
+  // the launch hash (which the SDK consumes on init) it persists across client
+  // navigation — so it's reliable when called later (e.g. on /reports).
+  const tg = (window as unknown as {
+    Telegram?: { WebApp?: { initData?: string } };
+  }).Telegram?.WebApp;
+  if (tg && typeof tg.initData === 'string' && tg.initData.length > 0) return true;
   const hash = window.location.hash;
   const search = window.location.search;
   return (
     /tgWebAppPlatform/.test(hash) ||
     /tgWebAppPlatform/.test(search) ||
-    Boolean((window as unknown as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp)
+    Boolean(tg)
   );
 }
 
